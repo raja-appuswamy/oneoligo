@@ -129,23 +129,17 @@ typedef std::tuple<int, int, int> idthree;
 
 
 
-template <typename T>
 class arrayWrapper{
 
 public:
-	T *original_buffer;
 	size_t size;
 	size_t offset; //In number of element
 
-	arrayWrapper(T* ptr, size_t size, size_t offset){
-		this->original_buffer=ptr;
+	arrayWrapper(size_t size, size_t offset){
 		this->size=size;
 		this->offset=offset;
 	}
 
-	void setPtr(T *newPtr){
-		this->original_buffer=newPtr;
-	}
 
 
 };
@@ -514,6 +508,7 @@ void parallel_embedding_batched(queue &device_queue, int* len_oristrings, char *
 		std::lock_guard<std::mutex> lk(output);
 		cout << "\tTask: Embedding Data\t";
 		std::cout << "Device: " << device_queue.get_device().get_info<info::device::name>() << std::endl;
+		std::cout<<"\n\tLen output: "<<len_output<<std::endl;
 	}
 
 	unsigned int size_p=NUM_STR*NUM_CHAR*(samplingrange+1);
@@ -1026,7 +1021,7 @@ void generate_candidates_2dev(queue &device_queue, vector<int> &len, char* orist
 }
 
 
-void generate_candidates_2dev_wrapper(vector<queue> queues, vector<int> &len, char* oristrings, char **embdata, vector<tuple<int,int,int,int,int>> &buckets, unsigned int batch_size, vector<tuple<int,int>> &bucket_delimiter, vector<std::tuple<int,int,int,int,int,int>>& candidate, vector<int> &candidates_start, int * local_hash_lsh, vector<int> &lshnumber, uint32_t len_output, vector<arrayWrapper<tuple<int,int>>> &partitionsBucketsDelimiter, vector<arrayWrapper<int>> &partitionsCandStart, vector<arrayWrapper<tuple<int,int,int,int,int>>> &partitionsBuckets, vector<arrayWrapper<tuple<int,int,int,int,int,int>>> &partitionsCandidates){
+void generate_candidates_2dev_wrapper(vector<queue>& queues, vector<int> &len, char* oristrings, char **embdata, vector<tuple<int,int,int,int,int>> &buckets, unsigned int batch_size, vector<tuple<int,int>> &bucket_delimiter, vector<std::tuple<int,int,int,int,int,int>>& candidate, vector<int> &candidates_start, int * local_hash_lsh, vector<int> &lshnumber, uint32_t len_output, vector<arrayWrapper> &partitionsBucketsDelimiter, vector<arrayWrapper> &partitionsCandStart, vector<arrayWrapper> &partitionsBuckets, vector<arrayWrapper> &partitionsCandidates){
 
 	std::cout<<"\nSelected: Generate candidate"<<std::endl;
 	vector<std::thread> threads;
@@ -1049,10 +1044,10 @@ void generate_candidates_2dev_wrapper(vector<queue> queues, vector<int> &len, ch
 				cout<<"\tbuckestDelimiter[partitionsBucketsDelimiter["<<p<<"].size+1]: "<< get<0>(bucket_delimiter[partitionsBucketsDelimiter[p].size+1]) << std::endl;
 
 
-				cout<<"\tCandStart: "<<partitionsCandStart[p].original_buffer[p]<<std::endl;
+				cout<<"\tCandStart: "<<candidates_start.data()<<std::endl;
 			}
 
-			generate_candidates_2dev(q, len, oristrings, embdata, partitionsBuckets[p].original_buffer+partitionsBuckets[p].offset, partitionsBuckets[p].size, batch_size, partitionsBucketsDelimiter[p].original_buffer+partitionsBucketsDelimiter[p].offset, partitionsBucketsDelimiter[p].size, partitionsCandidates[p].original_buffer+partitionsCandidates[p].offset, partitionsCandidates[p].size, partitionsCandStart[p].original_buffer+partitionsCandStart[p].offset, partitionsCandStart[p].size, local_hash_lsh, lshnumber, len_output);
+			generate_candidates_2dev(q, len, oristrings, embdata, buckets.data()+partitionsBuckets[p].offset, partitionsBuckets[p].size, batch_size, bucket_delimiter.data()+partitionsBucketsDelimiter[p].offset, partitionsBucketsDelimiter[p].size, candidate.data()+partitionsCandidates[p].offset, partitionsCandidates[p].size, candidates_start.data()+partitionsCandStart[p].offset, partitionsCandStart[p].size, local_hash_lsh, lshnumber, len_output);
 
 		}));
 
@@ -1184,7 +1179,7 @@ void generate_candidates_without_lshnumber_offset(queue &device_queue, vector<in
 }
 
 
-void generate_candidates_without_lshnumber_offset_2dev_wrapper(vector<queue> queues, vector<int> &len, char* oristrings, char **embdata, vector<tuple<int,int,int,int,int>> &buckets, unsigned int batch_size, vector<tuple<int,int>> &bucket_delimiter, vector<std::tuple<int,int,int,int,int,int>>& candidate, vector<int> &candidates_start, int * local_hash_lsh, vector<int> &lshnumber, uint32_t len_output, vector<arrayWrapper<tuple<int,int>>> &partitionsBucketsDelimiter, vector<arrayWrapper<int>> &partitionsCandStart, vector<arrayWrapper<tuple<int,int,int,int,int>>> &partitionsBuckets, vector<arrayWrapper<tuple<int,int,int,int,int,int>>> &partitionsCandidates){
+void generate_candidates_without_lshnumber_offset_2dev_wrapper(vector<queue>& queues, vector<int> &len, char* oristrings, char **embdata, vector<tuple<int,int,int,int,int>> &buckets, unsigned int batch_size, vector<tuple<int,int>> &bucket_delimiter, vector<std::tuple<int,int,int,int,int,int>>& candidate, vector<int> &candidates_start, int * local_hash_lsh, vector<int> &lshnumber, uint32_t len_output, vector<arrayWrapper> &partitionsBucketsDelimiter, vector<arrayWrapper> &partitionsCandStart, vector<arrayWrapper> &partitionsBuckets, vector<arrayWrapper> &partitionsCandidates){
 
 	cout << "Selected: Generate candidates - without lshnumber offset"<< std::endl;
 
@@ -1208,10 +1203,10 @@ void generate_candidates_without_lshnumber_offset_2dev_wrapper(vector<queue> que
 				cout<<"\tbuckestDelimiter[partitionsBucketsDelimiter["<<p<<"].size+1]: "<< get<0>(bucket_delimiter[partitionsBucketsDelimiter[p].size+1]) << std::endl;
 
 
-				cout<<"\tCandStart: "<<partitionsCandStart[p].original_buffer[p]<<std::endl;
+				cout<<"\tCandStart: "<<candidates_start.data()<<std::endl;
 			}
 
-			generate_candidates_without_lshnumber_offset(q, len, oristrings, embdata, partitionsBuckets[p].original_buffer+partitionsBuckets[p].offset, partitionsBuckets[p].size, batch_size, partitionsBucketsDelimiter[p].original_buffer+partitionsBucketsDelimiter[p].offset, partitionsBucketsDelimiter[p].size, partitionsCandidates[p].original_buffer+partitionsCandidates[p].offset, partitionsCandidates[p].size, partitionsCandStart[p].original_buffer+partitionsCandStart[p].offset, partitionsCandStart[p].size, local_hash_lsh, lshnumber, len_output);
+			generate_candidates_without_lshnumber_offset(q, len, oristrings, embdata, buckets.data()+partitionsBuckets[p].offset, partitionsBuckets[p].size, batch_size, bucket_delimiter.data()+partitionsBucketsDelimiter[p].offset, partitionsBucketsDelimiter[p].size, candidate.data()+partitionsCandidates[p].offset, partitionsCandidates[p].size, candidates_start.data()+partitionsCandStart[p].offset, partitionsCandStart[p].size, local_hash_lsh, lshnumber, len_output);
 
 		}));
 
@@ -1381,7 +1376,7 @@ void print_candidate_pairs( vector<tuple<int,int,int,int,int,int>> &candidates, 
 
 
 
-void initialize_candidate_pairs(vector<queue> queues, std::vector<tuple<int,int>> &buckets_delimiter, vector<tuple<int,int,int,int,int>> &buckets, vector<std::tuple<int,int,int,int,int,int>> &candidates, vector<int> &candidates_start, vector<arrayWrapper<tuple<int,int>>> &partitionsBucketsDelimiter, vector<arrayWrapper<int>> &partitionsCandStart, vector<arrayWrapper<tuple<int,int,int,int,int>>> &partitionsBuckets, vector<arrayWrapper<tuple<int,int,int,int,int,int>>> &partitionsCandidates ){
+void initialize_candidate_pairs(vector<queue>& queues, std::vector<tuple<int,int>> &buckets_delimiter, vector<tuple<int,int,int,int,int>> &buckets, vector<std::tuple<int,int,int,int,int,int>> &candidates, vector<int> &candidates_start, vector<arrayWrapper> &partitionsBucketsDelimiter, vector<arrayWrapper> &partitionsCandStart, vector<arrayWrapper> &partitionsBuckets, vector<arrayWrapper> &partitionsCandidates ){
 
 
 
@@ -1497,23 +1492,23 @@ void initialize_candidate_pairs(vector<queue> queues, std::vector<tuple<int,int>
 
 			size_t offset=split==0?0:partitionsBucketsDelimiter[split-1].size*split;
 
-			partitionsBucketsDelimiter.emplace_back(arrayWrapper<tuple<int,int>>(buckets_delimiter.data(), size_partition, offset) );
+			partitionsBucketsDelimiter.emplace_back(arrayWrapper(size_partition, offset) );
 
 
 
 			offset=split==0?0:partitionsBuckets[split-1].size+partitionsBuckets[split-1].offset;
 
-			partitionsBuckets.emplace_back(arrayWrapper<tuple<int,int,int,int,int>>(buckets.data(), size_buckets_part, offset));
+			partitionsBuckets.emplace_back(arrayWrapper(size_buckets_part, offset));
 
 
 			offset=split==0?0:partitionsCandStart[split-1].size*split;
 
-			partitionsCandStart.emplace_back(arrayWrapper<int>(candidates_start.data(), size_partition, offset) );
+			partitionsCandStart.emplace_back(arrayWrapper(size_partition, offset) );
 
 
 			offset=split==0?0:partitionsCandidates[split-1].size+partitionsCandidates[split-1].offset;
 
-			partitionsCandidates.emplace_back(arrayWrapper<tuple<int,int,int,int,int,int>>(candidates.data(), size_cand_start_part,offset ));
+			partitionsCandidates.emplace_back(arrayWrapper(size_cand_start_part,offset ));
 
 
 		}
@@ -1531,12 +1526,12 @@ void initialize_candidate_pairs(vector<queue> queues, std::vector<tuple<int,int>
 
 		std::cout<<"\n\tAddress candidates: "<<candidates.data()<<std::endl;
 		std::cout<<"\tAddress candidates start: "<<candidates_start.data()<<std::endl;
-		std::cout<<"\tAddress candidates start partition: "<<partitionsCandStart[0].original_buffer<<std::endl;
+		std::cout<<"\tAddress candidates start partition: "<<candidates_start.data()<<std::endl;
 
-		partitionsCandidates[0].setPtr(candidates.data());
-		partitionsCandidates[1].setPtr(candidates.data());
-		partitionsCandStart[0].setPtr(candidates_start.data());
-		partitionsCandStart[1].setPtr(candidates_start.data());
+//		partitionsCandidates[0].setPtr(candidates);
+//		partitionsCandidates[1].setPtr(candidates);
+//		partitionsCandStart[0].setPtr(candidates_start);
+//		partitionsCandStart[1].setPtr(candidates_start);
 
 	end=std::chrono::system_clock::now();
 
@@ -1545,7 +1540,7 @@ void initialize_candidate_pairs(vector<queue> queues, std::vector<tuple<int,int>
 }
 
 
-void initialize_candidate_pairs_onDevice(vector<queue> queues, std::vector<tuple<int,int>> &buckets_delimiter, vector<tuple<int,int,int,int,int>> &buckets, vector<std::tuple<int,int,int,int,int,int>> &candidates, vector<int> &candidates_start, vector<arrayWrapper<tuple<int,int>>> &partitionsBucketsDelimiter, vector<arrayWrapper<int>> &partitionsCandStart, vector<arrayWrapper<tuple<int,int,int,int,int>>> &partitionsBuckets, vector<arrayWrapper<tuple<int,int,int,int,int,int>>> &partitionsCandidates ){
+void initialize_candidate_pairs_onDevice(vector<queue>& queues, std::vector<tuple<int,int>> &buckets_delimiter, vector<tuple<int,int,int,int,int>> &buckets, vector<std::tuple<int,int,int,int,int,int>> &candidates, vector<int> &candidates_start, vector<arrayWrapper> &partitionsBucketsDelimiter, vector<arrayWrapper> &partitionsCandStart, vector<arrayWrapper> &partitionsBuckets, vector<arrayWrapper> &partitionsCandidates ){
 
 
 	{
@@ -1743,23 +1738,23 @@ void initialize_candidate_pairs_onDevice(vector<queue> queues, std::vector<tuple
 
 			size_t offset=split==0?0:partitionsBucketsDelimiter[split-1].size*split;
 
-			partitionsBucketsDelimiter.emplace_back(arrayWrapper<tuple<int,int>>(buckets_delimiter.data(), size_partition, offset) );
+			partitionsBucketsDelimiter.emplace_back(arrayWrapper(size_partition, offset) );
 
 
 
 			offset=split==0?0:partitionsBuckets[split-1].size+partitionsBuckets[split-1].offset;
 
-			partitionsBuckets.emplace_back(arrayWrapper<tuple<int,int,int,int,int>>(buckets.data(), size_buckets_part, offset));
+			partitionsBuckets.emplace_back(arrayWrapper(size_buckets_part, offset));
 
 
 			offset=split==0?0:partitionsCandStart[split-1].size*split;
 
-			partitionsCandStart.emplace_back(arrayWrapper<int>(candidates_start.data(), size_partition, offset) );
+			partitionsCandStart.emplace_back(arrayWrapper(size_partition, offset) );
 
 
 			offset=split==0?0:partitionsCandidates[split-1].size+partitionsCandidates[split-1].offset;
 
-			partitionsCandidates.emplace_back(arrayWrapper<tuple<int,int,int,int,int,int>>(candidates.data(), size_cand_start_part,offset ));
+			partitionsCandidates.emplace_back(arrayWrapper(size_cand_start_part,offset ));
 
 
 		}
@@ -1794,12 +1789,12 @@ void initialize_candidate_pairs_onDevice(vector<queue> queues, std::vector<tuple
 
 		std::cout<<"Address candidates: "<<candidates.data()<<std::endl;
 		std::cout<<"Address candidates start: "<<candidates_start.data()<<std::endl;
-		std::cout<<"Address candidates start partition: "<<partitionsCandStart[0].original_buffer<<std::endl;
+		std::cout<<"Address candidates start partition: "<<candidates_start.data()<<std::endl;
 
-		partitionsCandidates[0].setPtr(candidates.data());
-		partitionsCandidates[1].setPtr(candidates.data());
-		partitionsCandStart[0].setPtr(candidates_start.data());
-		partitionsCandStart[1].setPtr(candidates_start.data());
+//		partitionsCandidates[0].setPtr(candidates.data());
+//		partitionsCandidates[1].setPtr(candidates.data());
+//		partitionsCandStart[0].setPtr(candidates_start.data());
+//		partitionsCandStart[1].setPtr(candidates_start.data());
 
 	end=std::chrono::system_clock::now();
 
@@ -1840,7 +1835,7 @@ void parallel_embedding_batched_wrapper(queue &device_queue, vector<int> &len_or
 
 
 
-void parallel_embedding_batched_2dev_wrapper(vector<queue> &queues, vector<int> &len_oristrings, char (*oristrings)[LEN_INPUT], char** set_embdata_dev, unsigned int batch_size, uint32_t n_batches, vector<int> &lshnumber, uint32_t &len_output){
+void parallel_embedding_batched_2dev_wrapper(vector<queue> &queues, vector<int> &len_oristrings, char (*oristrings)[LEN_INPUT], char** &set_embdata_dev, unsigned int batch_size, uint32_t n_batches, vector<int> &lshnumber, uint32_t &len_output){
 
 	std::cout<< "Selected: Parallel embedding - batched version"<<std::endl;
 
@@ -1853,6 +1848,7 @@ void parallel_embedding_batched_2dev_wrapper(vector<queue> &queues, vector<int> 
 	int dictionary[256]={0};
 	inititalize_dictionary(dictionary);
 
+	cout<<"\n\tLen output"<<len_output<<std::endl;
 
 
 	for(int n=0; n<n_batches; n++){
@@ -1903,7 +1899,7 @@ void parallel_embedding_batched_2dev_wrapper(vector<queue> &queues, vector<int> 
 }
 
 
-void parallel_embedding_while_loop_2dev_wrapper(vector<queue> &queues, vector<int> &len_oristrings, char (*oristrings)[LEN_INPUT], char** set_embdata_dev, unsigned int batch_size, uint32_t n_batches, vector<int> &lshnumber, uint32_t &len_output){
+void parallel_embedding_while_loop_2dev_wrapper(vector<queue> &queues, vector<int> &len_oristrings, char (*oristrings)[LEN_INPUT], char** &set_embdata_dev, unsigned int batch_size, uint32_t n_batches, vector<int> &lshnumber, uint32_t &len_output){
 
 	std::cout<< "Selected: Parallel embedding - while loop version"<<std::endl;
 
@@ -1967,6 +1963,9 @@ void parallel_embedding_while_loop_2dev_wrapper(vector<queue> &queues, vector<in
 	delete[] p;
 }
 
+
+
+
 void parallel_embedding_USM_wrapper(queue &device_queue, vector<int> &len_oristrings, char (*oristrings)[LEN_INPUT], char** set_embdata_dev, unsigned int batch_size, uint32_t n_batches, vector<int> &lshnumber, uint32_t &len_output){
 
 	std::cout<< "Selected: Parallel embedding - USM version"<<std::endl;
@@ -1988,6 +1987,8 @@ void parallel_embedding_USM_wrapper(queue &device_queue, vector<int> &len_oristr
 
 	delete[] p;
 }
+
+
 
 int main(int argc, char **argv) {
 
@@ -2110,24 +2111,13 @@ int main(int argc, char **argv) {
 
 	vector<queue> queues;
 
-//	try{
-
 	queues.push_back(queue(cpu_selector{}, asyncHandler, property::queue::in_order()));
 
-//	}catch(std::exception& e){
-//		std::cout<<"Attention: no CPU device detected. Exit"<<std::endl;
-//		exit(-1); // Force device to CPU
-//	}
-//	cpu_selector device_selector1;
-//	queue cpu_queue(device_selector1, asyncHandler, property::queue::in_order());
-
-//	gpu_selector device_selector2;
-//	queue gpu_queue;
 
 	try{
 
 		queue tmp_queue(gpu_selector{}, asyncHandler, property::queue::in_order());
-//		gpu_queue=std::move(tmp_queue);
+
 		queues.push_back(std::move(tmp_queue));
 
 	}catch(std::exception& e){
@@ -2135,18 +2125,9 @@ int main(int argc, char **argv) {
 		device=1; // Force device to CPU
 	}
 
-
-//	char **set_embdata_dev=(char**)malloc(n_batches*sizeof(char*));
+	cout<<"\nNumber of devices: "<<queues.size()<<std::endl<<std::endl;
 
 	char **set_embdata_dev=(char**)malloc_shared<char*>(n_batches, queues.back());
-
-
-
-    //char **set_embdata_gpu = (char**)malloc_shared(n_batches*sizeof(char*), gpu_queue.get_device(), gpu_queue.get_context());
-
-	//char **set_embdata_cpu = (char**)malloc_shared(n_batches*sizeof(char*), cpu_queue.get_device(), cpu_queue.get_context());
-
-
 
 
 	 /**
@@ -2156,39 +2137,43 @@ int main(int argc, char **argv) {
 	  * **/
 
 
-//	 std::vector<void(*)(queue&, vector<int>&, char(*)[LEN_INPUT], char** , unsigned int , uint32_t , vector<int>&, uint32_t&)> f_emb;
-//	 std::vector<void(*)(queue&, char**, vector<tuple<int,int,int,int,int>>&, unsigned int, int* , vector<int>&, vector<int>&, uint32_t)> f_bucket;
-//	 std::vector<void(*)(queue&, vector<int>&, char*, char**, vector<tuple<int,int,int,int,int>>&, unsigned int, vector<tuple<int,int>>&, vector<std::tuple<int,int,int,int,int,int>>&, vector<int>&, int*, vector<int>&, uint32_t)> f_cand;
-//
-//
-//	 void (*f_parallel_embedding_batched_wrapper)(queue&, vector<int>&, char (*)[LEN_INPUT] , char** , unsigned int , uint32_t , vector<int>&, uint32_t&){parallel_embedding_batched_wrapper};
-//	 void (*f_parallel_embedding_USM_wrapper)(queue&, vector<int>&, char (*)[LEN_INPUT], char** , unsigned int , uint32_t , vector<int>&, uint32_t&){parallel_embedding_USM_wrapper};
-//	 void (*f_parallel_embedding_while_loop)(queue&, vector<int>&, char(*)[LEN_INPUT], char** , unsigned int , uint32_t , vector<int>&, uint32_t&){parallel_embedding_while_loop_wrapper};
-//
-//
-////
-//
-////	 void(*f_create_buckets)(queue&, char**, vector<tuple<int,int,int,int,int>>&, unsigned int, int* , vector<int>&, vector<int>&, uint32_t){create_bucket};
-//
-//	 void(*f_create_buckets_without_offset)(queue&, char**, vector<tuple<int,int,int,int,int>>&, unsigned int, int* , vector<int>&, vector<int>&, uint32_t){create_bucket_without_lshnumber_offset};
-//
-//
-////	 void(*f_generate_candidates)(queue&, vector<int>&, char*, char**, vector<tuple<int,int,int,int,int>>&, unsigned int, vector<tuple<int,int>>&, vector<std::tuple<int,int,int,int,int,int>>&, vector<int>&, int*, vector<int>&, uint32_t){generate_candidates};
-//
-//	 void(*f_generate_candidates_without_offset)(queue&, vector<int>&, char*, char**, vector<tuple<int,int,int,int,int>>&, unsigned int, vector<tuple<int,int>>&, vector<std::tuple<int,int,int,int,int,int>>&, vector<int>&, int*, vector<int>&, uint32_t){generate_candidates_without_lshnumber_offset};
-//
-//
-//	 f_emb.push_back(f_parallel_embedding_batched_wrapper); // 0
+	 std::vector<void(*)(vector<queue>&, vector<int> &, char (*)[LEN_INPUT], char** &, unsigned int , uint32_t , vector<int> &, uint32_t &)> f_emb;
+	 std::vector<void(*)(vector<queue>&, char **, vector<tuple<int,int,int,int,int>> &, uint32_t , uint32_t , int* , vector<int> &, vector<int> &, uint32_t)> f_bucket;
+	 std::vector<void(*)(vector<queue>&, vector<int> &, char* , char **, vector<tuple<int,int,int,int,int>> &, unsigned int , vector<tuple<int,int>> &, vector<std::tuple<int,int,int,int,int,int>>&, vector<int> &, int* , vector<int>&, uint32_t , vector<arrayWrapper> &, vector<arrayWrapper> &, vector<arrayWrapper> &, vector<arrayWrapper>&)> f_cand;
+
+
+	 void (*f_parallel_embedding_batched_wrapper)(vector<queue>&, vector<int> &, char (*)[LEN_INPUT], char** &, unsigned int , uint32_t , vector<int> &, uint32_t &){parallel_embedding_batched_2dev_wrapper};
+	 void (*f_parallel_embedding_USM_wrapper)(queue&, vector<int>&, char (*)[LEN_INPUT], char** , unsigned int , uint32_t , vector<int>&, uint32_t&){parallel_embedding_USM_wrapper};
+	 void (*f_parallel_embedding_while_loop)(vector<queue>&, vector<int> &, char (*)[LEN_INPUT], char** &, unsigned int , uint32_t , vector<int> &, uint32_t &){parallel_embedding_while_loop_2dev_wrapper};
+
+
+
+
+	 void(*f_create_buckets)(vector<queue>&, char **, vector<tuple<int,int,int,int,int>> &, uint32_t , uint32_t , int* , vector<int> &, vector<int> &, uint32_t ){create_buckets_2dev_wrapper};
+
+	 void(*f_create_buckets_without_offset)(vector<queue>&, char **, vector<tuple<int,int,int,int,int>> &, uint32_t , uint32_t , int* , vector<int> &, vector<int> &, uint32_t ){create_buckets_without_lshnumber_offset_2dev_wrapper};
+
+
+
+	 void(*f_generate_candidates)(vector<queue>&, vector<int> &, char* , char **, vector<tuple<int,int,int,int,int>> &, unsigned int , vector<tuple<int,int>> &, vector<std::tuple<int,int,int,int,int,int>>&, vector<int> &, int* , vector<int>&, uint32_t , vector<arrayWrapper> &, vector<arrayWrapper> &, vector<arrayWrapper> &, vector<arrayWrapper> &){generate_candidates_2dev_wrapper};
+
+	 void(*f_generate_candidates_without_offset)(vector<queue>&, vector<int> &, char* , char **, vector<tuple<int,int,int,int,int>> &, unsigned int , vector<tuple<int,int>> &, vector<std::tuple<int,int,int,int,int,int>>& , vector<int> &, int * , vector<int> &, uint32_t , vector<arrayWrapper> &, vector<arrayWrapper> &, vector<arrayWrapper> &, vector<arrayWrapper> &){generate_candidates_without_lshnumber_offset_2dev_wrapper};
+
+
+	 f_emb.push_back(f_parallel_embedding_batched_wrapper); // 0
+
 //	 f_emb.push_back(f_parallel_embedding_USM_wrapper); // 1
-//	 f_emb.push_back(f_parallel_embedding_while_loop); // 2
-//
-//
-//
-////	 f_bucket.push_back(f_create_buckets); // 0
-//	 f_bucket.push_back(f_create_buckets_without_offset); // 1
-//
-////	 f_cand.push_back(f_generate_candidates); // 0
-//	 f_cand.push_back(f_generate_candidates_without_offset); // 1
+	 f_emb.push_back(f_parallel_embedding_batched_wrapper); // 1
+
+	 f_emb.push_back(f_parallel_embedding_while_loop); // 2
+
+
+
+	 f_bucket.push_back(f_create_buckets); // 0
+	 f_bucket.push_back(f_create_buckets_without_offset); // 1
+
+	 f_cand.push_back(f_generate_candidates); // 0
+	 f_cand.push_back(f_generate_candidates_without_offset); // 1
 
 
 	/**
@@ -2227,10 +2212,11 @@ int main(int argc, char **argv) {
 	 **/
 
 
-    //f_emb[alg_number[0]](device_queue, len_oristrings, oristrings, set_embdata_dev, batch, n_batches, lshnumber, len_output);
+    f_emb[alg_number[0]](queues, len_oristrings, oristrings, set_embdata_dev, batch, n_batches, lshnumber, len_output);
 
+//    parallel_embedding_USM_wrapper(queues.back(), len_oristrings, oristrings, set_embdata_dev, batch, n_batches, lshnumber, len_output);
 
-    parallel_embedding_batched_2dev_wrapper(queues, len_oristrings, oristrings, set_embdata_dev, batch, n_batches, lshnumber, len_output);;
+//    parallel_embedding_batched_2dev_wrapper(queues, len_oristrings, oristrings, set_embdata_dev, batch, n_batches, lshnumber, len_output);;
 
 //    parallel_embedding_while_loop_2dev_wrapper(queues, len_oristrings, oristrings, set_embdata_dev, batch, n_batches, lshnumber, len_output);
 
@@ -2271,10 +2257,10 @@ int main(int argc, char **argv) {
 //
 	start=std::chrono::system_clock::now();
 
-	//f_bucket[alg_number[1]](device_queue, (char**)set_embdata_dev, buckets, batch, (int*)hash_lsh, a, lshnumber, len_output);
+	f_bucket[alg_number[1]](queues, (char**)set_embdata_dev, buckets, n_batches, batch, (int*)hash_lsh, a, lshnumber, len_output);
 
 
-	create_buckets_2dev_wrapper(queues, (char**)set_embdata_dev, buckets, n_batches, batch, (int*)hash_lsh, a, lshnumber, len_output);
+//	create_buckets_2dev_wrapper(queues, (char**)set_embdata_dev, buckets, n_batches, batch, (int*)hash_lsh, a, lshnumber, len_output);
 
 //	create_buckets_without_lshnumber_offset_2dev_wrapper(queues, (char**)set_embdata_dev, buckets, n_batches, batch, (int*)hash_lsh, a, lshnumber, len_output);
 
@@ -2283,6 +2269,7 @@ int main(int argc, char **argv) {
 	time_create_buckets=std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
 
 	cout<<"Time buckets creation: "<<(float)time_create_buckets/1000<<"sec"<<std::endl;
+
 
 
 	start=std::chrono::system_clock::now();
@@ -2327,10 +2314,10 @@ int main(int argc, char **argv) {
 	 start=std::chrono::system_clock::now();
 
 	 //TODO: Change the "2" among parameter
-	 vector<arrayWrapper<tuple<int,int,int,int,int>>> partitionsBuckets;
-	 vector<arrayWrapper<tuple<int,int>>> partitionsBucketsDelimiter;
-	 vector<arrayWrapper<int>> partitionsCandStart;
-	 vector<arrayWrapper<tuple<int,int,int,int,int,int>>> partitionsCandidates;
+	 vector<arrayWrapper> partitionsBuckets;
+	 vector<arrayWrapper> partitionsBucketsDelimiter;
+	 vector<arrayWrapper> partitionsCandStart;
+	 vector<arrayWrapper> partitionsCandidates;
 
 
 	 initialize_candidate_pairs(queues, buckets_delimiter, buckets, candidates, candidates_start, partitionsBucketsDelimiter, partitionsCandStart, partitionsBuckets, partitionsCandidates);
@@ -2339,7 +2326,12 @@ int main(int argc, char **argv) {
 
 	 time_candidate_initialization=std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
 
+	 std::cout<<time_candidate_initialization<<std::endl;
 
+
+
+
+	 //exit(0);
 
 	 /**
 	 *
@@ -2353,14 +2345,15 @@ int main(int argc, char **argv) {
 	 start=std::chrono::system_clock::now();
 
 
-//	 f_cand[alg_number[2]](device_queue, len_oristrings, (char*)oristrings, (char**)set_embdata_dev, buckets, batch, buckets_delimiter, candidates, candidates_start, (int *)hash_lsh, lshnumber, len_output);
+	 f_cand[alg_number[2]](queues, len_oristrings, (char*)oristrings, (char**)set_embdata_dev, buckets, batch, buckets_delimiter, candidates, candidates_start, (int *)hash_lsh, lshnumber, len_output, partitionsBucketsDelimiter, partitionsCandStart, partitionsBuckets, partitionsCandidates);
 
- 	 generate_candidates_2dev_wrapper(queues, len_oristrings, (char*)oristrings, (char**)set_embdata_dev, buckets, batch, buckets_delimiter, candidates, candidates_start, (int *)hash_lsh, lshnumber, len_output, partitionsBucketsDelimiter, partitionsCandStart, partitionsBuckets, partitionsCandidates);
+// 	 generate_candidates_2dev_wrapper(queues, len_oristrings, (char*)oristrings, (char**)set_embdata_dev, buckets, batch, buckets_delimiter, candidates, candidates_start, (int *)hash_lsh, lshnumber, len_output, partitionsBucketsDelimiter, partitionsCandStart, partitionsBuckets, partitionsCandidates);
 //	 generate_candidates_without_lshnumber_offset_2dev_wrapper(queues, len_oristrings, (char*)oristrings, (char**)set_embdata_dev, buckets, batch, buckets_delimiter, candidates, candidates_start, (int *)hash_lsh, lshnumber, len_output, partitionsBucketsDelimiter, partitionsCandStart, partitionsBuckets, partitionsCandidates);
 
 	 end=std::chrono::system_clock::now();
 
 	 time_generate_candidates=std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
+
 
 	 cout<<"\n\nStarting candidate processing analysis..."<<std::endl;
 
@@ -2510,7 +2503,7 @@ int main(int argc, char **argv) {
 	int cont=0;
 	std::mutex mt;
 
-	vector<int> solutions(to_verify,0);
+//	vector<int> solutions(to_verify,0);
 
 
 	for(int t=0; t<num_threads; t++){
@@ -2524,7 +2517,7 @@ int main(int argc, char **argv) {
 
 				if(j<to_verify){
 
-					solutions[j]++;
+//					solutions[j]++;
 
 					int first_str;
 					int second_str;
@@ -2567,12 +2560,12 @@ int main(int argc, char **argv) {
 				t.join();
 		}
 	}
-
-	for(int t=0; t<solutions.size(); t++){
-		if(solutions[t]!=1){
-			cout<<"ERROR!"<<std::endl;
-		}
-	}
+//
+//	for(int t=0; t<solutions.size(); t++){
+//		if(solutions[t]!=1){
+//			cout<<"ERROR!"<<std::endl;
+//		}
+//	}
 
 	cout<<"\n\tCont: "<<cont<<std::endl;
 
@@ -2590,19 +2583,25 @@ int main(int argc, char **argv) {
 
 	delete[] hash_lsh;
 	cout<<"\nDelete hash_lsh"<<std::endl;
+
 	delete[] oristrings;
 	cout<<"\nDelete oristrings"<<std::endl;
 
-//	for(int i=0; i<n_batches; i++){
-//		if(set_embdata_dev[i]==nullptr){
-//			cout<<"ERROR: Null pointer!"<<std::endl;
-//		}
-//		free(set_embdata_dev[i], gpu_queue.get_context());
-//		cout<<"Delete embdata["<<i<<"]"<<std::endl;
-//	}
-//	free(set_embdata_dev, gpu_queue.get_context());
-//	cout<<"Delete embdata"<<std::endl;
+	for(int i=0; i<n_batches; i++){
+		if(set_embdata_dev[i]==nullptr){
+			cout<<"ERROR: Null pointer!"<<std::endl;
+		}else{
+			free(set_embdata_dev[i], queues.back());
+			cout<<"Delete embdata["<<i<<"]"<<std::endl;
 
+		}
+	}
+	if(set_embdata_dev==nullptr){
+				cout<<"ERROR: Null pointer!"<<std::endl;
+	}else{
+		free(set_embdata_dev, queues.back());
+		cout<<"Delete embdata"<<std::endl;
+	}
 
 
 	std::string distinguisher="";
@@ -2675,7 +2674,7 @@ int main(int argc, char **argv) {
 
 	print_output("join_output_parallel.txt");
 
-//	cout<<"Back to main"<<std::endl;
+	cout<<"Back to main"<<std::endl;
 	return 0;
 
 }
