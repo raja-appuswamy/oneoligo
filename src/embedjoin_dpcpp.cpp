@@ -2111,18 +2111,25 @@ int main(int argc, char **argv) {
 
 	vector<queue> queues;
 
-	queues.push_back(queue(cpu_selector{}, asyncHandler, property::queue::in_order()));
+	if(device==0 || device==2){
 
+		queues.push_back(queue(cpu_selector{}, asyncHandler, property::queue::in_order()));
 
-	try{
+	}
 
-		queue tmp_queue(gpu_selector{}, asyncHandler, property::queue::in_order());
+	if(device==1 || device==2){
 
-		queues.push_back(std::move(tmp_queue));
+		try{
 
-	}catch(std::exception& e){
-		std::cout<<"Attention: no GPU device detected. The program will run on CPU."<<std::endl;
-		device=1; // Force device to CPU
+			queue tmp_queue(gpu_selector{}, asyncHandler, property::queue::in_order());
+
+			queues.push_back(std::move(tmp_queue));
+
+		}catch(std::exception& e){
+			std::cout<<"Attention: no GPU device detected. The program will run on CPU."<<std::endl;
+			device=1; // Force device to CPU
+		}
+
 	}
 
 	cout<<"\nNumber of devices: "<<queues.size()<<std::endl<<std::endl;
@@ -2610,6 +2617,8 @@ int main(int argc, char **argv) {
 		distinguisher+="-GPU-";
 	}else if(device==1){
 		distinguisher+="-CPU-";
+	}else if(device==2){
+		distinguisher+="-BOTH-";
 	}
 	else{
 		distinguisher+="-ERROR";
@@ -2660,6 +2669,7 @@ int main(int argc, char **argv) {
 				outFile<<"Sort Buckets,"<< (float)time_sorting_buckets/1000<<std::endl;
 				outFile<<"Candidate Initialization,"<<(float)time_candidate_initialization/1000<<std::endl;
 				outFile<<"Generate Candidate,"<< (float)time_generate_candidates/1000<<","<<dev<<std::endl;
+				outFile<<"Sort candidates: "<<(float)time_sorting_candidates/1000<<std::endl;
 				outFile<<"Candidates processing,"<< (float)time_candidate_processing/1000<<std::endl;
 				outFile<<"Edit Distance,"<< (float)time_edit_distance/1000<<std::endl;
 				outFile<<"Total Join time (w/o embedding),"<< (float)total_time_join/1000<<std::endl;
