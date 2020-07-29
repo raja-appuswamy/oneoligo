@@ -107,6 +107,29 @@ int samplingrange=5000; //the maximum digit to embed, the range to sample
 int countfilter=1;// Number of required matches (>T) for a pair of substrings to be considered as candidate
 
 
+long time_init=0;
+long time_embedding_data=0;
+long sub_time_embedding_allocation_USM=0;
+long sub_time_generate_random_string=0;
+long time_create_buckets=0;
+long time_sorting_buckets=0;
+long time_candidate_initialization=0;
+long sub_time_allocate_candidates=0;
+long sub_time_compute_partitions=0;
+long sub_time_filterout_one_elem_buckets=0;
+long sub_time_compute_buckets_delim=0;
+long sub_time_remove_candidates=0;
+long sub_time_counting_frequencies=0;
+long sub_time_remove_duplicates=0;
+long sub_time_sorting_candidates_to_verify=0;
+long sub_time_removing_low_frequencies_cand=0;
+long sub_time_removing_duplicates_from_cand_to_verify=0;
+long time_generate_candidates=0;
+long time_candidate_processing=0;
+long time_sorting_candidates=0;
+long time_edit_distance=0;
+long total_time_join=0;
+long total_time=0;
 
 
 std::string filename="reducedGen320ks.txt";
@@ -1825,12 +1848,13 @@ void initialize_candidate_pairs(vector<queue>& queues, std::vector<tuple<int,int
 
 
 
-	int j=0;
-	long size=0;
-
-	buckets_delimiter.emplace_back(make_tuple(0,0));
-
 	auto start=std::chrono::system_clock::now();
+
+		int j=0;
+		long size=0;
+
+		buckets_delimiter.emplace_back(make_tuple(0,0));
+
 
 		for(int i=0; i<buckets.size()-1; i++){ // Pay attention to size of "bucket"
 
@@ -1846,7 +1870,7 @@ void initialize_candidate_pairs(vector<queue>& queues, std::vector<tuple<int,int
 
 	auto end=std::chrono::system_clock::now();
 
-
+	sub_time_compute_buckets_delim=std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
 
 	std::cout<<"\nTime cand-init: count element: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
 
@@ -1858,6 +1882,9 @@ void initialize_candidate_pairs(vector<queue>& queues, std::vector<tuple<int,int
 		buckets_delimiter.erase( new_end, buckets_delimiter.end());
 
 	end=std::chrono::system_clock::now();
+
+	sub_time_filterout_one_elem_buckets=std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
+
 
 	std::cout<<"Time cand-init: remove element: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
 
@@ -1962,6 +1989,7 @@ void initialize_candidate_pairs(vector<queue>& queues, std::vector<tuple<int,int
 
 	std::cout<<"\nTime cand-init: count max pairs: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
 
+	sub_time_compute_partitions=std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
 
 
 
@@ -1982,6 +2010,7 @@ void initialize_candidate_pairs(vector<queue>& queues, std::vector<tuple<int,int
 
 	std::cout<<"\nTime cand-init: resize: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
 
+	sub_time_allocate_candidates=std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
 }
 
 
@@ -2565,17 +2594,7 @@ int main(int argc, char **argv) {
 
 	//DECLARING VARIABLES
 
-	long time_init=0;
-	long time_embedding_data=0;
-	long time_create_buckets=0;
-	long time_sorting_buckets=0;
-	long time_candidate_initialization=0;
-	long time_generate_candidates=0;
-	long time_candidate_processing=0;
-	long time_sorting_candidates=0;
-	long time_edit_distance=0;
-	long total_time_join=0;
-	long total_time=0;
+
 
 
 	std::chrono::time_point<std::chrono::system_clock> start, end, start_tot, end_tot;
@@ -2881,8 +2900,11 @@ int main(int argc, char **argv) {
 	 	 candidates.erase(remove_if(dpstd::execution::par_unseq, candidates.begin(), candidates.end(),[](std::tuple<int,int,int,int,int,int> e){return (get<0>(e)==-1 || get<4>(e)>K_INPUT || get<5>(e)!=0 || get<0>(e)==get<2>(e));}), candidates.end());
 
 	 auto end_2=std::chrono::system_clock::now();
+
+	 sub_time_remove_candidates=std::chrono::duration_cast<std::chrono::milliseconds>(end_2-start_2).count();
+
 	 std::cout<<std::endl;
-	 std::cout<<"Remove some candidates: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end_2-start_2).count()/1000<<std::endl;
+	 std::cout<<"Remove some candidates: "<<(float)sub_time_remove_candidates/1000<<std::endl;
 
 
 
@@ -2947,15 +2969,25 @@ int main(int argc, char **argv) {
 		}
 
 	end_2=std::chrono::system_clock::now();
+
+	 sub_time_counting_frequencies=std::chrono::duration_cast<std::chrono::milliseconds>(end_2-start_2).count();
+
 	std::cout<<std::endl;
-	std::cout<<"Counting freq: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end_2-start_2).count()/1000<<std::endl;
+	std::cout<<"Counting freq: "<<(float)sub_time_counting_frequencies/1000<<std::endl;
+
+
 
 	start_2=std::chrono::system_clock::now();
 
 		candidates.erase(unique( candidates.begin(), candidates.end() ), candidates.end());
 
 	end_2=std::chrono::system_clock::now();
-	std::cout<<"Make uniq: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end_2-start_2).count()/1000<<std::endl;
+
+	 sub_time_remove_duplicates=std::chrono::duration_cast<std::chrono::milliseconds>(end_2-start_2).count();
+
+	std::cout<<"Make uniq: "<<(float)sub_time_remove_duplicates/1000<<std::endl;
+
+
 
 	start_2=std::chrono::system_clock::now();
 
@@ -2968,7 +3000,10 @@ int main(int argc, char **argv) {
 		}
 
 	end_2=std::chrono::system_clock::now();
-	std::cout<<"Filter out candidates: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end_2-start_2).count()/1000<<std::endl;
+
+	 sub_time_removing_low_frequencies_cand=std::chrono::duration_cast<std::chrono::milliseconds>(end_2-start_2).count();
+
+	std::cout<<"Filter out candidates: "<<(float)sub_time_removing_low_frequencies_cand/1000<<std::endl;
 
 	int num_candidate=0;
 
@@ -2977,7 +3012,9 @@ int main(int argc, char **argv) {
 		sort(verifycan.begin(), verifycan.end());
 
 	end_2=std::chrono::system_clock::now();
-	std::cout<<"Sort verifycan: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end_2-start_2).count()/1000<<std::endl;
+	sub_time_sorting_candidates_to_verify=std::chrono::duration_cast<std::chrono::milliseconds>(end_2-start_2).count();
+
+	std::cout<<"Sort verifycan: "<<(float)sub_time_sorting_candidates_to_verify/1000<<std::endl;
 
 
 	start_2=std::chrono::system_clock::now();
@@ -2985,7 +3022,9 @@ int main(int argc, char **argv) {
 		verifycan.erase(unique(verifycan.begin(), verifycan.end()), verifycan.end());
 
 	end_2=std::chrono::system_clock::now();
-	std::cout<<"Uniq verifycan: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end_2-start_2).count()/1000<<std::endl;
+	sub_time_removing_duplicates_from_cand_to_verify=std::chrono::duration_cast<std::chrono::milliseconds>(end_2-start_2).count();
+
+	std::cout<<"Uniq verifycan: "<<(float)sub_time_removing_duplicates_from_cand_to_verify/1000<<std::endl;
 
 	end=std::chrono::system_clock::now();
 
@@ -3137,10 +3176,10 @@ int main(int argc, char **argv) {
 		distinguisher+="BATCHED-WHILE-";
 	}
 	else if(alg_number[0]==1 && alg_number[1]==0 && alg_number[2]==0){
-			distinguisher+="-USM-";
+			distinguisher+="USM-";
 	}
 	else if(alg_number[0]==3 && alg_number[1]==1 && alg_number[2]==1){
-				distinguisher+="-USM-NO_WHILE";
+				distinguisher+="-USM-NO_WHILE-";
 	}
 	else{
 		distinguisher+="ERROR";
@@ -3153,7 +3192,7 @@ int main(int argc, char **argv) {
 	std::cout<<"Time read data: "<<(float)time_init/1000<<std::endl;
 	std::cout<<"Time PARALLEL embedding data:\t"<< (float)time_embedding_data/1000<<"sec"<<std::endl;
 	std::cout<<"Time PARALLEL buckets generation:\t"<< (float)time_create_buckets/1000<<"sec"<<std::endl;
-	std::cout<<"Time buckets sorting: "<< (float)time_sorting_buckets/1000<<"sec"<<std::endl;
+	std::cout<<"Time buckets sorting:\t"<< (float)time_sorting_buckets/1000<<"sec"<<std::endl;
 	std::cout<<"Time candidate initialization:\t"<< (float)time_candidate_initialization/1000<<"sec"<<std::endl;
 	std::cout<<"Time PARALLEL candidates generation:\t"<< (float)time_generate_candidates/1000<<"sec"<<std::endl;
 	std::cout<<"Time candidates processing:\t"<< (float)time_candidate_processing/1000<<"sec"<<std::endl;
@@ -3188,18 +3227,40 @@ int main(int argc, char **argv) {
 			if (outFile.is_open()) {
 
 				//outFile<</*get<4>(candidates[i])<<", "<<get<5>(candidates[i])<<", "<<*/get<0>(candidates[i])<<", "<<get<1>(candidates[i])<<", "<<get<2>(candidates[i])<<", "<<get<3>(candidates[i])<<std::endl;
-				outFile<<"Step,Time(sec),Device"<<std::endl;
-				outFile<<"Read Data,"<<(float)time_init/1000<<std::endl;
-				outFile<<"Embedding,"<<(float)time_embedding_data/1000<<","<<dev<<std::endl;
-				outFile<<"Create Buckets,"<< (float)time_create_buckets/1000<<","<<dev<<std::endl;
-				outFile<<"Sort Buckets,"<< (float)time_sorting_buckets/1000<<std::endl;
-				outFile<<"Candidate Initialization,"<<(float)time_candidate_initialization/1000<<std::endl;
-				outFile<<"Generate Candidate,"<< (float)time_generate_candidates/1000<<","<<dev<<std::endl;
-				outFile<<"Sort candidates: "<<(float)time_sorting_candidates/1000<<std::endl;
-				outFile<<"Candidates processing,"<< (float)time_candidate_processing/1000<<std::endl;
-				outFile<<"Edit Distance,"<< (float)time_edit_distance/1000<<std::endl;
-				outFile<<"Total Join time (w/o embedding),"<< (float)total_time_join/1000<<std::endl;
-				outFile<<"Total Alg time,"<< (float)total_time/1000<<std::endl;
+				outFile<<"Step,SubStep,Time(sec),Device"<<std::endl;
+				outFile<<"Read Data,\t,"<<(float)time_init/1000<<std::endl;
+				outFile<<"Embedding,\t,"<<(float)time_embedding_data/1000<<","<<dev<<std::endl;
+				outFile<<"\t,USM allocation,"<<(float)sub_time_embedding_allocation_USM/1000<<std::endl;
+				outFile<<"\t,Random string generation,"<<(float)sub_time_generate_random_string/1000<<std::endl;
+				outFile<<"Create Buckets,\t,"<< (float)time_create_buckets/1000<<","<<dev<<std::endl;
+				outFile<<"Sort Buckets,\t,"<< (float)time_sorting_buckets/1000<<std::endl;
+				outFile<<"Candidate Initialization,\t,"<<(float)time_candidate_initialization/1000<<std::endl;
+				outFile<<"\t,Compute buckets delimiter,"<<(float)sub_time_compute_buckets_delim/1000<<std::endl;
+				outFile<<"\t,Filter one element buckets,"<<(float)sub_time_filterout_one_elem_buckets/1000<<std::endl;
+				outFile<<"\t,Compute partitions,"<<(float)sub_time_compute_partitions/1000<<std::endl;
+				outFile<<"\t,Allocate candidate vector,"<<(float)sub_time_allocate_candidates/1000<<std::endl;
+
+
+				outFile<<"Generate Candidate,\t,"<< (float)time_generate_candidates/1000<<","<<dev<<std::endl;
+				outFile<<"Candidates processing,\t,"<< (float)time_candidate_processing/1000<<std::endl;
+
+				outFile<<"\t,Sort candidates,"<<(float)time_sorting_candidates/1000<<std::endl;
+
+				outFile<<"\t,Remove candidates,"<<(float)sub_time_remove_candidates/1000<<std::endl;
+				outFile<<"\t,Counting frequencies,"<<(float)sub_time_counting_frequencies/1000<<std::endl;
+
+				outFile<<"\t,Remove duplicates,"<<(float)sub_time_remove_duplicates/1000<<std::endl;
+				outFile<<"\t,Sorting candidates to verify,"<<(float)sub_time_sorting_candidates_to_verify/1000<<std::endl;
+				outFile<<"\t,Remove low frequencies candidates,"<<(float)sub_time_removing_low_frequencies_cand/1000<<std::endl;
+
+				outFile<<"\t,Removing duplicates,"<<(float)sub_time_removing_duplicates_from_cand_to_verify/1000<<std::endl;
+
+
+
+
+				outFile<<"Edit Distance,\t,"<< (float)time_edit_distance/1000<<std::endl;
+				outFile<<"Total Join time (w/o embedding),\t,"<< (float)total_time_join/1000<<std::endl;
+				outFile<<"Total Alg time,\t,"<< (float)total_time/1000<<std::endl;
 
 			}
 			if(PRINT_EACH_STEP==1){
