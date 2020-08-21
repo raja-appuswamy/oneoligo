@@ -161,7 +161,7 @@ typedef std::tuple<int, int, int> idthree;
 	#define OLD_VERSION 0
 #endif
 
-
+//TODO Remove
 class arrayWrapper{
 
 public:
@@ -174,6 +174,253 @@ public:
 	}
 
 
+
+};
+
+
+
+class Time {
+
+public:
+
+	std::chrono::system_clock::time_point t=std::chrono::system_clock::now();
+
+	vector<long> read_time={-1,-1}; // 0,1,0
+
+
+	vector<long> embeddata={-1,-1}; // 0,1,0
+	vector<long> embeddata_allocation_USM={-1,-1}; // 0,1,1
+	vector<long> embeddata_generate_random_string={-1,-1}; // 0,1,2
+	vector<long> embeddata_measure={-1,-1}; // 0,1,3
+	vector<long> embeddata_computation={-1,-1}; // 0,1,4
+
+
+
+
+	vector<long> create_buckets={-1,-1}; // 0,2,0
+	vector<long> create_buckets_measure={-1,-1}; // 0,2,1
+	vector<long> create_buckets_computation={-1,-1}; // 0,2,2
+
+	vector<long> sorting_buckets={-1,-1}; // 0,3,0
+
+
+	vector<long> init_cand={-1,-1}; // 0,4,0
+	vector<long> init_cand_compute_buckets_delim={-1,-1}; // 0,4,1
+	vector<long> init_cand_remove_one_elem_buckets={-1,-1}; // 0,4,2
+	vector<long> init_cand_resize={-1,-1}; // 0,4,3
+	vector<long> init_cand_scan_cand_vector={-1,-1}; // 0,4,4
+
+
+
+	vector<long> generate_cand={-1,-1}; // 0,5,0
+	vector<long> generate_cand_measure={-1,-1}; // 0,5,1
+	vector<long> generate_cand_computation={-1,-1}; // 0,5,2
+
+	vector<long> cand_proc={-1,-1}; // 0,6,0
+	vector<long> cand_proc_remove_candidates={-1,-1}; // 0,6,1
+	vector<long> cand_proc_sorting_cand={-1,-1}; // 0,6,2
+	vector<long> cand_proc_counting_frequencies={-1,-1}; // 0,6,3
+	vector<long> cand_proc_remove_duplicates={-1,-1}; // 0,6,4
+	vector<long> cand_proc_sorting_candidates_to_verify={-1,-1}; // 0,6,5
+	vector<long> cand_proc_removing_low_frequencies_cand={-1,-1}; // 0,6,6
+	vector<long> cand_proc_removing_duplicates_from_cand_to_verify={-1,-1}; // 0,6,7
+
+	vector<long> edit_dist={-1,-1}; // 0,7,0
+
+	vector<long> total_join_time={-1,-1}; // 1,0,0
+	vector<long> total_alg_time={-1,-1}; // 2,0,0
+
+
+	void print_report(std::string dev){
+		cout<<"Step,SubStep,Time(sec),Device"<<std::endl;
+		cout<<"Read Data,\t,"<<get_time(this->read_time)<<std::endl;
+		cout<<"Embedding,\t,"<<get_time(this->embeddata)<<","<<dev<<std::endl;
+		cout<<"\t,USM allocation,"<<get_time(this->embeddata_allocation_USM)<<std::endl;
+		cout<<"\t,Random string generation,"<<get_time(this->embeddata_generate_random_string)<<std::endl;
+		cout<<"\t,Measurement,"<<get_time(this->embeddata_generate_random_string)<<std::endl;
+		cout<<"\t,Computing,"<<get_time(this->embeddata_generate_random_string)<<std::endl;
+
+		cout<<"Create Buckets,\t,"<<get_time(this->create_buckets)<<","<<dev<<std::endl;
+		cout<<"\t,Measurement,"<<get_time(this->create_buckets_measure)<<std::endl;
+		cout<<"\t,Computing,"<<get_time(this->create_buckets_computation)<<std::endl;
+
+		cout<<"Sort Buckets,\t,"<< get_time(this->sorting_buckets) <<std::endl;
+		cout<<"Candidate Initialization,\t,"<<get_time(this->init_cand)<<std::endl;
+		cout<<"\t,Compute buckets delimiter,"<<get_time(this->init_cand_compute_buckets_delim)<<std::endl;
+		cout<<"\t,Filter one element buckets,"<<get_time(this->init_cand_remove_one_elem_buckets)<<std::endl;
+		cout<<"\t,Allocate candidate vector,"<<get_time(this->init_cand_resize)<<std::endl;
+		cout<<"\t,Scan cand vector (write i,j),"<<get_time(this->init_cand_scan_cand_vector)<<std::endl;
+
+
+		cout<<"Generate Candidate,\t,"<< get_time(this->generate_cand)<<","<<dev<<std::endl;
+		cout<<"\t,Measurement,"<<get_time(this->generate_cand_measure)<<std::endl;
+		cout<<"\t,Computing,"<<get_time(this->generate_cand_computation)<<std::endl;
+
+		cout<<"Candidates processing,\t,"<<get_time(this->generate_cand_measure)<<std::endl;
+
+		cout<<"\t,Remove candidates,"<<get_time(this->cand_proc_remove_candidates)<<std::endl;
+
+		cout<<"\t,Sort candidates,"<<get_time(this->cand_proc_sorting_cand)<<std::endl;
+
+		cout<<"\t,Counting frequencies,"<<get_time(this->cand_proc_counting_frequencies)<<std::endl;
+
+		cout<<"\t,Remove duplicates,"<<get_time(this->cand_proc_remove_duplicates)<<std::endl;
+		cout<<"\t,Sorting candidates to verify,"<<get_time(this->cand_proc_sorting_candidates_to_verify)<<std::endl;
+		cout<<"\t,Remove low frequencies candidates,"<<get_time(this->cand_proc_removing_low_frequencies_cand)<<std::endl;
+
+		cout<<"\t,Removing duplicates,"<<get_time(this->cand_proc_removing_duplicates_from_cand_to_verify)<<std::endl;
+
+
+
+
+		cout<<"Edit Distance,\t,"<<get_time(this->edit_dist)<<std::endl;
+		cout<<"Total Join time (w/o embedding),\t,"<<get_time(this->total_join_time)<<std::endl;
+		cout<<"Total Alg time,\t,"<<get_time(this->total_alg_time)<<std::endl;
+
+	}
+
+	void start_time(int phase, int subphase=0, int main_phase=0){
+
+		record_time(0, phase, subphase, main_phase);
+
+	}
+
+
+	void end_time(int phase, int subphase=0, int main_phase=0){
+
+		record_time(1, phase, subphase, main_phase);
+
+	}
+
+
+	float get_time(vector<long> &time){
+		return (time[1]-time[0])/1000;
+	}
+
+	void record_time(int i, int phase, int subphase=0, int main_phase=0){
+
+		std::chrono::system_clock::time_point new_t=std::chrono::system_clock::now();
+
+		if(main_phase==1){
+			total_join_time[i]=this->read_time[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+		}
+		else if(main_phase==2){
+			total_alg_time[i]=this->read_time[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+		}
+		else if(main_phase==0){
+
+			if(phase==1){
+
+				if(subphase==0){
+					this->read_time[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+				}
+
+			}
+			if(phase==2){
+				if(subphase==0){
+					this->embeddata[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+				}
+				if(subphase==1){
+					this->embeddata_allocation_USM[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+
+				}
+				if(subphase==2){
+					this->embeddata_generate_random_string[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+
+				}
+				if(subphase==3){
+					this->embeddata_measure[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+
+				}
+				if(subphase==4){
+					this->embeddata_computation[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+
+				}
+			}
+
+			if(phase==3){
+				if(subphase==0){
+					this->create_buckets[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+				}
+				if(subphase==1){
+					this->create_buckets_measure[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+
+				}
+				if(subphase==2){
+					this->create_buckets_computation[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+
+				}
+
+			}
+			if(phase==4){
+
+				if(subphase==0){
+					this->sorting_buckets[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+				}
+
+			}
+			if(phase==5){
+				if(subphase==0){
+					this->init_cand[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+				}
+				if(subphase==1){
+					this->init_cand_compute_buckets_delim[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+				}
+				if(subphase==2){
+					this->init_cand_remove_one_elem_buckets[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+				}
+				if(subphase==3){
+					this->init_cand_resize[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+				}
+				if(subphase==4){
+					this->init_cand_scan_cand_vector[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+				}
+
+			}
+			if(phase==6){
+				if(subphase==0){
+					this->generate_cand[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+				}
+				if(subphase==1){
+					this->generate_cand_measure[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+				}
+				if(subphase==2){
+					this->generate_cand_computation[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+				}
+			}
+			if(phase==7){
+				if(subphase==0){
+					this->cand_proc[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+				}
+				if(subphase==1){
+					this->cand_proc_remove_candidates[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+				}
+				if(subphase==2){
+					this->cand_proc_sorting_cand[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+				}
+				if(subphase==3){
+					this->cand_proc_counting_frequencies[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+				}
+				if(subphase==4){
+					this->cand_proc_remove_duplicates[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+				}
+				if(subphase==5){
+					this->cand_proc_sorting_candidates_to_verify[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+				}
+				if(subphase==6){
+					this->cand_proc_removing_low_frequencies_cand[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+				}
+				if(subphase==7){
+					this->cand_proc_removing_duplicates_from_cand_to_verify[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+				}
+			}
+			if(phase==8){
+				if(subphase==0){
+					this->edit_dist[i]=std::chrono::duration_cast<std::chrono::milliseconds>(new_t-this->t).count();
+				}
+			}
+		}
+	}
 
 };
 
@@ -241,11 +488,7 @@ void print_configuration(int batch_size,int n_batches, int len_output){
 }
 
 void print_info(std::string message){
-
-	std::mutex output;
-	std::lock_guard<std::mutex> lock(output);
 	cout<<message<<std::endl;
-
 }
 
 
@@ -1549,6 +1792,7 @@ void generate_candidates_without_lshnumber_offset_impr(queue &device_queue, buff
 
             cout<<"Candidate size: "<<candidate_size<<std::endl;
 
+
             cgh.parallel_for<class GenerateCandidates>(range<1>(candidate_size), [=](item<1> index){
 
 				int ij=index[0];
@@ -1572,11 +1816,6 @@ void generate_candidates_without_lshnumber_offset_impr(queue &device_queue, buff
 
 
 
-				get<0>(acc_candidate[index_output])=i1;
-				get<1>(acc_candidate[index_output])=q1;
-				get<2>(acc_candidate[index_output])=i2;
-				get<3>(acc_candidate[index_output])=q2;
-				get<4>(acc_candidate[index_output])=abs_diff(acc_len[i1], acc_len[i2]);
 
 				int sum=0;
 				uint8_t c1;
@@ -1584,7 +1823,7 @@ void generate_candidates_without_lshnumber_offset_impr(queue &device_queue, buff
 
 
 
-				for (int j = 0; j < NUM_BITS; j++){
+				/*for (int j = 0; j < NUM_BITS; j++){
 
 					// TODO Handle better
 
@@ -1595,8 +1834,14 @@ void generate_candidates_without_lshnumber_offset_impr(queue &device_queue, buff
 					if(c1!=0 && c2!=0){
 						sum+=abs_diff(c1,c2);
 					}
-				}
+				}*/
 
+
+				get<0>(acc_candidate[index_output])=i1;
+				get<1>(acc_candidate[index_output])=q1;
+				get<2>(acc_candidate[index_output])=i2;
+				get<3>(acc_candidate[index_output])=q2;
+				get<4>(acc_candidate[index_output])=abs_diff(acc_len[i1], acc_len[i2]);
 				get<5>(acc_candidate[index_output])=sum;
 
 
@@ -1617,302 +1862,6 @@ void generate_candidates_without_lshnumber_offset_2dev_wrapper(vector<queue>& qu
 
 	int num_dev=queues.size();
 
-#if OLD_VERSION==1
-	int n_batches=num_dev*20+num_dev*2;
-
-
-	int n_max;
-	int n_min;
-
-
-	int idx_max;
-	int idx_min;
-
-	int number_of_testing_batches=2*num_dev;//test_batches;
-
-
-	vector<long> times;
-	vector<vector<long>> time_on_dev(num_dev,vector<long>());
-
-
-
-	{
-		vector<vector<int>> reverse_index;
-
-		vector<buffer<int,1>> buffers_reverse_index;
-
-
-		vector<buffer<char,2>> buffers_oristrings;
-
-		vector<buffer<int, 1>> buffers_candidate_start;
-
-		vector<buffer<tuple<int,int,int,int,int>>> buffers_buckets;
-
-		vector<buffer<tuple<int,int>>> buffers_bucket_delimiter;
-
-		vector<buffer<int, 2>> buffers_hash_lsh;
-
-		vector<buffer<tuple<int,int,int,int,int,int>>> buffers_candidates;
-
-		vector<buffer<int,1>> buffers_len;
-
-		vector<buffer<unsigned int, 1>> buffers_batch_size;
-
-		vector<buffer<uint32_t, 1>> buffers_len_output;
-
-
-		int p=0;
-
-		int n=0;
-
-		int dev=0;
-
-		for(auto &q:queues){
-
-
-			for(int i=0; i<2; i++){
-
-				auto start=std::chrono::system_clock::now();
-				{
-
-					cout<<"\n\tPartition "<<p<<": \n\n";
-					cout<<"\tBuckets: from 0 to "<<buckets.size()<<"\n";
-					cout<<"\tBuckets part: from "<< partitionsBuckets[p].offset <<" to "<<partitionsBuckets[p].offset+partitionsBuckets[p].size<<"\n\n";
-
-//					cout<<"\tcandidates_start[partitionCandStart["<<p<<"].offset]: "<< candidates_start[partitionsCandStart[p].offset]<<" it should be 0"<<std::endl;
-//
-//					cout<<"\tbuckestDelimiter[partitionsBucketsDelimiter["<<p<<"].size-1]: "<< get<0>(bucket_delimiter[partitionsBucketsDelimiter[p].offset+partitionsBucketsDelimiter[p].size-1]) << std::endl;
-//					cout<<"\tbuckestDelimiter[partitionsBucketsDelimiter["<<p<<"].size]: "<< get<0>(bucket_delimiter[partitionsBucketsDelimiter[p].offset+partitionsBucketsDelimiter[p].size]) << std::endl;
-//					cout<<"\tbuckestDelimiter[partitionsBucketsDelimiter["<<p<<"].size+1]: "<< get<0>(bucket_delimiter[partitionsBucketsDelimiter[p].offset+partitionsBucketsDelimiter[p].size+1]) << std::endl;
-//
-//
-//					cout<<"\tCandStart: "<<candidates_start.data()<<std::endl;
-
-				}
-
-
-				buffers_oristrings.emplace_back( buffer<char,2>(oristrings,range<2>{NUM_STRING,LEN_INPUT}, {property::buffer::use_host_ptr()}));
-
-				buffers_candidate_start.emplace_back( buffer<int, 1>(candidates_start.data()+partitionsCandStart[p].offset, range<1>{partitionsCandStart[p].size}, {property::buffer::use_host_ptr()}));
-
-				buffers_buckets.emplace_back( buffer<tuple<int,int,int,int,int>>(buckets.data()+partitionsBuckets[p].offset,range<1>{partitionsBuckets[p].size}, {property::buffer::use_host_ptr()}));
-
-				buffers_bucket_delimiter.emplace_back( buffer<tuple<int,int>>(bucket_delimiter.data()+partitionsBucketsDelimiter[p].offset,range<1>{partitionsBucketsDelimiter[p].size}, {property::buffer::use_host_ptr()}));
-
-				//	cout << bucket_delimiter_size<< " "<< candidate_size<< std::endl;
-
-				buffers_hash_lsh.emplace_back( buffer<int, 2>(reinterpret_cast<int*>(local_hash_lsh),range<2>{NUM_HASH,NUM_BITS}, {property::buffer::use_host_ptr()}));
-
-				buffers_candidates.emplace_back( buffer<tuple<int,int,int,int,int,int>>(candidate.data()+partitionsCandidates[p].offset,range<1>{partitionsCandidates[p].size}, {property::buffer::use_host_ptr()}));
-
-				buffers_len.emplace_back( buffer<int,1>(len.data(),range<1>{len.size()}, {property::buffer::use_host_ptr()}));
-
-				buffers_batch_size.emplace_back( buffer<unsigned int, 1>(&batch_size,range<1>{1}));
-
-				buffers_len_output.emplace_back( buffer<uint32_t, 1>(&len_output,range<1>{1}));
-
-
-
-				cout << partitionsBucketsDelimiter[p].size<< " "<< partitionsCandidates[p].size<< std::endl;
-
-				auto start1=std::chrono::system_clock::now();
-
-				//			vector<int> reverse_index(partitionsCandidates[p].size);
-
-				reverse_index.emplace_back(vector<int>(partitionsCandidates[p].size));
-
-
-				int t=0;
-				{
-					auto acc_buck_delim=buffers_bucket_delimiter[n].get_access<access::mode::read>();
-
-					for(int i=0; i<partitionsCandStart[p].size; i++){
-						for(int j=0; j<get<1>(acc_buck_delim[i])*(get<1>(acc_buck_delim[i])-1)/2; j++){
-
-							reverse_index[p][t]=i;
-							t++;
-						}
-					}
-
-				}
-				cout<<"At p = "<<p<<" reverse_index["<<p<<"].size() "<<reverse_index[p].size()<<std::endl;
-
-				auto end1=std::chrono::system_clock::now();
-
-				auto time=std::chrono::duration_cast<std::chrono::milliseconds>(end1-start1).count();
-
-				std::cout<<"Time to compute reverse index array: "<<(float)time/1000<<"sec"<<std::endl;
-
-				buffers_reverse_index.emplace_back(	buffer<int,1>(reverse_index[p].data(),range<1>{reverse_index[p].size()}, {property::buffer::use_host_ptr()}));
-
-
-
-				generate_candidates_without_lshnumber_offset(q, buffers_len[n], buffers_oristrings[n], embdata, buffers_buckets[n], buffers_batch_size[n], buffers_bucket_delimiter[n], buffers_candidates[n], partitionsCandidates[p].size, buffers_candidate_start[n], buffers_hash_lsh[n], buffers_len_output[n], buffers_reverse_index[n]);
-
-				n++;
-				p++;
-
-
-				q.wait();
-
-				auto end=std::chrono::system_clock::now();
-
-				if(i>0){
-					times.emplace_back(std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count());
-				}
-
-			}
-
-			dev++;
-
-
-		}
-
-
-		for(auto t:times){
-			cout<<"Times: "<<(float)t/1000<<"sec"<<std::endl;
-		}
-
-		vector<int> iter_per_dev;
-
-
-		if(num_dev>1){
-			auto max_iter = std::max_element(times.begin(),times.end());
-			auto min_iter = std::min_element(times.begin(),times.end());
-
-			long max=*max_iter;
-			long min=*min_iter;
-
-			idx_max=max_iter-times.begin();
-			idx_min=min_iter-times.begin();
-
-
-			n_max=floor(((float)max/(float)(min+max))*(n_batches-number_of_testing_batches));
-
-
-			n_min=n_batches-number_of_testing_batches-n_max;
-
-			iter_per_dev.resize(num_dev);
-			iter_per_dev[idx_max]=n_min;
-			iter_per_dev[idx_min]=n_max;
-
-		}else if(num_dev==1){
-
-			n_max=0;
-			n_min=(n_batches-number_of_testing_batches);
-			idx_max=0;
-			idx_min=0;
-			iter_per_dev.emplace_back(n_min);
-
-		}
-
-
-		cout<<"n_max: "<<n_max<<std::endl;
-		cout<<"n_min: "<<n_min<<std::endl;
-
-		cout<<"id_max: "<<idx_max<<std::endl;
-		cout<<"id_min: "<<idx_min<<std::endl;
-
-
-		dev=0;
-
-
-
-		for(auto &q : queues){
-
-			int iter=0;
-
-			while(iter<iter_per_dev[dev]){
-
-				{
-
-					cout<<"\n\tPartition "<<p<<": \n\n";
-					cout<<"\tBuckets: from 0 to "<<buckets.size()<<"\n";
-					cout<<"\tBuckets part: from "<< partitionsBuckets[p].offset <<" to "<<partitionsBuckets[p].offset+partitionsBuckets[p].size<<"\n\n";
-
-					cout<<"\tcandidates_start[partitionCandStart["<<p<<"].offset]: "<< candidates_start[partitionsCandStart[p].offset]<<" it should be 0"<<std::endl;
-
-					cout<<"\tbuckestDelimiter[partitionsBucketsDelimiter["<<p<<"].size-1]: "<< get<0>(bucket_delimiter[partitionsBucketsDelimiter[p].offset+partitionsBucketsDelimiter[p].size-1]) << std::endl;
-					cout<<"\tbuckestDelimiter[partitionsBucketsDelimiter["<<p<<"].size]: "<< get<0>(bucket_delimiter[partitionsBucketsDelimiter[p].offset+partitionsBucketsDelimiter[p].size]) << std::endl;
-					cout<<"\tbuckestDelimiter[partitionsBucketsDelimiter["<<p<<"].size+1]: "<< get<0>(bucket_delimiter[partitionsBucketsDelimiter[p].offset+partitionsBucketsDelimiter[p].size+1]) << std::endl;
-
-
-					cout<<"\tCandStart: "<<candidates_start.data()<<std::endl;
-
-				}
-
-
-
-
-
-				buffers_oristrings.emplace_back( buffer<char,2>(oristrings,range<2>{NUM_STRING,LEN_INPUT}, {property::buffer::use_host_ptr()}));
-
-				buffers_candidate_start.emplace_back( buffer<int, 1>(candidates_start.data()+partitionsCandStart[p].offset, range<1>{partitionsCandStart[p].size}, {property::buffer::use_host_ptr()}));
-
-				buffers_buckets.emplace_back( buffer<tuple<int,int,int,int,int>>(buckets.data()+partitionsBuckets[p].offset,range<1>{partitionsBuckets[p].size}, {property::buffer::use_host_ptr()}));
-
-				buffers_bucket_delimiter.emplace_back( buffer<tuple<int,int>>(bucket_delimiter.data()+partitionsBucketsDelimiter[p].offset,range<1>{partitionsBucketsDelimiter[p].size}, {property::buffer::use_host_ptr()}));
-
-				//	cout << bucket_delimiter_size<< " "<< candidate_size<< std::endl;
-
-				buffers_hash_lsh.emplace_back( buffer<int, 2>(reinterpret_cast<int*>(local_hash_lsh),range<2>{NUM_HASH,NUM_BITS}, {property::buffer::use_host_ptr()}));
-
-				buffers_candidates.emplace_back( buffer<tuple<int,int,int,int,int,int>>(candidate.data()+partitionsCandidates[p].offset,range<1>{partitionsCandidates[p].size}, {property::buffer::use_host_ptr()}));
-
-				buffers_len.emplace_back( buffer<int,1>(len.data(),range<1>{len.size()}, {property::buffer::use_host_ptr()}));
-
-				buffers_batch_size.emplace_back( buffer<unsigned int, 1>(&batch_size,range<1>{1}));
-
-				buffers_len_output.emplace_back( buffer<uint32_t, 1>(&len_output,range<1>{1}));
-
-
-
-				cout << partitionsBucketsDelimiter[p].size<< " "<< partitionsCandidates[p].size<< std::endl;
-
-				auto start=std::chrono::system_clock::now();
-
-	//vector<int> reverse_index(partitionsCandidates[p].size);
-
-				reverse_index.emplace_back(vector<int>(partitionsCandidates[p].size));
-
-
-				int t=0;
-				{
-					auto acc_buck_delim=buffers_bucket_delimiter[n].get_access<access::mode::read>();
-
-					for(int i=0; i<partitionsCandStart[p].size; i++){
-						for(int j=0; j<get<1>(acc_buck_delim[i])*(get<1>(acc_buck_delim[i])-1)/2; j++){
-
-							reverse_index[p][t]=i;
-							t++;
-						}
-					}
-
-				}
-
-
-				cout<<"At p = "<<p<<" reverse_index["<<p<<"].size() "<<reverse_index[p].size()<<std::endl;
-
-				auto end=std::chrono::system_clock::now();
-
-				auto time=std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
-
-				std::cout<<"Time to compute reverse index array: "<<(float)time/1000<<"sec"<<std::endl;
-
-				buffers_reverse_index.emplace_back(	buffer<int,1>(reverse_index[p].data(),range<1>{reverse_index[p].size()}, {property::buffer::use_host_ptr()}));
-
-
-				generate_candidates_without_lshnumber_offset(q, buffers_len[n], buffers_oristrings[n], embdata, buffers_buckets[n], buffers_batch_size[n], buffers_bucket_delimiter[n], buffers_candidates[n], partitionsCandidates[p].size, buffers_candidate_start[n], buffers_hash_lsh[n], buffers_len_output[n], buffers_reverse_index[n]);
-
-				n++;
-				p++;
-				iter++;
-			}
-			dev++;
-		}
-
-	}
-#else
 
 	vector<uint32_t> size_cand(num_dev);
 
@@ -2152,7 +2101,6 @@ void generate_candidates_without_lshnumber_offset_2dev_wrapper(vector<queue>& qu
 			dev++;
 
 	}
-#endif
 
 
 
@@ -2358,7 +2306,7 @@ void initialize_candidate_pairs(vector<queue>& queues, std::vector<tuple<int,int
 
 	start=std::chrono::system_clock::now();
 
-		auto new_end=std::remove_if(std::execution::par_unseq, buckets_delimiter.begin(),buckets_delimiter.end(),[](std::tuple<int,int> &e){return std::get<1>(e)<2;});
+		auto new_end=std::remove_if(/*std::execution::par_unseq, */buckets_delimiter.begin(),buckets_delimiter.end(),[](std::tuple<int,int> &e){return std::get<1>(e)<2;});
 
 		buckets_delimiter.erase( new_end, buckets_delimiter.end());
 
@@ -2397,14 +2345,27 @@ void initialize_candidate_pairs(vector<queue>& queues, std::vector<tuple<int,int
 		}
 
 
-#if OLD_VERSION==0
 		start=std::chrono::system_clock::now();
 
 
 		candidates.resize(size);
 		end=std::chrono::system_clock::now();
 
-		std::cout<<"\nTime cand-init: resize: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
+		std::cout<<"\nTime cand-init: resize vector: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
+
+//		start=std::chrono::system_clock::now();
+//
+//
+//		tuple<int,int,int,int,int,int> *arr_cand=new tuple<int,int,int,int,int,int>[size];
+//
+//		end=std::chrono::system_clock::now();
+//
+//
+//
+//
+//		std::cout<<"\nTime cand-init: resize array: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
+
+//		cout<<get<0>(arr_cand[size-1])<<std::endl;
 
 		start=std::chrono::system_clock::now();
 
@@ -2418,6 +2379,8 @@ void initialize_candidate_pairs(vector<queue>& queues, std::vector<tuple<int,int
 				for(int j=i+1; j<end; j++ ){
 					get<0>(candidates[c])=i;
 					get<1>(candidates[c])=j;
+//					get<0>(arr_cand[c])=i;
+//					get<1>(arr_cand[c])=j;
 				    c++;
 				}
 			}
@@ -2443,235 +2406,6 @@ void initialize_candidate_pairs(vector<queue>& queues, std::vector<tuple<int,int
 			i++;
 
 		}
-		/*
-		 * Take a certain percentage of total number of buckets for measuring
-		 * performances of both devices
-		 *
-		 * **/
-
-#else
-		int size_for_measure=round(0.02*size)*4;
-
-		cout<<"\n\nSize of candidates: "<<size<<std::endl;
-		cout<<"(2% of size) x4: "<<size_for_measure<<std::endl<<std::endl<<std::endl;
-
-
-		int size_for_comp=size-size_for_measure;
-
-		/*
-		 * Apply a kind of discretization over the total number of candidates.
-		 * For example by dividing the total num of candidates in 20 partitions
-		 * ( to which will correspond a kernel)
-		 *
-		 * **/
-
-		num_splits=num_splits*20;
-
-		int size_one_partition=static_cast<int>((size_for_comp/num_splits));
-
-		int rest=(size_for_comp%num_splits);
-
-
-		cout<<"\n\tNumber of partitions: "<<num_splits<<std::endl;
-
-
-		vector<int> vec_sizes( queues.size()*2, (size_for_measure/(queues.size()*2)) );
-
-//		vector<int> vec_sizes;
-
-//		int tmp_size=static_cast<int>((buckets_delimiter.size()/num_splits));
-
-
-		for(int split=0; split<num_splits; split++){
-			vec_sizes.emplace_back(size_one_partition+(split==(num_splits-1)?rest:0));
-		}
-
-
-		num_splits+=(queues.size()*2); // Add 4 to add partitions to use as metric for work allocation
-
-
-		for(auto sp:vec_sizes){
-			cout<<"size_partition: "<<sp<<std::endl;
-		}
-
-
-		/**
-		 *
-		 * Given a threashold (number of cand in each partition),
-		 * scan the bucekts delimiters, to compute the real boundary
-		 * of each partitions in order to avoid to split a buckets in the middle
-		 *
-		 **/
-
-		vector<int> bucket_delim_partition;
-
-		int i=0;
-		int acc=0;
-		int b=0;
-		int cont=0;
-
-		for( b=0; b<buckets_delimiter.size(); b++){
-
-			int n=get<1>(buckets_delimiter[b]);
-
-			acc+=((n*(n-1))/2);
-
-			if( acc >= vec_sizes[i] ){
-				bucket_delim_partition.emplace_back(cont);
-				i++;
-				cont=0;
-				acc=0;
-			}
-			cont++;
-
-		}
-
-		bucket_delim_partition.emplace_back(cont);
-
-
-		cout<<std::endl<<std::endl;
-		for(auto sp:bucket_delim_partition){
-			cout<<"size_partition_bucket_delim: "<<sp<<std::endl;
-		}
-
-
-		size=0;
-
-//		rest=buckets_delimiter.size()%num_splits;
-
-		long size_buckets_part=0;
-
-		long size_cand_start_part=0;
-
-		long total_size=0;
-
-		b=0;
-
-		int size_partition=0;
-
-		/**
-		 * Normalize each partitions of buckets delimiter partition
-		 *
-		 * */
-
-		for(int split=0; split<num_splits; split++){
-
-//			size_partition+=(split==(num_splits-1))?rest:0;
-
-			size_partition=bucket_delim_partition[split];
-
-//			cout<<"\n\tSize_partition at iter "<<split<<": "<<size_partition<<std::endl<<std::endl;
-//			cout<<"\tNorm delim at iter "<<split<<": "<<size_buckets_part<<std::endl<<std::endl;
-//			cout<<"\tNorm cand start at iter "<<split<<": "<<size_cand_start_part<<std::endl<<std::endl;
-
-
-			for(int delim=0; delim<size_partition; delim++){
-
-				candidates_start.emplace_back(size);
-
-				int n=get<1>(buckets_delimiter[b]);
-				size+=((n*(n-1))/2);
-
-				if(delim<10 || delim>size_partition-10 ){
-					std::cout<<get<0>(buckets_delimiter[b]) << " - "<<size_buckets_part<<" = ";
-				}
-
-				get<0>(buckets_delimiter[b])-=size_buckets_part;
-
-				if(delim<10 || delim>size_partition-10 ){
-					std::cout<<get<0>(buckets_delimiter[b])<<"\t\t"<<candidates_start[b]<<std::endl;
-
-				}
-
-//				if(split>0 && b==0){
-//					size_cand_start_part=size;//candidates_start[size_partition];
-//				}
-
-				b++;
-			}
-
-//			cout<<"----------------------------------------------------------"<<std::endl;
-
-//			cout<<"buckets_delimiter[size_partition] at iter "<<split<<": "<<((split==num_splits-1)?(buckets.size()-partitionsBuckets[split-1].size):get<0>(buckets_delimiter[b]))<<std::endl;
-//			cout<<"\tb at iter "<<split<<": "<<b<<std::endl;
-
-//			cout<<"----------------------------------------------------------"<<std::endl;
-
-
-			if(num_splits==1){
-				size_buckets_part=buckets.size();
-			}else{
-				size_buckets_part=(split==num_splits-1)?buckets.size():get<0>(buckets_delimiter[b]);
-			}
-
-			size_cand_start_part=size; //candidates_start[size_partition];
-
-			total_size+=size;
-			size=0;
-
-			size_t offset=split==0?0:partitionsBucketsDelimiter[split-1].size+partitionsBucketsDelimiter[split-1].offset;
-
-			partitionsBucketsDelimiter.emplace_back(arrayWrapper(size_partition, offset) );
-
-
-
-			offset=split==0?0:(partitionsBuckets[split-1].offset+partitionsBuckets[split-1].size); //partitionsBuckets[split-1].size+partitionsBuckets[split-1].offset;
-			int bucket_size=split==0?(size_buckets_part):(size_buckets_part-offset);
-			partitionsBuckets.emplace_back(arrayWrapper(bucket_size, offset));
-
-
-			offset=split==0?0:partitionsCandStart[split-1].size+partitionsCandStart[split-1].offset;
-
-			partitionsCandStart.emplace_back(arrayWrapper(size_partition, offset) );
-
-
-			offset=split==0?0:partitionsCandidates[split-1].size+partitionsCandidates[split-1].offset;
-
-			partitionsCandidates.emplace_back(arrayWrapper(size_cand_start_part,offset ));
-
-
-		}
-
-	end=std::chrono::system_clock::now();
-
-	std::cout<<"\nTime cand-init: count max pairs: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
-
-	sub_time_compute_partitions=std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
-
-
-
-	start=std::chrono::system_clock::now();
-		std::cout<<"Resize of: "<<total_size<<"element"<<std::endl;
-		candidates.resize(total_size, tuple<int,int,int,int,int,int>(-1,-1,-1,-1,-1,-1));
-
-		std::cout<<"\n\tAddress candidates: "<<candidates.data()<<std::endl;
-		std::cout<<"\tAddress candidates start: "<<candidates_start.data()<<std::endl;
-		std::cout<<"\tAddress candidates start partition: "<<candidates_start.data()<<std::endl;
-
-//		partitionsCandidates[0].setPtr(candidates);
-//		partitionsCandidates[1].setPtr(candidates);
-//		partitionsCandStart[0].setPtr(candidates_start);
-//		partitionsCandStart[1].setPtr(candidates_start);
-
-	end=std::chrono::system_clock::now();
-
-	std::cout<<"\nTime cand-init: resize: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
-
-	sub_time_allocate_candidates=std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
-
-	cout<<"Total: "<<buckets_delimiter.size()<<std::endl;
-//	for(auto&part:partitionsBucketsDelimiter){
-//
-//		cout<<"Partition: "<<part.offset<<" "<<part.size<<std::endl;
-//	}
-
-	cout<<"Total: "<<buckets.size()<<std::endl;
-//	for(auto&part:partitionsBuckets){
-//
-//		cout<<"Partition: "<<part.offset<<" "<<part.size<<std::endl;
-//	}
-
-#endif
 
 }
 
@@ -2689,7 +2423,7 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, std::vector<tupl
 				cl::sycl::buffer<tuple<int,int>> buckets_delimiter_buf{ delimiter.data(), delimiter.size(), {property::buffer::use_host_ptr()}};
 				cl::sycl::buffer<tuple<int,int,int,int,int>> array_buf{ buckets.data(), buckets.size(), {property::buffer::use_host_ptr()}};
 
-				queues.back().submit([&](sycl::handler& cgh) {
+				queues.front().submit([&](sycl::handler& cgh) {
 					auto pv_acc = buckets_delimiter_buf.get_access<cl::sycl::access::mode::write>(cgh);
 					auto array_acc = array_buf.get_access<cl::sycl::access::mode::read>(cgh);
 
@@ -2704,17 +2438,17 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, std::vector<tupl
 				}).wait();
 			} // For synch
 
-			auto new_end=std::remove_if(std::execution::par_unseq, delimiter.begin()+1,delimiter.end(),[](std::tuple<int,int> &e){return std::get<0>(e)==0;});
+			auto new_end=std::remove_if(/*std::execution::par_unseq,*/ delimiter.begin()+1,delimiter.end(),[](std::tuple<int,int> &e){return std::get<0>(e)==0;});
 				delimiter.erase( new_end, delimiter.end());
-			auto end=std::chrono::system_clock::now();
-			std::cout<<"Time cand-init: parallel count element: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
+//				auto end=std::chrono::system_clock::now();
+//			std::cout<<"Time cand-init: parallel count element: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
 			size_t size=0;
 
-			start=std::chrono::system_clock::now();
+//			start=std::chrono::system_clock::now();
 			{
 				cl::sycl::buffer<tuple<int,int>> buckets_delimiter_buf{ delimiter.data(), delimiter.size(), {property::buffer::use_host_ptr()}};
 
-				queues.back().submit([&](sycl::handler& cgh) {
+				queues.front().submit([&](sycl::handler& cgh) {
 					auto pv_acc = buckets_delimiter_buf.get_access<cl::sycl::access::mode::write>(cgh);
 					cgh.parallel_for<class partition_kernel>(cl::sycl::range<1>{buckets.size()-1},
 						[=](cl::sycl::id<1> idx) {
@@ -2723,11 +2457,17 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, std::vector<tupl
 					}).wait();
 			} // For synch
 
-			 new_end=std::remove_if(std::execution::par_unseq, delimiter.begin(),delimiter.end(),[](std::tuple<int,int> &e){return std::get<1>(e)<2;});
+			auto end=std::chrono::system_clock::now();
+
+			std::cout<<"\nTime cand-init: parallel count element: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
+
+			start=std::chrono::system_clock::now();
+
+			 new_end=std::remove_if(/*std::execution::par_unseq,*/ delimiter.begin(),delimiter.end(),[](std::tuple<int,int> &e){return std::get<1>(e)<2;});
 				delimiter.erase( new_end, delimiter.end());
 			end=std::chrono::system_clock::now();
 
-			std::cout<<"\nTime cand-init: parallel count size partition: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
+			std::cout<<"\nTime cand-init: parallel remove element: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
 			std::for_each(delimiter.begin(), delimiter.begin()+10,[](tuple<int,int>d){
 				std::cout<<get<0>(d)<<" "<<get<1>(d)<<std::endl;
 			});
@@ -2749,6 +2489,17 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, std::vector<tupl
 
 		std::cout<<"\nTime cand-init: resize: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
 
+//		start=std::chrono::system_clock::now();
+//
+//		int *mem = new int[size * sizeof(tuple<int, int, int, int, int, int>)];
+//		tuple<int,int,int,int,int,int> *cand = reinterpret_cast<tuple<int,int,int,int,int,int>*>(mem);
+//
+//		end=std::chrono::system_clock::now();
+//
+//		std::cout<<"\nTime cand-init: alternative allocation: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
+//		get<0>(cand[size-1])=99;
+//		cout<<get<0>(cand[size-1])<<std::endl;
+
 		start=std::chrono::system_clock::now();
 
 		int c=0;
@@ -2766,6 +2517,7 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, std::vector<tupl
 				}
 			}
 		}
+
 
 		cout<<c<<" == "<<size<<" ??"<<std::endl;
 
@@ -3601,9 +3353,9 @@ int main(int argc, char **argv) {
 	 vector<arrayWrapper> partitionsCandidates;
 
 
-//	 initialize_candidate_pairs_onDevice(queues, buckets_delimiter, buckets, candidates, candidates_start, partitionsBucketsDelimiter, partitionsCandStart, partitionsBuckets, partitionsCandidates);
+	 initialize_candidate_pairs_onDevice(queues, buckets_delimiter, buckets, candidates, candidates_start, partitionsBucketsDelimiter, partitionsCandStart, partitionsBuckets, partitionsCandidates);
 
-	 initialize_candidate_pairs(queues, buckets_delimiter, buckets, candidates, candidates_start, partitionsBucketsDelimiter, partitionsCandStart, partitionsBuckets, partitionsCandidates);
+//	 initialize_candidate_pairs(queues, buckets_delimiter, buckets, candidates, candidates_start, partitionsBucketsDelimiter, partitionsCandStart, partitionsBuckets, partitionsCandidates);
 
 	 end=std::chrono::system_clock::now();
 
@@ -3669,7 +3421,7 @@ int main(int argc, char **argv) {
 
 	// auto policy_rem = make_device_policy(device_queue);
 
-	 	 candidates.erase(std::remove_if(std::execution::par_unseq, candidates.begin(), candidates.end(),[](std::tuple<int,int,int,int,int,int> e){return (get<0>(e)==-1 || get<4>(e)>K_INPUT || get<5>(e)!=0 || get<0>(e)==get<2>(e));}), candidates.end());
+	 	 candidates.erase(std::remove_if(/*std::execution::par_unseq,*/ candidates.begin(), candidates.end(),[](std::tuple<int,int,int,int,int,int> e){return (get<0>(e)==-1 || get<4>(e)>K_INPUT || get<5>(e)!=0 || get<0>(e)==get<2>(e));}), candidates.end());
 
 	 auto end_2=std::chrono::system_clock::now();
 
@@ -3974,6 +3726,9 @@ int main(int argc, char **argv) {
 	std::cout<<"Total elapsed time :\t"<< (float)total_time/1000<<"sec"<<std::endl;
 
 	//std::cout<<"Number of candidates: "<<num_candidate<<std::endl;
+
+	cout<<std::endl;
+
 
 	{
 
