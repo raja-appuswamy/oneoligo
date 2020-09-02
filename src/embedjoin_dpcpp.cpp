@@ -471,7 +471,7 @@ void setuplsh(int (*hash_lsh)[NUM_BITS], vector<int> &a, vector<int> &lshnumber)
 	}
 	//std::cout<<"Size lshnumber: "<<lshnumber.size()<<std::endl;
 
-	sort(lshnumber.begin(), lshnumber.end());
+	tbb::parallel_sort(lshnumber.begin(), lshnumber.end());
 	lshnumber.erase(unique(lshnumber.begin(), lshnumber.end()), lshnumber.end());
 	samplingrange = lshnumber[lshnumber.size() - 1];
 
@@ -546,8 +546,8 @@ void readdata(vector<int> &len_oristrings, char (*oristrings)[LEN_INPUT], vector
 //	tbb::parallel_sort(indices.begin(), indices.end(), [&](int i1, int i2) { return tmp_oridata[i1].size() <  tmp_oridata[i2].size();});
 //	tbb::parallel_sort(tmp_oridata.begin(), tmp_oridata.end(), [&](auto s1,auto s2){return s1.size()<s2.size();});
 
-	stable_sort(indices.begin(), indices.end(), [&](int i1, int i2) { return tmp_oridata[i1].size() <  tmp_oridata[i2].size();});
-	stable_sort(tmp_oridata.begin(), tmp_oridata.end(), [&](auto s1,auto s2){return s1.size()<s2.size();});
+	tbb::parallel_sort(indices.begin(), indices.end(), [&](int i1, int i2) { return tmp_oridata[i1].size() <  tmp_oridata[i2].size();});
+	tbb::parallel_sort(tmp_oridata.begin(), tmp_oridata.end(), [&](auto s1,auto s2){return s1.size()<s2.size();});
 
 
 	end=std::chrono::system_clock::now();
@@ -1525,8 +1525,16 @@ void create_bucket_without_lshnumber_offset_NEW_impr(queue &device_queue, char *
 		std::cout << "Device: " << device_queue.get_device().get_info<info::device::name>() << std::endl;
 
 		std::cout<<"\t\tSplit size: "<<split_size<<std::endl;
-		std::cout<<"\t\tRange: "<<"("<<split_size<<", "<<NUM_STR<<", "<<NUM_HASH*NUM_REP<<")"<<std::endl;
 
+		range<3> glob_range(split_size*NUM_STR*NUM_REP,NUM_HASH,1);
+		range<3> local_range(250,1,1);
+
+		std::cout<<"\t\tGlobal range: "<<"("<<glob_range[0]<<", "<<glob_range[1]<<", "<<glob_range[2]<<")"<<std::endl;
+		std::cout<<"\t\tLocal range: "<<"("<<local_range[0]<<", "<<local_range[1]<<", "<<local_range[2]<<")"<<std::endl;
+
+		if(glob_range[0]%local_range[0]!=0 && glob_range[1]%local_range[1]!=0 && glob_range[2]%local_range[2]!=0 ){
+			exit(-1);
+		}
 
     {
 
@@ -1560,91 +1568,62 @@ void create_bucket_without_lshnumber_offset_NEW_impr(queue &device_queue, char *
 
 
 
-			range<3> glob_range(split_size*NUM_STR*NUM_REP,NUM_HASH,NUM_BITS);
-			range<3> local_range(1,NUM_HASH,NUM_BITS);
 
 
-            auto loc_sum=accessor<int, 1, access::mode::atomic, access::target::local>(range<1>(local_range[0]),cgh);
+
+            auto loc_sum=accessor<int, 1, access::mode::atomic, access::target::local>(range<1>(local_range[1]),cgh);
 
 
 			cgh.parallel_for<class CreateBuckets>(nd_range<3>(glob_range,local_range), [=](nd_item<3> index){
 
 				int itq=index.get_global_id(0);
 
-				int i = itq/(NUM_STR*NUM_REP) + acc_split_offset[0];
+				int i=itq/(NUM_STR*NUM_REP)+acc_split_offset[0];
 
 				int tq=itq%(NUM_STR*NUM_REP);
 
 				int t=tq/NUM_REP;
 				int q=tq%NUM_REP;
 
-
-//				int i=index[0]+acc_split_offset[0];
-//				int t=index[1];
-
-				int k=index.get_global_id(0);
+				int k=index.get_global_id(1);
 
 
-				int bit=index.get_local_id(1);
+				int output_position;
 
-
-				int tmp_i=itq/(NUM_STR*NUM_REP);
-
-				int output_position = tmp_i*NUM_HASH+k;
-
-//				size_t linear_id=index.get_linear_id();
+				size_t linear_id=index.get_global_linear_id();
 
 				int id=0;
-
 				char dict_index=0;
-
 				int id_mod=0;
-
 				int digit=-1;
 
+				//int kq=index[2];
 
 
-
-				id = 0;
-
-				id_mod = 0;
+			//	int k=kq/NUM_REP;
+				//int q=kq%NUM_REP;
 
 
+					id = 0;
+					id_mod=0;
 
+					for (int j = 0; j < NUM_BITS; j++){
 
-				if(bit==0){
-					loc_sum[k].store(0);
-				}
+						digit=k*NUM_BITS+j;
+						dict_index=embdata[(int)(i/acc_batch_size[0])][ABSPOS((int)(i%acc_batch_size[0]),t,q,digit,acc_len_output[0])];
 
-				index.barrier(access::fence_space::local_space);
+//						if ( dict_index!=0 ) {
 
+							id += (acc_dict[dict_index]) * acc_a[j];
+//						}
 
-//					for (int j = 0; j < NUM_BITS; j++){
-
-				digit=k*NUM_BITS+bit;
-
-				dict_index=embdata[(int)(i/acc_batch_size[0])][ABSPOS((int)(i%acc_batch_size[0]),t,q,digit,acc_len_output[0])];
-
-				if ( dict_index!=0 ) {
-
-					id = (acc_dict[dict_index]) * acc_a[bit];
-				}
-
-				loc_sum[k].fetch_add(id);
-
-//					}
-
-				index.barrier(access::fence_space::local_space);
-
-
-
-				if(bit==0){
-
-					id=loc_sum[k].load();
+					}
 
 					id_mod=id % M;
 
-					output_position=0;//=linear_id;
+
+					output_position=linear_id;
+
 
 					get<0>(acc_buckets[output_position])=t;
 					get<1>(acc_buckets[output_position])=k;
@@ -1652,9 +1631,7 @@ void create_bucket_without_lshnumber_offset_NEW_impr(queue &device_queue, char *
 					get<3>(acc_buckets[output_position])=i;
 					get<4>(acc_buckets[output_position])=q;
 
-				}
-
-			//				}
+							//				}
 
 			});
 		});
@@ -1770,7 +1747,7 @@ void create_buckets_without_lshnumber_offset_2dev_NEW_wrapper(vector<queue> &que
 
 
 				// The first one is longer then others
-				create_bucket_without_lshnumber_offset_NEW(q, embdata, buffers_buckets[n], buffers_batch_size[n], loc_split_size, buffers_split_offset[n], buffers_hash_lsh[n], buffers_a[n], buffers_len_output[n], buffers_dict[n]);
+				create_bucket_without_lshnumber_offset_NEW_impr(q, embdata, buffers_buckets[n], buffers_batch_size[n], loc_split_size, buffers_split_offset[n], buffers_hash_lsh[n], buffers_a[n], buffers_len_output[n], buffers_dict[n]);
 
 				q.wait();
 
@@ -1889,7 +1866,7 @@ void create_buckets_without_lshnumber_offset_2dev_NEW_wrapper(vector<queue> &que
 				// Inside these batches there is another offset, that is iter*batch_size
 
 
-			create_bucket_without_lshnumber_offset_NEW(queues[i], embdata, buffers_buckets[n], buffers_batch_size[n], loc_split_size, buffers_split_offset[n], buffers_hash_lsh[n], buffers_a[n], buffers_len_output[n], buffers_dict[n]);
+			create_bucket_without_lshnumber_offset_NEW_impr(queues[i], embdata, buffers_buckets[n], buffers_batch_size[n], loc_split_size, buffers_split_offset[n], buffers_hash_lsh[n], buffers_a[n], buffers_len_output[n], buffers_dict[n]);
 
 //			queues[i].wait();
 
@@ -2352,55 +2329,10 @@ void generate_candidates_without_lshnumber_offset(queue &device_queue, buffer<in
 		std::cout << "Device: " << device_queue.get_device().get_info<info::device::name>() << std::endl;
 	}
 
-//	std::cout << "Max allocation size: " << device_queue.get_device().get_info<info::device::max_mem_alloc_size>() << std::endl;
 
-//		auto start=std::chrono::system_clock::now();
-//
-//	    vector<int> reverse_index(candidate_size);
-//
-//		int t=0;
-//		for(int i=0; i<candidates_start_size; i++){
-//			for(int j=0; j<get<1>(bucket_delimiter[i])*(get<1>(bucket_delimiter[i])-1)/2; j++){
-//
-//				reverse_index[t]=i;
-//				t++;
-//			}
-//
-//		}
-//
-//		auto end=std::chrono::system_clock::now();
-//
-//		auto time=std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
-//
-//		std::cout<<"Time to compute reverse index array: "<<(float)time/1000<<"sec"<<std::endl;
 //
 
 	{
-//
-//		buffer<int,1> buffer_reverse_index(reverse_index.data(),range<1>{reverse_index.size()}, {property::buffer::use_host_ptr()});
-//
-////		buffer<char,1> buffer_embeddata(reinterpret_cast<char*>(embdata), range<1>{static_cast<unsigned int>(batch_size*NUM_STR*NUM_REP*LEN_OUTPUT)});
-//
-//		buffer<char,2> buffer_oristrings(oristrings,range<2>{NUM_STRING,LEN_INPUT}, {property::buffer::use_host_ptr()});
-//
-//		buffer<int, 1> buffer_candidate_start(candidates_start, range<1>{candidates_start_size}, {property::buffer::use_host_ptr()});
-//
-//		buffer<tuple<int,int,int,int,int>> buffer_buckets(buckets,range<1>{buckets_size}, {property::buffer::use_host_ptr()});
-//
-//		buffer<tuple<int,int>> buffer_delimiter(bucket_delimiter,range<1>{bucket_delimiter_size}, {property::buffer::use_host_ptr()});
-//
-//		cout << bucket_delimiter_size<< " "<< candidate_size<< std::endl;
-//
-//		buffer<int, 2> buffer_hash_lsh(reinterpret_cast<int*>(local_hash_lsh),range<2>{NUM_HASH,NUM_BITS}, {property::buffer::use_host_ptr()});
-//
-//		buffer<tuple<int,int,int,int,int,int>> buffer_candidates(candidate,range<1>{candidate_size}, {property::buffer::use_host_ptr()});
-//
-//		buffer<int,1> buffer_len(len.data(),range<1>{len.size()}, {property::buffer::use_host_ptr()});
-//
-//      buffer<unsigned int, 1> buffer_batch_size(&batch_size,range<1>{1});
-//
-//      buffer<uint32_t, 1> buffer_len_output(&len_output,range<1>{1});
-
 		device_queue.submit([&](handler &cgh){
 
 			auto acc_reverse_index = buffer_reverse_index.get_access<access::mode::read>(cgh);
@@ -2517,6 +2449,107 @@ void generate_candidates_without_lshnumber_offset(queue &device_queue, buffer<in
 }
 
 
+void generate_candidates_without_lshnumber_offset_NEW(queue &device_queue, buffer<int,1> &buffer_len, buffer<char,2> &buffer_oristrings, char **embdata, buffer<tuple<int,int,int,int,int>,1> &buffer_buckets, buffer<uint32_t,1> &buffer_buckets_offset, buffer<uint32_t,1> &buffer_batch_size, buffer<tuple<int,int,int,int,int,int>,1> &buffer_candidates, uint32_t candidate_size, buffer<int,2> &buffer_hash_lsh, buffer<uint32_t,1> &buffer_len_output,range<2> local_range){
+
+
+		cout << "\n\tTask: Candidate Pairs Generation\t";
+		std::cout << "Device: " << device_queue.get_device().get_info<info::device::name>() << std::endl;
+
+		device_queue.submit([&](handler &cgh){
+
+			auto acc_buckets = buffer_buckets.get_access<access::mode::read>(cgh);
+
+			auto acc_candidate = buffer_candidates.get_access<access::mode::write>(cgh);
+
+			auto acc_len = buffer_len.get_access<access::mode::read>(cgh);
+
+            auto acc_batch_size=buffer_batch_size.get_access<access::mode::read>(cgh);
+
+            auto acc_len_output=buffer_len_output.get_access<access::mode::read>(cgh);
+
+            auto acc_buckets_offset=buffer_buckets_offset.get_access<access::mode::read>(cgh);
+
+
+            cout<<"Candidate size: "<<candidate_size<<std::endl;
+
+            cgh.parallel_for<class GenerateCandidates>(nd_range<1>(candidate_size,256), [=](item<1> index){
+
+            	int ij = index[0];
+
+
+				int index_output=ij;
+
+				int sum=0;
+
+				int i=get<0>(acc_candidate[ij])-acc_buckets_offset[0];//begin+i_norm;
+				int j=get<1>(acc_candidate[ij])-acc_buckets_offset[0];//begin+i_norm;
+
+				int t1=get<0>(acc_buckets[i]);
+				int k1=get<1>(acc_buckets[i]);
+				int i1=get<3>(acc_buckets[i]);
+				int q1=get<4>(acc_buckets[i]);
+
+//				int t2=get<0>(acc_buckets[j]);
+//				int k2=get<1>(acc_buckets[j]);
+				int i2=get<3>(acc_buckets[j]);
+				int q2=get<4>(acc_buckets[j]);
+
+
+				__int8_t c1;
+				__int8_t c2;
+//				__int64 s1=0;
+//				__int64 s2=0;
+
+//				uint8_t l=0;
+//				for (int j = k1*NUM_BITS; j < k1*NUM_BITS+NUM_BITS; j+=8){
+
+				for (int j = k1*NUM_BITS; j < k1*NUM_BITS+NUM_BITS; j++){
+
+//					__int64 s1=(*(__int64*)( embdata[i1/acc_batch_size[0]] + ABSPOS(i1%acc_batch_size[0],t1,q1,j,acc_len_output[0]) ));
+//					__int64 s2=(*(__int64*)( embdata[i2/acc_batch_size[0]] + ABSPOS(i2%acc_batch_size[0],t1,q2,j,acc_len_output[0]) ));
+
+					c1=embdata[i1/acc_batch_size[0]][ ABSPOS(i1%acc_batch_size[0],t1,q1,j,acc_len_output[0]) ];
+//					str1[l]=embdata[i1/acc_batch_size[0]][ ABSPOS(i1%acc_batch_size[0],t1,q1,j,acc_len_output[0]) ];
+					c2=embdata[i2/acc_batch_size[0]][ ABSPOS(i2%acc_batch_size[0],t1,q2,j,acc_len_output[0]) ];
+
+//					s1 = ( s1 << 8 );
+//					s1 = ( s1 | c1 );
+//
+//					s2 = ( s2 << 8 );
+//					s2 = ( s2 | c2 );
+//
+//
+//					if((l+1)%8==0){
+//						sum+=(s1==s2?0:1);
+//						s1=0;
+//						s2=0;
+//					}
+//					l++;
+
+
+					if(c1!=0 && c2!=0){
+						sum+=abs_diff(c1,c2);
+					}
+
+//					l++;
+//
+				}
+//				sum+=(s1==s2?0:1);
+
+				get<0>(acc_candidate[index_output])=i1;
+				get<1>(acc_candidate[index_output])=q1;
+				get<2>(acc_candidate[index_output])=i2;
+				get<3>(acc_candidate[index_output])=q2;
+				get<4>(acc_candidate[index_output])=abs_diff(acc_len[i1], acc_len[i2]);
+				get<5>(acc_candidate[index_output])=sum;
+
+
+			});
+
+		});
+
+}
+
 
 void generate_candidates_without_lshnumber_offset_impr(queue &device_queue, buffer<int,1> &buffer_len, buffer<char,2> &buffer_oristrings, char **embdata, buffer<tuple<int,int,int,int,int>,1> &buffer_buckets, buffer<uint32_t,1> &buffer_buckets_offset, buffer<uint32_t,1> &buffer_batch_size, buffer<tuple<int,int,int,int,int,int>,1> &buffer_candidates, uint32_t candidate_size, buffer<int,2> &buffer_hash_lsh, buffer<uint32_t,1> &buffer_len_output,range<2> local_range){
 
@@ -2527,10 +2560,6 @@ void generate_candidates_without_lshnumber_offset_impr(queue &device_queue, buff
 
 
 		device_queue.submit([&](handler &cgh){
-
-//			auto acc_reverse_index = buffer_reverse_index.get_access<access::mode::read>(cgh);
-
-//		    auto out = stream(1024, 768, cgh);
 
 
 			auto acc_buckets = buffer_buckets.get_access<access::mode::read>(cgh);
@@ -2620,8 +2649,6 @@ void generate_candidates_without_lshnumber_offset_impr(queue &device_queue, buff
 					c1=embdata[(int)(i1/acc_batch_size[0])][ ABSPOS((int)(i1%acc_batch_size[0]),t1,q1,bit,acc_len_output[0]) ];
 					c2=embdata[(int)(i2/acc_batch_size[0])][ ABSPOS((int)(i2%acc_batch_size[0]),t1,q2,bit,acc_len_output[0]) ];
 
-//					c1=loc_str[loc_ij][acc_hash_lsh[k1][j]];
-//					c2=loc_str[loc_ij][acc_hash_lsh[k1][j]];
 
 					if(c1!=0 && c2!=0){
 //						loc_sum[loc_ij]+=abs_diff(c1,c2);
@@ -2688,7 +2715,7 @@ void generate_candidates_without_lshnumber_offset_2dev_wrapper(vector<queue>& qu
 
 
 	int y_dim=NUM_BITS;
-	int x_dim=static_cast<int>(256/NUM_BITS);
+	int x_dim=static_cast<int>(256/*/NUM_BITS*/);
 
 	range<2> local_range(x_dim,y_dim);
 
@@ -2806,7 +2833,7 @@ void generate_candidates_without_lshnumber_offset_2dev_wrapper(vector<queue>& qu
 
 			buffers_buckets_offset.emplace_back( buffer<uint32_t,1>(&buckets_offset.back(),range<1>{1}));
 
-			generate_candidates_without_lshnumber_offset_impr(q, buffers_len[n], buffers_oristrings[n], embdata, buffers_buckets[n], buffers_buckets_offset[n], buffers_batch_size[n], buffers_candidates[n], size_for_test, buffers_hash_lsh[n], buffers_len_output[n],local_range);
+			generate_candidates_without_lshnumber_offset_NEW(q, buffers_len[n], buffers_oristrings[n], embdata, buffers_buckets[n], buffers_buckets_offset[n], buffers_batch_size[n], buffers_candidates[n], size_for_test, buffers_hash_lsh[n], buffers_len_output[n],local_range);
 
 //			generate_candidates_without_lshnumber_offset(q, buffers_len[n], buffers_oristrings[n], embdata, buffers_buckets[n], buffers_buckets_offset[n], buffers_batch_size[n], buffers_candidates[n], size_for_test, buffers_hash_lsh[n], buffers_len_output[n],local_range);
 
@@ -2975,7 +3002,7 @@ void generate_candidates_without_lshnumber_offset_2dev_wrapper(vector<queue>& qu
 				local_range[0]=size_cand[dev][iter];
 			}
 
-			generate_candidates_without_lshnumber_offset_impr(q, buffers_len[n], buffers_oristrings[n], embdata, buffers_buckets[n], buffers_buckets_offset[n], buffers_batch_size[n], buffers_candidates[n], size_cand[dev][iter], buffers_hash_lsh[n], buffers_len_output[n],local_range);
+			generate_candidates_without_lshnumber_offset_NEW(q, buffers_len[n], buffers_oristrings[n], embdata, buffers_buckets[n], buffers_buckets_offset[n], buffers_batch_size[n], buffers_candidates[n], size_cand[dev][iter], buffers_hash_lsh[n], buffers_len_output[n],local_range);
 //			generate_candidates_without_lshnumber_offset(q, buffers_len[n], buffers_oristrings[n], embdata, buffers_buckets[n], buffers_buckets_offset[n], buffers_batch_size[n], buffers_candidates[n], size_for_test, buffers_hash_lsh[n], buffers_len_output[n],local_range);
 
 //			q.wait();
@@ -3043,7 +3070,7 @@ void print_output(std::string file_name=file_output)
         std::cerr<<"Not possible to open file"<<std::endl;
         exit(-1);
     }
-	sort(outputs.begin(), outputs.end());
+	tbb::parallel_sort(outputs.begin(), outputs.end());
 	outputs.erase(unique(outputs.begin(), outputs.end()), outputs.end());
 
 
@@ -3204,7 +3231,7 @@ void initialize_candidate_pairs(vector<queue>& queues, std::vector<tuple<int,int
 
 	start=std::chrono::system_clock::now();
 
-		auto new_end=std::remove_if(/*std::execution::par_unseq, */buckets_delimiter.begin(),buckets_delimiter.end(),[](std::tuple<int,int> &e){return std::get<1>(e)<2;});
+		auto new_end=std::remove_if(dpl::execution::par_unseq, buckets_delimiter.begin(),buckets_delimiter.end(),[](std::tuple<int,int> &e){return std::get<1>(e)<2;});
 
 		buckets_delimiter.erase( new_end, buckets_delimiter.end());
 
@@ -3342,7 +3369,7 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, std::vector<tupl
 				}).wait();
 			} // For synch
 
-			auto new_end=std::remove_if(/*std::execution::par_unseq,*/ delimiter.begin()+1,delimiter.end(),[](std::tuple<int,int> &e){return std::get<0>(e)==0;});
+			auto new_end=std::remove_if(dpl::execution::par_unseq, delimiter.begin()+1,delimiter.end(),[](std::tuple<int,int> &e){return std::get<0>(e)==0;});
 				delimiter.erase( new_end, delimiter.end());
 //				auto end=std::chrono::system_clock::now();
 //			std::cout<<"Time cand-init: parallel count element: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
@@ -3367,7 +3394,7 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, std::vector<tupl
 
 			start=std::chrono::system_clock::now();
 
-			 new_end=std::remove_if(/*std::execution::par_unseq,*/ delimiter.begin(),delimiter.end(),[](std::tuple<int,int> &e){return std::get<1>(e)<2;});
+			 new_end=std::remove_if(dpl::execution::par_unseq, delimiter.begin(),delimiter.end(),[](std::tuple<int,int> &e){return std::get<1>(e)<2;});
 				delimiter.erase( new_end, delimiter.end());
 			end=std::chrono::system_clock::now();
 
@@ -4400,7 +4427,7 @@ int main(int argc, char **argv) {
 
 	char **set_embdata_dev=(char**)malloc_shared<char*>(n_batches, queues.back());
 
-	char **new_set_embdata_dev=(char**)malloc_shared<char*>(n_batches, queues.back());
+//	char **new_set_embdata_dev=(char**)malloc_shared<char*>(n_batches, queues.back());
 
 
     start=std::chrono::system_clock::now();
@@ -4449,44 +4476,44 @@ int main(int argc, char **argv) {
 	cout<<"Time: "<<(float)time_embedding_data/1000<<"sec"<<std::endl;
 
 
-    parallel_embedding_while_loop_2dev_wrapper(queues, len_oristrings, oristrings, new_set_embdata_dev, batch, n_batches, lshnumber, len_output, rev_hash, p);
+//    parallel_embedding_while_loop_2dev_wrapper(queues, len_oristrings, oristrings, new_set_embdata_dev, batch, n_batches, lshnumber, len_output, rev_hash, p);
 
 
-    for(auto &q : queues){
-		q.wait();
-	}
+//    for(auto &q : queues){
+//		q.wait();
+//	}
 
 
 //
-    for(int id=0; id<NUM_STRING; id++){
-
-        for(int t=0; t<NUM_STR; t++){
-
-
-            for(int q=0; q<NUM_REP; q++){
-
-            	string str1="";
-            	string str2="";
-
-            	for(int k=0; k<NUM_HASH; k++){
-            		for(int j=0; j<NUM_BITS; j++){
-            			str1+=new_set_embdata_dev[id/batch][ABSPOS(id%batch,t,q,hash_lsh[k][j],lshnumber.size())];
-            	    	str2+=set_embdata_dev[id/batch][ABSPOS(id%batch,t,q,k*NUM_BITS+j,NUM_HASH*NUM_BITS)];
-
-            		}
-            	}
-
-            	if(str1!=str2){
-            		cout<<"It's not the same at ("<<id<<", "<<t<<", "<<q<<")"<<std::endl;
-            		cout<<str1<<std::endl;
-            		cout<<str2<<std::endl;
-            		exit(-1);
-            	}
-
-            }
-        }
-    }
-    cout<<"\n\nCongratz...results are the same."<<std::endl<<std::endl;
+//    for(int id=0; id<NUM_STRING; id++){
+//
+//        for(int t=0; t<NUM_STR; t++){
+//
+//
+//            for(int q=0; q<NUM_REP; q++){
+//
+//            	string str1="";
+//            	string str2="";
+//
+//            	for(int k=0; k<NUM_HASH; k++){
+//            		for(int j=0; j<NUM_BITS; j++){
+//            			str1+=new_set_embdata_dev[id/batch][ABSPOS(id%batch,t,q,hash_lsh[k][j],lshnumber.size())];
+//            	    	str2+=set_embdata_dev[id/batch][ABSPOS(id%batch,t,q,k*NUM_BITS+j,NUM_HASH*NUM_BITS)];
+//
+//            		}
+//            	}
+//
+//            	if(str1!=str2){
+//            		cout<<"It's not the same at ("<<id<<", "<<t<<", "<<q<<")"<<std::endl;
+//            		cout<<str1<<std::endl;
+//            		cout<<str2<<std::endl;
+//            		exit(-1);
+//            	}
+//
+//            }
+//        }
+//    }
+////    cout<<"\n\nCongratz...results are the same."<<std::endl<<std::endl;
 
 
 //	print_embedded( set_embdata_dev, len_output, batch, string("embedded"+to_string(device)+".txt"));
@@ -4543,27 +4570,27 @@ int main(int argc, char **argv) {
  *
  * */
 
-	vector<tuple<int,int,int,int,int>> new_buckets(NUM_STRING*NUM_STR*NUM_HASH*NUM_REP);
+//	vector<tuple<int,int,int,int,int>> new_buckets(NUM_STRING*NUM_STR*NUM_HASH*NUM_REP);
+//
+//	create_buckets_without_lshnumber_offset_2dev_wrapper(queues, (char**)new_set_embdata_dev, new_buckets, n_batches, batch, (int*)hash_lsh, a, lshnumber, lshnumber.size());
+//
+//	for(auto &q:queues){
+//		q.wait();
+//	}
 
-	create_buckets_without_lshnumber_offset_2dev_wrapper(queues, (char**)new_set_embdata_dev, new_buckets, n_batches, batch, (int*)hash_lsh, a, lshnumber, lshnumber.size());
 
-	for(auto &q:queues){
-		q.wait();
-	}
-
-
-	for(int b=0; b<buckets.size(); b++){
-
-		if(buckets[b]!=new_buckets[b]){
-			cout<<"Buckets are different...at "<<b<<std::endl;
-			cout<<get<0>(buckets[b])<<" "<<get<1>(buckets[b])<<" "<<get<2>(buckets[b])<<" "<<get<3>(buckets[b])<<" "<<get<4>(buckets[b])<<std::endl;
-			cout<<get<0>(new_buckets[b])<<" "<<get<1>(new_buckets[b])<<" "<<get<2>(new_buckets[b])<<" "<<get<3>(new_buckets[b])<<" "<<get<4>(new_buckets[b])<<std::endl;
-			exit(-1);
-		}
-
-	}
-
-	cout<<"\n\nCongratz... buckets are equal"<<std::endl<<std::endl;
+//	for(int b=0; b<buckets.size(); b++){
+//
+////		if(buckets[b]!=new_buckets[b]){
+////			cout<<"Buckets are different...at "<<b<<std::endl;
+////			cout<<get<0>(buckets[b])<<" "<<get<1>(buckets[b])<<" "<<get<2>(buckets[b])<<" "<<get<3>(buckets[b])<<" "<<get<4>(buckets[b])<<std::endl;
+////			cout<<get<0>(new_buckets[b])<<" "<<get<1>(new_buckets[b])<<" "<<get<2>(new_buckets[b])<<" "<<get<3>(new_buckets[b])<<" "<<get<4>(new_buckets[b])<<std::endl;
+////			exit(-1);
+////		}
+//
+//	}
+//
+//	cout<<"\n\nCongratz... buckets are equal"<<std::endl<<std::endl;
 
 	start=std::chrono::system_clock::now();
 
@@ -4577,7 +4604,7 @@ int main(int argc, char **argv) {
 //	 auto buf_begin = dpstd::begin(buf);
 //	 auto buf_end   = dpstd::end(buf);
 
-	 /*tbb::parallel_sort*/stable_sort(buckets.begin(), buckets.end(), [](std::tuple<int,int,int,int,int> e1, std::tuple<int,int,int,int,int> e2) {
+	 /*tbb::parallel_sort*/tbb::parallel_sort(buckets.begin(), buckets.end(), [](std::tuple<int,int,int,int,int> e1, std::tuple<int,int,int,int,int> e2) {
 	 		 return ( ( get<0>(e1)<get<0>(e2) ) ||
 	 				 ( get<0>(e1)==get<0>(e2) && get<1>(e1)<get<1>(e2) ) ||
 	 				 ( get<0>(e1)==get<0>(e2) && get<1>(e1)==get<1>(e2) && get<2>(e1)<get<2>(e2) )  ||
@@ -4622,8 +4649,6 @@ int main(int argc, char **argv) {
 	 time_candidate_initialization=std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
 
 	 std::cout<<time_candidate_initialization<<std::endl;
-
-
 
 
 
@@ -4675,7 +4700,7 @@ int main(int argc, char **argv) {
 	// auto policy_rem = make_device_policy(device_queue);
 
 
-	 	 candidates.erase(std::remove_if(/*std::execution::par_unseq,*/ candidates.begin(), candidates.end(),[](std::tuple<int,int,int,int,int,int> e){return (/*get<0>(e)==-1 || */get<4>(e)>K_INPUT || (get<5>(e)!=0) || get<0>(e)==get<2>(e));}), candidates.end());
+	 	 candidates.erase(std::remove_if(dpl::execution::par_unseq, candidates.begin(), candidates.end(),[](std::tuple<int,int,int,int,int,int> e){return (/*get<0>(e)==-1 || */get<4>(e)>K_INPUT || (get<5>(e)!=0) || get<0>(e)==get<2>(e));}), candidates.end());
 
 	 auto end_2=std::chrono::system_clock::now();
 
@@ -4690,10 +4715,17 @@ int main(int argc, char **argv) {
 
 
 	 start_2=std::chrono::system_clock::now();
+//	 {
+//	 buffer<tuple<int,int,int,int,int,int>,1> buffer_cand(candidates.data(), candidates.size());
+//
+//	 auto sort_cand_policy = dpl::execution::make_device_policy(queues.back());
+//
+//	 auto cand_begin = dpl::begin(buffer_cand);
+//	 auto cand_end = dpl::end(buffer_cand);
 
 
-	 //TODO: Check comparing!
-	 /*tbb::parallel_sort*/stable_sort(candidates.begin(),candidates.end(), [](std::tuple<int,int,int,int,int,int> e1, std::tuple<int,int,int,int,int,int> e2) {
+	 // TODO: Check comparing!
+	 tbb::parallel_sort( candidates.begin(), candidates.end(), [](tuple<int,int,int,int,int,int> e1, tuple<int,int,int,int,int,int> e2) {
 		 return ( ( get<0>(e1)<get<0>(e2) ) ||
 				 ( get<0>(e1)==get<0>(e2) && get<1>(e1)<get<1>(e2) ) ||
 				 ( get<0>(e1)==get<0>(e2) && get<1>(e1)==get<1>(e2) && get<2>(e1)<get<2>(e2) )  ||
@@ -4788,7 +4820,7 @@ int main(int argc, char **argv) {
 
 	start_2=std::chrono::system_clock::now();
 
-		sort(verifycan.begin(), verifycan.end());
+		tbb::parallel_sort(verifycan.begin(), verifycan.end());
 
 	end_2=std::chrono::system_clock::now();
 	sub_time_sorting_candidates_to_verify=std::chrono::duration_cast<std::chrono::milliseconds>(end_2-start_2).count();
