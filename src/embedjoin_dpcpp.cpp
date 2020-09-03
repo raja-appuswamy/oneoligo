@@ -3727,7 +3727,7 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, std::vector<tupl
 				}).wait();
 			} // For synch
 
-			auto remove_policy = dpl::execution::make_device_policy(queues.back());
+//			auto remove_policy = dpl::execution::make_device_policy(queues.back());
 			auto new_end=remove_if(/*remove_policy,*/ delimiter.begin()+1,delimiter.end(),[](std::tuple<int,int> &e){return std::get<0>(e)==0;});
 				delimiter.erase( new_end, delimiter.end());
 //				auto end=std::chrono::system_clock::now();
@@ -3759,9 +3759,9 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, std::vector<tupl
 			end=std::chrono::system_clock::now();
 
 			std::cout<<"\tTime cand-init: parallel remove element: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
-			std::for_each(delimiter.begin(), delimiter.begin()+10,[](tuple<int,int>d){
-				std::cout<<get<0>(d)<<" "<<get<1>(d)<<std::endl;
-			});
+//			std::for_each(delimiter.begin(), delimiter.begin()+10,[](tuple<int,int>d){
+//				std::cout<<get<0>(d)<<" "<<get<1>(d)<<std::endl;
+//			});
 
 
 
@@ -3778,7 +3778,7 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, std::vector<tupl
 		candidates.resize(size,tuple<int,int,int,int,int,int>(-1,-1,-1,-1,-1,-1));
 		end=std::chrono::system_clock::now();
 
-		std::cout<<"\\tTime cand-init: resize: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
+		std::cout<<"\tTime cand-init: resize: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
 
 //		start=std::chrono::system_clock::now();
 //
@@ -3804,6 +3804,7 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, std::vector<tupl
 				for(int j=i+1; j<end; j++ ){
 					get<0>(candidates[c])=i;
 					get<1>(candidates[c])=j;
+					get<2>(candidates[c])=end;
 					c++;
 				}
 			}
@@ -5000,9 +5001,9 @@ int main(int argc, char **argv) {
 	 vector<arrayWrapper> partitionsCandidates;
 
 
-//	 initialize_candidate_pairs_onDevice(queues, buckets_delimiter, buckets, candidates, candidates_start, partitionsBucketsDelimiter, partitionsCandStart, partitionsBuckets, partitionsCandidates);
+	 initialize_candidate_pairs_onDevice(queues, buckets_delimiter, buckets, candidates, candidates_start, partitionsBucketsDelimiter, partitionsCandStart, partitionsBuckets, partitionsCandidates);
 
-	 initialize_candidate_pairs(queues, buckets_delimiter, buckets, candidates, candidates_start, partitionsBucketsDelimiter, partitionsCandStart, partitionsBuckets, partitionsCandidates);
+//	 initialize_candidate_pairs(queues, buckets_delimiter, buckets, candidates, candidates_start, partitionsBucketsDelimiter, partitionsCandStart, partitionsBuckets, partitionsCandidates);
 
 	 end=std::chrono::system_clock::now();
 
@@ -5057,9 +5058,9 @@ int main(int argc, char **argv) {
 
 	 	 vector<std::tuple<int,int>> verifycan;
 
-	// auto policy_rem = make_device_policy(device_queue);
+//	 dpl::execution::device_policy remove_policy = dpl::execution::make_device_policy(cpu_selector{});
 
-			auto remove_policy = dpl::execution::make_device_policy(queues.back());
+//			auto remove_policy = dpl::execution::make_device_policy(queues.back());
 
 	 	 candidates.erase(remove_if(/*remove_policy,*/ candidates.begin(), candidates.end(),[](std::tuple<int,int,int,int,int,int> e){return (/*get<0>(e)==-1 || */get<4>(e)>K_INPUT || (get<5>(e)!=0) || get<0>(e)==get<2>(e));}), candidates.end());
 
