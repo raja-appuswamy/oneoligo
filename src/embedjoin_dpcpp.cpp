@@ -3876,7 +3876,7 @@ int* parallel_embedding_while_loop_2dev_gath_wrapper(vector<queue> &queues, vect
 
 		#ifdef CUDA==1
 			set_embdata_dev[n]=malloc_shared<char>(batch_size*NUM_STR*NUM_REP*len_output, queues.back());
-		#elif
+		#else
 			set_embdata_dev[n]=malloc(batch_size*NUM_STR*NUM_REP*len_output);
 		#endif
 
@@ -4540,7 +4540,7 @@ int main(int argc, char **argv) {
 
 #if CUDA==1
 	char **set_embdata_dev=(char**)malloc_shared<char*>(n_batches, queues.back());
-#elif
+#else
 //	char **new_set_embdata_dev=(char**)malloc_shared<char*>(n_batches, queues.back());
 	char **set_embdata_dev=(char**)malloc(n_batches*sizeof(char*));
 
@@ -5127,7 +5127,13 @@ int main(int argc, char **argv) {
 		if(set_embdata_dev[i]==nullptr){
 			cout<<"ERROR: Null pointer!"<<std::endl;
 		}else{
-			free(set_embdata_dev[i], queues.back());
+
+			#if CUDA==1
+				free(set_embdata_dev[i], queues.back());
+			#else
+				free(set_embdata_dev[i]);
+			#endif
+
 			cout<<"Delete embdata["<<i<<"]"<<std::endl;
 
 		}
@@ -5135,8 +5141,11 @@ int main(int argc, char **argv) {
 	if(set_embdata_dev==nullptr){
 				cout<<"ERROR: Null pointer!"<<std::endl;
 	}else{
-		free(set_embdata_dev, queues.back());
-		cout<<"Delete embdata"<<std::endl;
+		#if CUDA==1
+			free(set_embdata_dev, queues.back());
+		#else
+			cout<<"Delete embdata"<<std::endl;
+		#endif
 	}
 
 	std::string dev="";
