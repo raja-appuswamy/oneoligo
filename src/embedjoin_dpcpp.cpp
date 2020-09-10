@@ -3874,7 +3874,7 @@ int* parallel_embedding_while_loop_2dev_gath_wrapper(vector<queue> &queues, vect
 
 	for(int n=0; n<n_batches; n++){
 
-		#ifdef CUDA==1
+		#if CUDA==1
 			set_embdata_dev[n]=malloc_shared<char>(batch_size*NUM_STR*NUM_REP*len_output, queues.back());
 		#else
 			set_embdata_dev[n]=malloc(batch_size*NUM_STR*NUM_REP*len_output);
