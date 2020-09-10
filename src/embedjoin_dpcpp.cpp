@@ -3333,7 +3333,7 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<tuple<int,int,int,
 
 	start=std::chrono::system_clock::now();
 
-		auto remove_policy = dpl::execution::make_device_policy(queues.back());
+//		auto remove_policy = dpl::execution::make_device_policy(queues.back());
 		auto new_end=remove_if(/*remove_policy,*/ buckets_delimiter.begin(),buckets_delimiter.end(),[](std::tuple<int,int> &e){return std::get<1>(e)<2;});
 
 		buckets_delimiter.erase( new_end, buckets_delimiter.end());
@@ -3465,7 +3465,7 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, vector<tuple<int
 					auto pv_acc = buckets_delimiter_buf.get_access<cl::sycl::access::mode::write>(cgh);
 					auto array_acc = array_buf.get_access<cl::sycl::access::mode::read>(cgh);
 
-					cgh.parallel_for<class partition_kernel>(cl::sycl::range<1>{buckets.size() - 1},
+					cgh.parallel_for<class partition_kernel_onDevice>(cl::sycl::range<1>{buckets.size() - 1},
 						[=](cl::sycl::id<1> idx) {
 							if ( (get<0>(array_acc[idx[0]])!=get<0>(array_acc[idx[0] + 1]))
 									|| (get<0>(array_acc[idx[0]])==get<0>(array_acc[idx[0] + 1]) && get<1>(array_acc[idx[0]])!=get<1>(array_acc[idx[0] + 1]) )
