@@ -4690,27 +4690,27 @@ int main(int argc, char **argv) {
  *
  * */
 
-	vector<tuple<int,int,int,int,int>> new_buckets(NUM_STRING*NUM_STR*NUM_HASH*NUM_REP);
-
-	create_buckets_without_lshnumber_offset_USM_2dev_NEW_wrapper(queues, (char**)set_embdata_dev, new_buckets, n_batches, batch, (int*)hash_lsh, a, lshnumber, len_output);
-
-	for(auto &q:queues){
-		q.wait();
-	}
-
-
-	for(int b=0; b<buckets.size(); b++){
-
-		if(buckets[b]!=new_buckets[b]){
-			cout<<"Buckets are different...at "<<b<<std::endl;
-			cout<<get<0>(buckets[b])<<" "<<get<1>(buckets[b])<<" "<<get<2>(buckets[b])<<" "<<get<3>(buckets[b])<<" "<<get<4>(buckets[b])<<std::endl;
-			cout<<get<0>(new_buckets[b])<<" "<<get<1>(new_buckets[b])<<" "<<get<2>(new_buckets[b])<<" "<<get<3>(new_buckets[b])<<" "<<get<4>(new_buckets[b])<<std::endl;
-			exit(-1);
-		}
-
-	}
-
-	cout<<"\n\nCongratz... buckets are equal"<<std::endl<<std::endl;
+//	vector<tuple<int,int,int,int,int>> new_buckets(NUM_STRING*NUM_STR*NUM_HASH*NUM_REP);
+//
+//	create_buckets_without_lshnumber_offset_USM_2dev_NEW_wrapper(queues, (char**)set_embdata_dev, new_buckets, n_batches, batch, (int*)hash_lsh, a, lshnumber, len_output);
+//
+//	for(auto &q:queues){
+//		q.wait();
+//	}
+//
+//
+//	for(int b=0; b<buckets.size(); b++){
+//
+//		if(buckets[b]!=new_buckets[b]){
+//			cout<<"Buckets are different...at "<<b<<std::endl;
+//			cout<<get<0>(buckets[b])<<" "<<get<1>(buckets[b])<<" "<<get<2>(buckets[b])<<" "<<get<3>(buckets[b])<<" "<<get<4>(buckets[b])<<std::endl;
+//			cout<<get<0>(new_buckets[b])<<" "<<get<1>(new_buckets[b])<<" "<<get<2>(new_buckets[b])<<" "<<get<3>(new_buckets[b])<<" "<<get<4>(new_buckets[b])<<std::endl;
+//			exit(-1);
+//		}
+//
+//	}
+//
+//	cout<<"\n\nCongratz... buckets are equal"<<std::endl<<std::endl;
 
 
 
