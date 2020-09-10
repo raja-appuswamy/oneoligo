@@ -4673,8 +4673,11 @@ int main(int argc, char **argv) {
 
 	len_output=NUM_HASH*NUM_BITS;
 
-//	create_buckets_without_lshnumber_offset_USM_2dev_NEW_wrapper(queues, (char**)set_embdata_dev, buckets, n_batches, batch, (int*)hash_lsh, a, lshnumber, len_output);
+#if CUDA==1
 	create_buckets_without_lshnumber_offset_BUFFER_2dev_NEW_wrapper(queues, set_embdata_dev, buckets, n_batches, batch, (int*)hash_lsh, a, lshnumber, len_output);
+#else
+	create_buckets_without_lshnumber_offset_USM_2dev_NEW_wrapper(queues, (char**)set_embdata_dev, buckets, n_batches, batch, (int*)hash_lsh, a, lshnumber, len_output);
+#endif
 
 	for(auto &q:queues){
 		q.wait();
