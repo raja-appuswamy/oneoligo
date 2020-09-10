@@ -105,6 +105,10 @@ using namespace oneapi;
 	#define PRINT_CAND 0
 #endif
 
+#ifndef CUDA
+	#define CUDA 0
+#endif
+
 //embedrange: the length of truncation, recommended to be the average length of strings (you could try smaller values to further save the embedding time)
 
 //#define T 1 //T:
@@ -3869,7 +3873,13 @@ int* parallel_embedding_while_loop_2dev_gath_wrapper(vector<queue> &queues, vect
 	auto start=std::chrono::system_clock::now();
 
 	for(int n=0; n<n_batches; n++){
-		set_embdata_dev[n]=malloc_shared<char>(batch_size*NUM_STR*NUM_REP*len_output, queues.back());
+
+		#ifdef CUDA==1
+			set_embdata_dev[n]=malloc_shared<char>(batch_size*NUM_STR*NUM_REP*len_output, queues.back());
+		#elif
+			set_embdata_dev[n]=malloc(batch_size*NUM_STR*NUM_REP*len_output);
+		#endif
+
 		memset(set_embdata_dev[n],0,batch_size*NUM_STR*NUM_REP*len_output);
 	}
 
@@ -4528,11 +4538,13 @@ int main(int argc, char **argv) {
 
     start=std::chrono::system_clock::now();
 
+#if CUDA==1
 	char **set_embdata_dev=(char**)malloc_shared<char*>(n_batches, queues.back());
-
+#elif
 //	char **new_set_embdata_dev=(char**)malloc_shared<char*>(n_batches, queues.back());
+	char **set_embdata_dev=(char**)malloc(n_batches*sizeof(char*));
 
-
+#endif
 
 	/**
 	 *
