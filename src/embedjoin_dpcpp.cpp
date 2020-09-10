@@ -5066,7 +5066,7 @@ int main(int argc, char **argv) {
 					string tmp_str1=oridata_modified[first_str];
 					string tmp_str2=oridata_modified[second_str];
 
-				#if CUDA==!
+				#if CUDA==1
 					int ed = edit_distance(tmp_str2.data(), len_oristrings[second_str], tmp_str1.data(), len_oristrings[first_str] /*tmp_oridata[first_str].size()*/, K_INPUT);
 				#else
 					int ed=0;
