@@ -5207,9 +5207,9 @@ int main(int argc, char **argv) {
 
 	 start=std::chrono::system_clock::now();
 
-	 initialize_candidate_pairs_onDevice( queues, buckets, candidates );
+//	 initialize_candidate_pairs_onDevice( queues, buckets, candidates );
 
-//	 initialize_candidate_pairs( queues, buckets, candidates );
+	 initialize_candidate_pairs( queues, buckets, candidates );
 
 	 timer.end_time(0,4,0);
 
