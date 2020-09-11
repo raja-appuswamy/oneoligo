@@ -2813,7 +2813,7 @@ void generate_candidates_without_lshnumber_BUFFER_offset_NEW(queue &device_queue
 
             cout<<"Candidate size: "<<candidate_size<<std::endl;
 
-            cgh.parallel_for<class GenerateCandidates>(range<1>(candidate_size), [=](item<1> index){
+            cgh.parallel_for<class GenerateCandidatesBUFFER>(range<1>(candidate_size), [=](item<1> index){
 
             	int ij = index[0];
 
