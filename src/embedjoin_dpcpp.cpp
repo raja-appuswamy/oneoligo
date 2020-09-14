@@ -1397,12 +1397,8 @@ void create_bucket_without_lshnumber_offset_NEW_impr(queue &device_queue, char *
 		range<2> glob_range(split_size*NUM_STR*NUM_REP,NUM_HASH);
 		range<3> local_range(250,1,1);
 
-		std::cout<<"\t\tGlobal range: "<<"("<<glob_range[0]<<", "<<glob_range[1]<<", "<<glob_range[1]<<")"<<std::endl;
-		std::cout<<"\t\tLocal range: "<<"("<<local_range[0]<<", "<<local_range[1]<<", "<<local_range[2]<<")"<<std::endl;
+		std::cout<<"\t\tGlobal range: "<<"("<<glob_range[0]<<", "<<glob_range[1]<<")"<<std::endl;
 
-		if(glob_range[0]%local_range[0]!=0 && glob_range[1]%local_range[1]!=0 && glob_range[2]%local_range[2]!=0 ){
-			exit(-1);
-		}
 
     {
 
@@ -2917,7 +2913,7 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<tuple<int,int,int,
 	auto start=std::chrono::system_clock::now();
 
 		int j=0;
-		long size=0;
+		uint64_t size=0;
 
 		buckets_delimiter.emplace_back(make_tuple(0,0));
 
@@ -2950,11 +2946,13 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<tuple<int,int,int,
 
 
 	start=std::chrono::system_clock::now();
+	std::cout<<"Size before remove: "<<buckets_delimiter.size()<<std::endl;
 
 		auto remove_policy = dpl::execution::make_device_policy(queues.back());
-		auto new_end=remove_if(/*remove_policy,*/ buckets_delimiter.begin(),buckets_delimiter.end(),[](std::tuple<int,int> &e){return std::get<1>(e)<2;});
+		auto new_end=remove_if(/*oneapi::dpl::execution::par, */buckets_delimiter.begin(),buckets_delimiter.end(),[](std::tuple<int,int> e){return std::get<1>(e)<2;});
 
 		buckets_delimiter.erase( new_end, buckets_delimiter.end());
+		std::cout<<"Size after remove: "<<buckets_delimiter.size()<<std::endl;
 
 	end=std::chrono::system_clock::now();
 
@@ -2985,14 +2983,21 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<tuple<int,int,int,
 	 *
 	 * */
 
+	std::vector<int> n_values;
+
 		for(int b=0; b<buckets_delimiter.size(); b++){
 			int n=get<1>(buckets_delimiter[b]);
 			size+=((n*(n-1))/2);
+			n_values.emplace_back(n);
 		}
 
+		auto p=std::max_element(n_values.begin(), n_values.end());
 
+
+		std::cout<<"Max n: "<<*p<<std::endl;
 		start=std::chrono::system_clock::now();
 
+		std::cout<<"Size: "<<size<<std::endl;
 
 		candidates.resize(size/*,make_tuple(-1,-1,-1,-1,-1,-1)*/);
 		end=std::chrono::system_clock::now();
@@ -3095,11 +3100,11 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, vector<tuple<int
 			} // For synch
 
 //			auto remove_policy = dpl::execution::make_device_policy(queues.back());
-			auto new_end=remove_if(/*remove_policy,*/ delimiter.begin()+1,delimiter.end(),[](std::tuple<int,int> &e){return std::get<0>(e)==0;});
+			auto new_end=remove_if(oneapi::dpl::execution::par, delimiter.begin()+1,delimiter.end(),[](std::tuple<int,int> e){return std::get<0>(e)==0;});
 				delimiter.erase( new_end, delimiter.end());
 //				auto end=std::chrono::system_clock::now();
 //			std::cout<<"Time cand-init: parallel count element: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
-			size_t size=0;
+			size_t size=0;6
 
 //			start=std::chrono::system_clock::now();
 			{
@@ -3124,7 +3129,7 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, vector<tuple<int
 
 			//auto remove_policy = dpl::execution::make_device_policy(queues.back());
 
-			 new_end=std::remove_if(/*remove_policy,*/ delimiter.begin(),delimiter.end(),[](std::tuple<int,int> &e){return std::get<1>(e)<2;});
+			 new_end=std::remove_if(dpl::execution::par, delimiter.begin(),delimiter.end(),[](std::tuple<int,int> &e){return std::get<1>(e)<2;});
 
 			 delimiter.erase( new_end, delimiter.end());
 
@@ -4374,9 +4379,9 @@ int main(int argc, char **argv) {
 
 	 start=std::chrono::system_clock::now();
 
-	 initialize_candidate_pairs_onDevice( queues, buckets, candidates );
+//	 initialize_candidate_pairs_onDevice( queues, buckets, candidates );
 
-//	 initialize_candidate_pairs( queues, buckets, candidates );
+	 initialize_candidate_pairs( queues, buckets, candidates );
 
 	 timer.end_time(0,4,0);
 
@@ -4441,11 +4446,11 @@ int main(int argc, char **argv) {
 
 	 	 vector<std::tuple<int,int>> verifycan;
 
-//	 dpl::execution::device_policy remove_policy = dpl::execution::make_device_policy(cpu_selector{});
+//	 dpl::execution::device_policy par_policy = dpl::execution::make_device_policy(cpu_selector{});
 
 //			auto remove_policy = dpl::execution::make_device_policy(queues.back());
 
-	 	 candidates.erase(remove_if(/*remove_policy,*/ candidates.begin(), candidates.end(),[](std::tuple<int,int,int,int,int,int> e){return (/*get<0>(e)==-1 || */get<4>(e)>K_INPUT || (get<5>(e)!=0) || get<0>(e)==get<2>(e));}), candidates.end());
+	 	 candidates.erase(remove_if(dpl::execution::par, candidates.begin(), candidates.end(),[](std::tuple<int,int,int,int,int,int> e){return (/*get<0>(e)==-1 || */get<4>(e)>K_INPUT || (get<5>(e)!=0) || get<0>(e)==get<2>(e));}), candidates.end());
 
 	 auto end_2=std::chrono::system_clock::now();
 
@@ -4765,24 +4770,7 @@ int main(int argc, char **argv) {
 	else{
 		distinguisher+="-ERROR";
 	}
-
-//	if(alg_number[0]==0 && alg_number[1]==0 && alg_number[2]==0){
-//		distinguisher+="BATCHED-NO_WHILE-";
-//	}
-//	else if(alg_number[0]==2 && alg_number[1]==1 && alg_number[2]==1){
-//		distinguisher+="BATCHED-WHILE-";
-//	}
-//	else if(alg_number[0]==1 && alg_number[1]==0 && alg_number[2]==0){
-//			distinguisher+="USM-";
-//	}
-//	else if(alg_number[0]==3 && alg_number[1]==1 && alg_number[2]==1){
-//				distinguisher+="-USM-NO_WHILE-";
-//	}
-//	else{
-//		distinguisher+="ERROR";
-//	}
-
-//	distinguisher+=std::to_string(len_output);
+	distinguisher+=std::to_string(batch);
 
 	std::cout<<std::endl<<std::endl<<std::endl;
 	std::cout<<"Report:"<<std::endl<<std::endl;
@@ -4798,7 +4786,6 @@ int main(int argc, char **argv) {
 	std::cout<<"Total time parallel join:\t"<< (float)total_time_join/1000<<"sec"<<std::endl;
 	std::cout<<"Total elapsed time :\t"<< (float)total_time/1000<<"sec"<<std::endl;
 
-	//std::cout<<"Number of candidates: "<<num_candidate<<std::endl;
 
 	cout<<std::endl;
 
