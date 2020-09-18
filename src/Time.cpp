@@ -1,4 +1,3 @@
-
 #include "embedjoin.hpp"
 
 class Time {
@@ -65,7 +64,6 @@ private:
 	template<class Func>
 	double find_case(int i, int main_phase, int phase, int subphase, Func to_do){
 
-			auto new_t=std::chrono::system_clock::now();
 
 			double res=0;
 
