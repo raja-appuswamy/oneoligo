@@ -25,13 +25,7 @@ int test_batches=2;
 
 std::string filename="";
 
-
-
-
-
-
 Time timer;
-
 
 
 std::vector<int> indices;
@@ -45,10 +39,11 @@ std::vector<std::string> tmp_oridata;
 void setuplsh(int (*hash_lsh)[NUM_BITS], std::vector<int> &a, std::vector<int> &lshnumber)
 {
 
-	for (int i = 0; i < NUM_HASH; i++)
-	for (int j = 0; j < NUM_BITS; j++)
-		hash_lsh[i][j] = rand() % (samplingrange);
-
+	for (int i = 0; i < NUM_HASH; i++){
+		for (int j = 0; j < NUM_BITS; j++){
+			hash_lsh[i][j] = rand() % (samplingrange);
+		}
+	}
 
 	for (int i = 0; i < NUM_BITS; i++)
 		a.push_back(rand() % (M - 1));
@@ -286,9 +281,6 @@ void create_bucket_without_lshnumber_offset_NEW_impr(queue &device_queue, char *
     {
 
 
-	    auto start=std::chrono::system_clock::now();
-
-
 		device_queue.submit([&](handler &cgh){
 
 
@@ -380,12 +372,12 @@ void create_buckets_without_lshnumber_offset_2dev_NEW_wrapper(vector<queue> &que
 	int num_dev=queues.size();
 
 
-	int n_max;
-	int n_min;
+	int n_max=0;
+	int n_min=0;
 
 
-	int idx_max;
-	int idx_min;
+	int idx_max=0;
+	int idx_min=0;
 
 	int number_of_testing_batches=2*num_dev;//test_batches;
 
@@ -821,12 +813,12 @@ void generate_candidates_without_lshnumber_offset_2dev_wrapper(vector<queue>& qu
 
 	timer.start_time(0,5,1);
 
-	int n_max;
-	int n_min;
+	int n_max=0;
+	int n_min=0;
 
 
-	int idx_max;
-	int idx_min;
+	int idx_max=0;
+	int idx_min=0;
 
 
 	int dev=0;
@@ -844,9 +836,6 @@ void generate_candidates_without_lshnumber_offset_2dev_wrapper(vector<queue>& qu
 
 			auto start=std::chrono::system_clock::now();
 
-			int iter=0;
-
-//			size_for_test+=(dev>0?(candidate.size()%num_dev):0);
 
 			uint32_t start_b=get<0>(candidate[size_for_test*n]);
 			uint32_t end_b=get<2>(candidate[size_for_test*n+size_for_test-1])-1;
@@ -1003,21 +992,12 @@ void generate_candidates_without_lshnumber_offset_2dev_wrapper(vector<queue>& qu
 
 		}
 
-
-//		size_cand[idx_max].emplace_back(n_min);
-
-
-//		size_cand[idx_min].emplace_back(n_max); // At this point n_max is multiple of local_range[0] for sure
-
-
 	}else if(num_dev==1){
+
 		vector<int> tmp_sizes;
 
 		n_max=0;
 
-//		if(remaining_size*sizeof(candidate[0])>0xFFFFFFFF){
-
-		//sizeof(candidate[0]);
 
 		uint64_t s=remaining_size*sizeof(candidate[0]);
 		cout<<"size of 6-int tuple: "<<sizeof(candidate[0])<<std::endl;
@@ -1054,8 +1034,6 @@ void generate_candidates_without_lshnumber_offset_2dev_wrapper(vector<queue>& qu
 		idx_min=0;
 
 		cout<<"\n\tNumber of candidates to assign to device: "<<n_min<<std::endl;
-
-		//size_cand[idx_max].insert(size_cand[idx_max].end(), tmp_sizes.begin(), tmp_sizes.end());
 
 	}
 
@@ -1257,15 +1235,6 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<tuple<int,int,int,
 
 
 	std::cout<<"\tTime cand-init: remove element: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
-
-
-
-
-
-
-
-	int num_splits=queues.size();
-
 
 	start=std::chrono::system_clock::now();
 
@@ -1880,18 +1849,14 @@ int main(int argc, char **argv) {
 
 	char (*oristrings)[LEN_INPUT];
 	oristrings = new char[NUM_STRING][LEN_INPUT];
+
 	std::vector<string> oridata_modified;
 	std::vector<int> len_oristrings;
-
 
 
 	std::vector<tuple<int,int,int,int,int>> buckets(NUM_STRING*NUM_STR*NUM_HASH*NUM_REP);
 
 	std::vector<std::tuple<int,int,int,int,int,int>> candidates;
-
-	std::vector<tuple<int,int>> buckets_delimiter;
-
-	std::vector<int> candidates_start;
 
 
 	std::vector<queue> queues;
@@ -1939,6 +1904,13 @@ int main(int argc, char **argv) {
 
 	timer.start_time(0,0,3);
 
+
+	/**
+	 *
+	 *  Compute the position in which to put each
+	 *  selected char in embedding according the lsh bit
+	 *
+	 * */
 
 	int k=0;
 
@@ -2119,11 +2091,26 @@ int main(int argc, char **argv) {
 	 generate_candidates_without_lshnumber_offset_2dev_wrapper(queues, len_oristrings, (char*)oristrings, (char**)set_embdata_dev, buckets, batch, /*buckets_delimiter,*/ candidates, /*candidates_start,*/ (int *)hash_lsh, lshnumber, len_output/*, partitionsBucketsDelimiter, partitionsCandStart, partitionsBuckets, partitionsCandidates*/);
 
 
+
+
 	 timer.end_time(0,5,0);
 
 
 
 	 timer.start_time(0,6,0);
+
+	 for(auto &q:queues){
+		 q.wait();
+	 }
+
+	 /**
+	  *
+	  *
+	  * CANDIDATES PROCESSING
+	  *
+	  *
+	  * */
+
 
 	std::cout<<"\n\nStarting candidate processing analysis..."<<std::endl;
 
@@ -2138,11 +2125,8 @@ int main(int argc, char **argv) {
 
 	 	 vector<std::tuple<int,int>> verifycan;
 
-//	 dpl::execution::device_policy par_policy = dpl::execution::make_device_policy(cpu_selector{});
 
-//			auto remove_policy = dpl::execution::make_device_policy(queues.back());
-
-	 	 candidates.erase(remove_if(oneapi::dpl::execution::par, candidates.begin(), candidates.end(),[](std::tuple<int,int,int,int,int,int> e){return (get<4>(e)>K_INPUT || (get<5>(e)!=0) || get<0>(e)==get<2>(e));}), candidates.end());
+	 candidates.erase(std::remove_if(oneapi::dpl::execution::par_unseq, candidates.begin(), candidates.end(),[](std::tuple<int,int,int,int,int,int> e){return (get<4>(e)>K_INPUT || (get<5>(e)!=0) || get<0>(e)==get<2>(e));}), candidates.end());
 
 
 	 timer.end_time(0,6,1);
@@ -2284,7 +2268,7 @@ int main(int argc, char **argv) {
 
 	/**
 	 *
-	 * EDIT DISTANCE CALCULATION
+	 * EDIT DISTANCE
 	 *
 	 * */
 
@@ -2324,7 +2308,7 @@ int main(int argc, char **argv) {
 
 					first_str=get<0>(verifycan[j]);
 					second_str=get<1>(verifycan[j]);
-//					int ed = edit_distance(oridata_modified[second_str].data(), len_oristrings[second_str]/*tmp_oridata[second_str].size()*/,oridata_modified[first_str].data(), len_oristrings[first_str] /*tmp_oridata[first_str].size()*/, K_INPUT);
+
 					string tmp_str1=oridata_modified[first_str];
 					string tmp_str2=oridata_modified[second_str];
 
