@@ -43,16 +43,10 @@ void print_embedded( char **output, int len_output, int batch_size, std::string 
 
 	if (outFile.is_open()) {
 
-//		for(int i=0; i<20; i++){
-//			for(int j=0; j<batch_size*NUM_STR*NUM_REP*len_output; j++){
-//				outFile<<output[i][j];
-//			}
-//			outFile<<std::endl;
-//		}
 		for(int i=0; i<NUM_STRING; i++){
 			for(int j=0; j<NUM_STR; j++ ){
 				for(int k=0; k<NUM_REP; k++){
-//					outFile<<"("<<i<<","<<j<<","<<k<<"): ";
+
 					for(int t=0; t<len_output; t++){
 
 						if(output[(int)(i/batch_size)][ABSPOS((int)(i%batch_size),j,k,t,len_output)]==0){
@@ -60,7 +54,6 @@ void print_embedded( char **output, int len_output, int batch_size, std::string 
 						}
 						outFile<<output[(int)(i/batch_size)][ABSPOS((int)(i%batch_size),j,k,t,len_output)];
 
-						//outFile<<output[i][j][k][t];
 					}
 					outFile<<std::endl;
 
@@ -100,7 +93,7 @@ void print_candidate_pairs( vector<tuple<int,int,int,int,int,int>> &candidates, 
 	}
 };
 
-void print_configuration(int batch_size,int n_batches, int len_output, int countfilter, int samplingrange){
+void print_configuration(int batch_size,int n_batches, size_t len_output, int countfilter, int samplingrange){
 	std::cout<<"\nParameter selected:"<<std::endl;
 	std::cout<<"\tNum of strings:\t\t\t\t\t"<<NUM_STRING<<std::endl;
 	std::cout<<"\tMax len of strings:\t\t\t\t"<<LEN_INPUT<<std::endl;

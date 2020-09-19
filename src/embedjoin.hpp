@@ -131,7 +131,7 @@ void print_buckets( vector<tuple<int,int,int,int,int>> &buckets, std::string fil
 
 void print_candidate_pairs( vector<tuple<int,int,int,int,int,int>> &candidates, std::string filename );
 
-void print_configuration(int batch_size,int n_batches, int len_output, int countfilter, int samplingrange);
+void print_configuration(int batch_size, int n_batches, size_t len_output, int countfilter, int samplingrange);
 
 #endif
 

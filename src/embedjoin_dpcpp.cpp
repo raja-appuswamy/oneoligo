@@ -182,7 +182,7 @@ void inititalize_dictionary(uint8_t* dictionary){
 
 
 
-void parallel_embedding_while_loop_gath(queue &device_queue, buffer<int,1> &buffer_len_oristrings, buffer<char,2> &buffer_oristrings, buffer<char,1> &buffer_embdata, uint32_t batch_size, buffer<int,1> &buffer_lshnumber, buffer<int,1> &buffer_p, buffer<uint32_t,1> &buffer_len_output, buffer<uint32_t,1> &buffer_samplingrange, buffer<uint8_t,1> &buffer_dict, buffer<std::tuple<int,int>> &buffer_rev_hash){
+void parallel_embedding_while_loop_gath(queue &device_queue, buffer<int,1> &buffer_len_oristrings, buffer<char,2> &buffer_oristrings, buffer<char,1> &buffer_embdata, uint32_t batch_size, buffer<int,1> &buffer_lshnumber, buffer<int,1> &buffer_p, buffer<size_t,1> &buffer_len_output, buffer<uint32_t,1> &buffer_samplingrange, buffer<uint8_t,1> &buffer_dict, buffer<std::tuple<int,int>> &buffer_rev_hash){
 
 
 		std::cout << "\n\t\tTask: Embedding Data";
@@ -1230,7 +1230,6 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<tuple<int,int,int,
 
 	auto end=std::chrono::system_clock::now();
 
-//	sub_time_compute_buckets_delim=std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
 
 	std::cout<<"\n\tTime cand-init: count element: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
 
@@ -1512,7 +1511,7 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, vector<tuple<int
 
 
 
-int* parallel_embedding_while_loop_2dev_gath_wrapper(std::vector<queue> &queues, vector<int> &len_oristrings, char (*oristrings)[LEN_INPUT], char** &set_embdata_dev, unsigned int batch_size, uint32_t n_batches, std::vector<int> &lshnumber, uint32_t &len_output, std::vector<tuple<int,int>> &rev_hash/*, int*p*/){
+void parallel_embedding_while_loop_2dev_gath_wrapper(std::vector<queue> &queues, vector<int> &len_oristrings, char (*oristrings)[LEN_INPUT], char** &set_embdata_dev, unsigned int batch_size, uint32_t n_batches, std::vector<int> &lshnumber, size_t &len_output, std::vector<tuple<int,int>> &rev_hash/*, int*p*/){
 
 	std::cout<< "Selected: Parallel embedding - while loop version"<<std::endl;
 
@@ -1597,7 +1596,7 @@ int* parallel_embedding_while_loop_2dev_gath_wrapper(std::vector<queue> &queues,
 
 		std::vector<buffer<uint32_t,1>> buffers_samplingrange;
 
-		std::vector<buffer<uint32_t,1>> buffers_len_output;
+		std::vector<buffer<size_t,1>> buffers_len_output;
 
 		std::vector<buffer<tuple<int,int>>> buffers_rev_hash;
 
@@ -1641,7 +1640,7 @@ int* parallel_embedding_while_loop_2dev_gath_wrapper(std::vector<queue> &queues,
 
 				buffers_samplingrange.emplace_back( buffer<uint32_t,1>(&samprange,range<1>(1)) );
 
-				buffers_len_output.emplace_back( buffer<uint32_t, 1>(&len_output,range<1>{1}) );
+				buffers_len_output.emplace_back( buffer<size_t, 1>(&len_output,range<1>{1}) );
 
 				buffers_rev_hash.emplace_back( buffer<tuple<int,int>>(rev_hash.data(),range<1>(rev_hash.size())));
 
@@ -1755,7 +1754,7 @@ int* parallel_embedding_while_loop_2dev_gath_wrapper(std::vector<queue> &queues,
 
 				buffers_samplingrange.emplace_back( buffer<uint32_t,1>(&samprange,range<1>(1)) );
 
-				buffers_len_output.emplace_back( buffer<uint32_t, 1>(&len_output,range<1>{1}) );
+				buffers_len_output.emplace_back( buffer<size_t, 1>(&len_output,range<1>{1}) );
 
 				buffers_rev_hash.emplace_back( buffer<tuple<int,int>>(rev_hash.data(),range<1>(rev_hash.size())));
 
@@ -1776,8 +1775,7 @@ int* parallel_embedding_while_loop_2dev_gath_wrapper(std::vector<queue> &queues,
 	cout<<"\tTime for actual computation: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<std::endl;
 
 	timer.end_time(0,1,4);
-//	delete[] p;
-	return p;
+	delete[] p;
 }
 
 void print_output( std::string file_name )
@@ -1815,7 +1813,6 @@ int main(int argc, char **argv) {
 //	__itt_pause();
 
 	int device=0;
-	int alg_number[3]={0,0,0};
 
 	unsigned int batch=30000;
 	unsigned int n_batches=10;
@@ -1823,31 +1820,18 @@ int main(int argc, char **argv) {
 
 
 
-	if (argc==11){
+	if (argc==7){
 
 		filename = argv[1];
 		device=atoi(argv[2]);
-		alg_number[0]=atoi(argv[3]); // Embed function
-		alg_number[1]=atoi(argv[4]); // Create buckets
-		alg_number[2]=atoi(argv[5]); // Generate candidate
 
-		if (argc>6){
-			samplingrange=atoi(argv[6]);
-		}
+		samplingrange=atoi(argv[3]);
 
-		if(argc>7){
-			countfilter=atoi(argv[7]);
-		}
+		countfilter=atoi(argv[4]);
 
-		if(argc>8){
-			batch=atoi(argv[8]);
-		}
-		if(argc>9){
-			n_batches=atoi(argv[9]);
-		}
-		if(argc>10){
-			test_batches=atoi(argv[10]);
-		}
+		batch=atoi(argv[5]);
+
+		n_batches=atoi(argv[6]);
 
 
 
@@ -1860,7 +1844,7 @@ int main(int argc, char **argv) {
 
 	//OUTPUT STRINGS
 
-    uint32_t len_output=samplingrange;
+    size_t len_output=samplingrange;
 
 	print_configuration(batch, n_batches, len_output, countfilter, samplingrange);
 
@@ -1885,6 +1869,10 @@ int main(int argc, char **argv) {
 
 	std::vector<int> a; // the random vector for second level hash table
 	int (*hash_lsh)[NUM_BITS] = new int[NUM_HASH][NUM_BITS];
+
+//
+
+
 
 	std::vector<int> lshnumber;
 
@@ -1970,6 +1958,7 @@ int main(int argc, char **argv) {
 					t=get<1>(rev_hash[t]);
 
 				}
+
 				rev_hash.emplace_back(make_tuple(k,-1));
 				get<1>(rev_hash[t])=rev_hash.size()-1;
 			}else {
@@ -2007,7 +1996,7 @@ int main(int argc, char **argv) {
 
 //	__itt_resume();
 
-    int *p=parallel_embedding_while_loop_2dev_gath_wrapper(queues, len_oristrings, oristrings, set_embdata_dev, batch, n_batches, lshnumber, len_output, rev_hash);
+    parallel_embedding_while_loop_2dev_gath_wrapper(queues, len_oristrings, oristrings, set_embdata_dev, batch, n_batches, lshnumber, len_output, rev_hash);
 
 
     for(auto &q : queues){
@@ -2302,7 +2291,7 @@ int main(int argc, char **argv) {
 
 	timer.start_time(0,7,0);
 
-	unsigned int num_threads = std::thread::hardware_concurrency();
+	uint32_t num_threads = std::thread::hardware_concurrency();
 
 	cout<<"\nNumber of threads for edit distance: "<<num_threads<<std::endl;
 
