@@ -80,7 +80,6 @@ void readdata(std::vector<size_t> &len_oristrings, char (*oristrings)[LEN_INPUT]
 
 	while (getline(data, cell))
 	{
-		//TODO: Decide what to do
 		if(number_string==NUM_STRING){
 			break;
 		}
@@ -1442,7 +1441,7 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, vector<tuple<int
 
 void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_oristrings, char (*oristrings)[LEN_INPUT], char** set_embdata_dev, size_t batch_size, size_t n_batches, std::vector<int> &lshnumber, size_t &len_output, std::vector<tuple<int,int>> &rev_hash){
 
-	std::cout<< "Selected: Parallel embedding - while loop version"<<std::endl;
+	std::cout<< "Parallel Embedding"<<std::endl;
 
 
 	/**
