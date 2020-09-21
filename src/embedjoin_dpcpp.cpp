@@ -265,7 +265,7 @@ void parallel_embedding(queue &device_queue, buffer<size_t,1> &buffer_len_oristr
 
 
 
-void create_buckets(queue &device_queue, char **embdata, buffer<std::tuple<int,int,int,int,int>,1> &buffer_buckets, buffer<size_t,1> &buffer_batch_size, size_t split_size, buffer<uint32_t,1> &buffer_split_offset, buffer<uint32_t,1> &buffer_a, buffer<size_t,1> &buffer_len_output, buffer<uint8_t,1> &buffer_dict){
+void create_buckets(queue &device_queue, char **embdata, buffer<std::tuple<int,int,int,int,int>,1> &buffer_buckets, buffer<size_t,1> &buffer_batch_size, size_t split_size, buffer<size_t,1> &buffer_split_offset, buffer<uint32_t,1> &buffer_a, buffer<size_t,1> &buffer_len_output, buffer<uint8_t,1> &buffer_dict){
 
 		std::cout << "\n\tTask: Buckets Generation\t";
 		std::cout << "Device: " << device_queue.get_device().get_info<info::device::name>() << std::endl;
@@ -372,26 +372,26 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<tuple<
 	int num_dev=queues.size();
 
 
-	int n_max=0;
-	int n_min=0;
+	int n_fast=0; // Number of batches to allocate to the fastest device
+	int n_slow=0; // Number of batches to allocate to the slowest device
 
 
-	int idx_max=0;
-	int idx_min=0;
+	int idx_fastest=0; // Id of fastest device
+	int idx_slowest=0; // Id of slowest device
 
-	int number_of_testing_batches=2*num_dev;//test_batches;
+
+	// Number batches to use for profiling
+	// (2 batches per queue/device)
+
+	int number_of_testing_batches=2*num_dev;
+
 
 
 	vector<long> times;
-	vector<vector<long>> time_on_dev(num_dev,vector<long>());
 
 
 	{
-		vector<uint32_t> split_size;//=9*batch_size;
-
-		int thread_num=0;
-
-		auto start_timeline=std::chrono::system_clock::now();
+		vector<size_t> split_size;
 
 
 		uint8_t dictionary[256]={0};
@@ -399,12 +399,12 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<tuple<
 		inititalize_dictionary(dictionary);
 
 
-		vector<uint32_t> offset;
+		vector<size_t> offset;
 
 		vector<sycl::buffer<tuple<int,int,int,int,int>>> buffers_buckets;
 		vector<sycl::buffer<size_t,1>> buffers_batch_size;
-		vector<sycl::buffer<uint32_t,1>> buffers_split_size;
-		vector<sycl::buffer<uint32_t,1>> buffers_split_offset;
+		vector<sycl::buffer<size_t,1>> buffers_split_size;
+		vector<sycl::buffer<size_t,1>> buffers_split_offset;
 		vector<sycl::buffer<uint32_t,2>> buffers_hash_lsh;
 		vector<sycl::buffer<uint32_t,1>> buffers_a;
 		vector<sycl::buffer<uint32_t,1>> buffers_lshnumber;
@@ -414,13 +414,17 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<tuple<
 
 		timer.start_time(0,2,1);
 
-		int n=0;
+		int n=0; // Global number of iteration
 
-		int  dev=0;
+		int  dev=0; // Device index
 
 		cout<<"\tStart profiling on devices..."<<std::endl<<std::endl;
 
-		auto start=std::chrono::system_clock::now();
+		/**
+		 *
+		 * Profiling kernel on devices by using the test batches
+		 *
+		 * */
 
 
 		for(auto &q:queues){
@@ -428,12 +432,14 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<tuple<
 
 			for(int i=0; i<2; i++){
 
+				// Two kernel are chosen, since the first one
+				// includes kernel compiling time
+
 				auto start=std::chrono::system_clock::now();
 
 				offset.emplace_back(2*batch_size*dev+i*batch_size);
 
-
-				uint32_t loc_split_size=batch_size;
+				size_t loc_split_size=batch_size;
 
 				cout<<"\n\tSet offset to: "<<offset[n]<<std::endl;
 
@@ -449,19 +455,16 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<tuple<
 
 				buffers_len_output.emplace_back(buffer<size_t,1>(&len_output, range<1>{1}));
 
-				buffers_split_offset.emplace_back(buffer<uint32_t,1> (&offset[n], range<1>{1}));
+				buffers_split_offset.emplace_back(buffer<size_t,1> (&offset[n], range<1>{1}));
 
-
-				// n*split offset w.r.t. the batches processed by the other device (ex. 3 batches)
-				// Inside these batches there is another offset, that is iter*batch_size
-
-
-				// The first one is longer then others
 				create_buckets(q, embdata, buffers_buckets[n], buffers_batch_size[n], loc_split_size, buffers_split_offset[n], buffers_a[n], buffers_len_output[n], buffers_dict[n]);
 
 				q.wait();
 
 				auto end=std::chrono::system_clock::now();
+
+				// Save the time only for the second kernel execution for each device
+				// because the first run includes the compiling time
 
 				if(i>0){
 					times.emplace_back(std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count());
@@ -481,51 +484,79 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<tuple<
 
 
 		if(num_dev>1){
+
+			// If there are 2 devices, compute the number of batches
+			// to allocate to devices.
+			// Note that at most 2 devices can be used handled
+
+
+			// Get the max and min time measured during profiling.
+			// The max time is associated with the slowest device.
+			// The min time is associated with the fastest device.
+
 			auto max_iter = std::max_element(times.begin(),times.end());
 			auto min_iter = std::min_element(times.begin(),times.end());
 
-			long max=*max_iter;
-			long min=*min_iter;
-
-			idx_max=max_iter-times.begin();
-			idx_min=min_iter-times.begin();
+			long slowest=*max_iter;
+			long fastest=*min_iter;
 
 
-			n_max=floor(((float)max/(float)(min+max))*(n_batches-number_of_testing_batches));
+			// Get the position in the time vector corresponding
+			// to the min and max time.
+			// These positions correspond to the device positions
+			// in the device queues vector.
+
+			idx_slowest=max_iter-times.begin();
+			idx_fastest=min_iter-times.begin();
 
 
-			n_min=n_batches-number_of_testing_batches-n_max;
+			// Compute the number of batches based on time measured
+
+			n_slow=floor(((float)fastest/(float)(fastest+slowest))*(n_batches-number_of_testing_batches));
+
+			n_fast=n_batches-number_of_testing_batches-n_slow;
+
 
 
 		}else if(num_dev==1){
-			n_max=0;
-			n_min=(n_batches-number_of_testing_batches);
-			idx_max=0;
-			idx_min=0;
+
+			// If there is only one device, all remaining batches
+			// are given to the first (and only) device of the queue.
+
+			n_slow=0;
+			idx_fastest=0;
+			idx_slowest=0;
+
+			n_fast=(n_batches-number_of_testing_batches);
+
 
 		}
 
 
-		cout<<"n_max: "<<n_max<<std::endl;
-		cout<<"n_min: "<<n_min<<std::endl;
+		cout<<"\n\tn_fast: "<<n_fast<<std::endl;
+		cout<<"\tn_slow: "<<n_slow<<std::endl;
 
-		cout<<"id_max: "<<idx_max<<std::endl;
-		cout<<"id_min: "<<idx_min<<std::endl;
+		cout<<"\tid_fastest: "<<idx_fastest<<std::endl;
+		cout<<"\tid_slowest: "<<idx_slowest<<std::endl;
 
 
 		dev=0;
 
-		auto end=std::chrono::system_clock::now();
 
 
 		timer.end_time(0,2,1);
 
-		cout<<"Time for measure computation: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<std::endl;
+		cout<<"Time for measure computation: "<<(float)timer.get_step_time(0,2,1)<<std::endl;
 
+		/**
+		 *
+		 * Start computation for remaing batches in parallel
+		 * on all devices available
+		 *
+		 * **/
 
 		timer.start_time(0,2,2);
 
-		start=std::chrono::system_clock::now();
 
 		offset.emplace_back(number_of_testing_batches*batch_size);
 
@@ -534,25 +565,11 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<tuple<
 
 		for(int i=0; i<num_dev; i++){
 
-			// Create
-
-			split_size.emplace_back((i==idx_max?n_min:n_max)*batch_size);
-
-
-			auto start=std::chrono::system_clock::now();
-
-			{
-
-				cout<<"t "<<n<<" start: "<<std::chrono::duration_cast<std::chrono::milliseconds>(start-start_timeline).count()<<std::endl;
-
-			}
-
-
+			split_size.emplace_back((i==idx_slowest?n_slow:n_fast)*batch_size);
 
 			offset.emplace_back(offset.back()+(dev==0?0:split_size[dev-1]));
 
-
-			uint32_t loc_split_size=split_size[dev];//(dev==0?split_size:((n_batches-9)*batch_size));//batch_size;
+			size_t loc_split_size=split_size[dev];
 
 			cout<<"Offset: "<<offset.back()<<std::endl;
 
@@ -569,26 +586,11 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<tuple<
 
 			buffers_len_output.emplace_back(buffer<size_t,1>(&len_output, range<1>{1}));
 
-			buffers_split_offset.emplace_back(buffer<uint32_t,1> (&offset.back(), range<1>{1}));
-
-
-				// n*split offset w.r.t. the batches processed by the other device (ex. 3 batches)
-				// Inside these batches there is another offset, that is iter*batch_size
+			buffers_split_offset.emplace_back(buffer<size_t,1> (&offset.back(), range<1>{1}));
 
 
 			create_buckets(queues[i], embdata, buffers_buckets[n], buffers_batch_size[n], loc_split_size, buffers_split_offset[n], buffers_a[n], buffers_len_output[n], buffers_dict[n]);
 
-//			queues[i].wait();
-
-			auto end=std::chrono::system_clock::now();
-
-			time_on_dev[thread_num].emplace_back(std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count());
-
-			{
-
-				cout<<"t "<<n<<" end: "<<std::chrono::duration_cast<std::chrono::milliseconds>(end-start_timeline).count()<<std::endl;
-
-			}
 
 			n++;
 
@@ -598,23 +600,14 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<tuple<
 
 //		queues[0].wait();
 
-		for(int i=0; i<time_on_dev.size(); i++){
-			for(int t=0; t<time_on_dev[i].size(); t++ ){
 
-				cout<<"\nTime "<<t<<" device "<<i<<": "<<time_on_dev[i][t]<<std::endl;
-
-			}
-			cout<<std::endl;
-		}
-		end=std::chrono::system_clock::now();
-
-		cout<<"Time for actual computation: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<std::endl;
 
 	}
 
 	timer.end_time(0,2,2);
 
 
+	cout<<"Time for actual computation: "<<timer.get_step_time(0,2,2)<<std::endl;
 
 
 	cout<<"End of scope"<<std::endl;
@@ -1526,8 +1519,8 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 
 		for(auto &q:queues){
 
-			// Two kernel are chosen, since the first
-			// one includes kernel compiling time
+			// Two kernel are chosen, since the first one
+			// includes kernel compiling time
 
 			for(int i=0; i<2; i++){
 
