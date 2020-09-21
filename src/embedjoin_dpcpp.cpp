@@ -313,12 +313,12 @@ void create_buckets(queue &device_queue, char **embdata, buffer<std::tuple<int,i
 				int t=tq/NUM_REP;
 				int q=tq%NUM_REP;
 
-				int k=index[1];//.get_global_id(1);
+				int k=index[1];
 
 
 				int output_position;
 
-				size_t linear_id=index.get_linear_id();//.get_global_linear_id();
+				size_t linear_id=index.get_linear_id();
 
 				int id=0;
 				char dict_index=0;
@@ -654,52 +654,25 @@ void generate_candidates(queue &device_queue, buffer<size_t,1> &buffer_len_orist
 				int i1=get<3>(acc_buckets[i]);
 				int q1=get<4>(acc_buckets[i]);
 
-//				int t2=get<0>(acc_buckets[j]);
-//				int k2=get<1>(acc_buckets[j]);
 				int i2=get<3>(acc_buckets[j]);
 				int q2=get<4>(acc_buckets[j]);
 
 
 				__int8_t c1;
 				__int8_t c2;
-//				__int64 s1=0;
-//				__int64 s2=0;
-
-//				uint8_t l=0;
-//				for (int j = k1*NUM_BITS; j < k1*NUM_BITS+NUM_BITS; j+=8){
 
 				for (int j = k1*NUM_BITS; j < k1*NUM_BITS+NUM_BITS; j++){
 
-//					__int64 s1=(*(__int64*)( embdata[i1/acc_batch_size[0]] + ABSPOS(i1%acc_batch_size[0],t1,q1,j,acc_len_output[0]) ));
-//					__int64 s2=(*(__int64*)( embdata[i2/acc_batch_size[0]] + ABSPOS(i2%acc_batch_size[0],t1,q2,j,acc_len_output[0]) ));
 
 					c1=embdata[i1/acc_batch_size[0]][ ABSPOS(i1%acc_batch_size[0],t1,q1,j,acc_len_output[0]) ];
-//					str1[l]=embdata[i1/acc_batch_size[0]][ ABSPOS(i1%acc_batch_size[0],t1,q1,j,acc_len_output[0]) ];
 					c2=embdata[i2/acc_batch_size[0]][ ABSPOS(i2%acc_batch_size[0],t1,q2,j,acc_len_output[0]) ];
-
-//					s1 = ( s1 << 8 );
-//					s1 = ( s1 | c1 );
-//
-//					s2 = ( s2 << 8 );
-//					s2 = ( s2 | c2 );
-//
-//
-//					if((l+1)%8==0){
-//						sum+=(s1==s2?0:1);
-//						s1=0;
-//						s2=0;
-//					}
-//					l++;
 
 
 					if(c1!=0 && c2!=0){
 						sum+=abs_diff(c1,c2);
 					}
 
-//					l++;
-//
 				}
-//				sum+=(s1==s2?0:1);
 
 				get<0>(acc_candidate[index_output])=i1;
 				get<1>(acc_candidate[index_output])=q1;
