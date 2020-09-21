@@ -1440,37 +1440,14 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 	uint8_t dictionary[256]={0};
 	inititalize_dictionary(dictionary);
 
-	len_output=NUM_HASH*NUM_BITS;
 
-	cout<<"\n\tSet len_output to: "<<len_output<<std::endl;
-
-
-
-
-
-	timer.start_time(0,1,1);
-
-	auto start=std::chrono::system_clock::now();
-
-	for(int n=0; n<n_batches; n++){
-		set_embdata_dev[n]=malloc_shared<char>(batch_size*NUM_STR*NUM_REP*len_output, queues.back());
-		memset(set_embdata_dev[n],0,batch_size*NUM_STR*NUM_REP*len_output);
-	}
-
-	timer.end_time(0,1,1);
-
-	auto end=std::chrono::system_clock::now();
-
-	auto time=std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
-
-	std::cout<<"\tTime to allocate embedded strings (shared malloc): "<<(float)time/1000<<"sec"<<std::endl<<std::endl;
+	cout<<"\n\tLen output: "<<len_output<<std::endl;
 
 	timer.start_time(0,1,2);
 
 
 	uint32_t len_p=samplingrange+1;
 
-	//TODO: Check this
 
 	int *p=new int[NUM_STR*NUM_CHAR*len_p];
 
@@ -1479,28 +1456,42 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 	timer.end_time(0,1,2);
 
 
-
-
-
 	timer.start_time(0,1,3);
 
-	int n_fast=0;
-	int n_slow=0;
+	int n_fast=0; // Number of batches to allocate to the fastest device
+	int n_slow=0; // Number of batches to allocate to the slowest device
 
 
-	int idx_fastest=0;
-	int idx_slowest=0;
+	int idx_fastest=0; // Id of fastest device
+	int idx_slowest=0; // Id of slowest device
 
 	int num_dev=queues.size();
 
-	int number_of_testing_batches=2*num_dev; // test_batches;
 
+	// Number batches to use for profiling
+	// (2 batches per queue/device)
+
+	int number_of_testing_batches=2*num_dev;
+
+
+	// Store the time taken by each device to run 1 kernel
 
 	std::vector<long> times;
-	vector<std::vector<long>> time_on_dev(num_dev,std::vector<long>());
 
 
 	{
+
+		/**
+		 *
+		 * Each queue and each kernel has its own copy of data (sycl::buffer).
+		 * Also read-only data shared by all kernels, are replicated once for
+		 * each kernel, in order to reduce dependencies among different kernels
+		 * and device queues.
+		 * Thus, a vector of sycl::buffer is created for each array accessed
+		 * in the kernel.
+		 *
+		 * */
+
 		std::vector<buffer<int,1>> buffers_p;
 
 		std::vector<buffer<char,2>> buffers_oristrings;
@@ -1520,34 +1511,38 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 		std::vector<buffer<tuple<int,int>>> buffers_rev_hash;
 
 
-		int n=0;
-		int dev=0;
+		int n=0;   // number of iterations
+		int dev=0; // device index
 
 		std::cout<<"\tStart profiling on devices..."<<std::endl<<std::endl;
 
 
-		start=std::chrono::system_clock::now();
+		/**
+		 *
+		 * Profiling kernel on devices by using the test batches
+		 *
+		 * */
 
-
-
-	// ---------------------------------------
 
 		for(auto &q:queues){
 
+			// Two kernel are chosen, since the first
+			// one includes kernel compiling time
 
 			for(int i=0; i<2; i++){
 
+
 				auto start=std::chrono::system_clock::now();
 
-				uint32_t size_p=static_cast<unsigned int>(NUM_STR*NUM_CHAR*(samplingrange+1));
+				size_t size_p=static_cast<size_t>(NUM_STR*NUM_CHAR*(samplingrange+1));
 
-				buffers_p.emplace_back( buffer<int,1>(p,range<1>{size_p}) );
+				buffers_p.emplace_back( buffer<int,1>(p, range<1>{size_p}) );
 
 				buffers_oristrings.emplace_back( buffer<char, 2>(reinterpret_cast<char*>((char*)oristrings[n*batch_size]),range<2>{batch_size,LEN_INPUT}) );
 
 				buffers_lshnumber.emplace_back( buffer<int, 1>(lshnumber.data(),range<1>{lshnumber.size()}) );
 
-				unsigned int size_emb=static_cast<unsigned int>(batch_size*NUM_STR*NUM_REP*len_output);
+				size_t size_emb=static_cast<size_t>(batch_size*NUM_STR*NUM_REP*len_output);
 
 				buffers_embdata.emplace_back( buffer<char, 1> (reinterpret_cast<char*>(set_embdata_dev[n]), range<1>{size_emb}, {property::buffer::use_host_ptr()}) );
 
@@ -1590,31 +1585,54 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 
 
 		if(num_dev>1){
+
+			// If there are 2 devices, compute the number of batches
+			// to allocate to devices.
+			// Note that at most 2 devices can be used handled
+
+
+			// Get the max and min time measured during profiling.
+			// The max time is associated with the slowest device.
+			// The min time is associated with the fastest device.
+
 			auto max_iter = std::max_element(times.begin(),times.end());
 			auto min_iter = std::min_element(times.begin(),times.end());
 
 			long slowest=*max_iter;
 			long fastest=*min_iter;
 
+
+			// Get the position in the time vector corresponding
+			// to the min and max time.
+			// These positions correspond to the device positions
+			// in the device queues vector.
+
 			idx_slowest=max_iter-times.begin();
 			idx_fastest=min_iter-times.begin();
 
 
-			n_slow=floor(((float)fastest/(float)(fastest+slowest))*(n_batches-number_of_testing_batches));
+			// Compute the number of batches based on time measured
 
+			n_slow=floor(((float)fastest/(float)(fastest+slowest))*(n_batches-number_of_testing_batches));
 
 			n_fast=n_batches-number_of_testing_batches-n_slow;
 
 			iter_per_dev.resize(num_dev);
+
 			iter_per_dev[idx_slowest]=n_slow;
 			iter_per_dev[idx_fastest]=n_fast;
 
 		}else if(num_dev==1){
 
+			// If there is only one device, all remaining batches
+			// are given to the first (and only) device of the queue.
+
 			n_slow=0;
-			n_fast=(n_batches-number_of_testing_batches);
 			idx_fastest=0;
 			idx_slowest=0;
+
+			n_fast=(n_batches-number_of_testing_batches);
+
 			iter_per_dev.emplace_back(n_fast);
 
 		}
@@ -1627,33 +1645,35 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 		cout<<"\tid_slowest: "<<idx_slowest<<std::endl;
 
 
-		// --------------------
+		/**
+		 *
+		 * Start computation for remaing batches in parallel
+		 * on all devices available
+		 *
+		 * **/
 
 		timer.end_time(0,1,3);
 
-		end=std::chrono::system_clock::now();
 
-		cout<<"\tTotal time for profiling: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<std::endl<<std::endl;;
+		cout<<"\tTotal time for profiling: "<<(float)timer.get_step_time(0,1,3)<<std::endl<<std::endl;;
 
 		std::cout<<"\n\tStart computation..."<<std::endl<<std::endl;
 
 
 		timer.start_time(0,1,4);
-		start=std::chrono::system_clock::now();
 
 
 
 		dev=0;
 
-		for(int i=0; i<num_dev; i++){
+		for(auto &q:queues){
 
-//			cout<<"From "<<n<<" to "<<n+iter_per_dev[i]<<std::endl;
 
 			int iter=0;
 
-			while(iter<iter_per_dev[i]){
+			while(iter<iter_per_dev[dev]){
 
-				uint32_t size_p=static_cast<unsigned int>(NUM_STR*NUM_CHAR*(samplingrange+1));
+				size_t size_p=static_cast<size_t>(NUM_STR*NUM_CHAR*(samplingrange+1));
 
 				buffers_p.emplace_back( buffer<int,1>(p,range<1>{size_p}) );
 
@@ -1661,7 +1681,7 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 
 				buffers_lshnumber.emplace_back( buffer<int, 1>(lshnumber.data(),range<1>{lshnumber.size()}) );
 
-				unsigned int size_emb=static_cast<unsigned int>(batch_size*NUM_STR*NUM_REP*len_output);
+				size_t size_emb=static_cast<size_t>(batch_size*NUM_STR*NUM_REP*len_output);
 
 				buffers_embdata.emplace_back( buffer<char, 1> (reinterpret_cast<char*>(set_embdata_dev[n]), range<1>{size_emb}, {property::buffer::use_host_ptr()}) );
 
@@ -1677,7 +1697,7 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 
 				buffers_rev_hash.emplace_back( buffer<tuple<int,int>>(rev_hash.data(),range<1>(rev_hash.size())));
 
-				parallel_embedding(queues[i], buffers_len_oristrings[n], buffers_oristrings[n], buffers_embdata[n], batch_size, buffers_lshnumber[n], buffers_p[n], buffers_len_output[n], buffers_samplingrange[n], buffers_dict[n], buffers_rev_hash[n]);
+				parallel_embedding(q, buffers_len_oristrings[n], buffers_oristrings[n], buffers_embdata[n], batch_size, buffers_lshnumber[n], buffers_p[n], buffers_len_output[n], buffers_samplingrange[n], buffers_dict[n], buffers_rev_hash[n]);
 
 				n++;
 				iter++;
@@ -1689,11 +1709,11 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 
 	}
 
-	end=std::chrono::system_clock::now();
 
-	cout<<"\tTime for actual computation: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<std::endl;
+	cout<<"\tTime for actual computation: "<<(float)timer.get_step_time(0,1,4)<<std::endl;
 
 	timer.end_time(0,1,4);
+
 	delete[] p;
 }
 
@@ -1733,7 +1753,7 @@ int main(int argc, char **argv) {
 
 	int device=0;
 
-	size_t batch=30000;
+	size_t batch_size=30000;
 	size_t n_batches=10;
 
 
@@ -1748,7 +1768,7 @@ int main(int argc, char **argv) {
 
 		countfilter=atoi(argv[4]);
 
-		batch=atoi(argv[5]);
+		batch_size=atoi(argv[5]);
 
 		n_batches=atoi(argv[6]);
 
@@ -1756,16 +1776,16 @@ int main(int argc, char **argv) {
 
 	}
 	else{
-		std::cerr<<"usage: ./embedjoin inputdata 0/1(cpu/gpu) [0-2]step1 [0-1]step2 [0-1]step3\n"<<std::endl;
+		std::cerr<<"usage: ./embedjoin input_data 0/1/2(cpu/gpu/both) len_input_strings count_filter batch_size number_of_batches\n"<<std::endl;
 		exit(-1);
 	}
 
 
 	//OUTPUT STRINGS
 
-    size_t len_output=samplingrange;
+    size_t len_output=NUM_HASH*NUM_BITS;//samplingrange;
 
-	print_configuration(batch, n_batches, len_output, countfilter, samplingrange);
+	print_configuration(batch_size, n_batches, len_output, countfilter, samplingrange);
 
 	auto asyncHandler = [&](cl::sycl::exception_list eL) {
 		for (auto& e : eL) {
@@ -1788,9 +1808,6 @@ int main(int argc, char **argv) {
 
 	std::vector<int> a; // the random vector for second level hash table
 	int (*hash_lsh)[NUM_BITS] = new int[NUM_HASH][NUM_BITS];
-
-//
-
 
 
 	std::vector<int> lshnumber;
@@ -1903,13 +1920,6 @@ int main(int argc, char **argv) {
 	std::cerr << "Start parallel algorithm..." << std::endl<<std::endl;
 
 
-
-	timer.start_time(0,1,0);
-
-
-	char **set_embdata_dev=(char**)malloc_shared<char*>(n_batches, queues.back());
-
-
 	/**
 	 *
 	 *
@@ -1919,9 +1929,30 @@ int main(int argc, char **argv) {
 	 **/
 
 
+
+	timer.start_time(0,1,0);
+
+	timer.start_time(0,1,1);
+
+
+
+
+
+	char **set_embdata_dev=(char**)malloc_shared<char*>(n_batches, queues.back());
+
+	for(int n=0; n<n_batches; n++){
+		set_embdata_dev[n]=malloc_shared<char>(batch_size*NUM_STR*NUM_REP*len_output, queues.back());
+		memset(set_embdata_dev[n],0,batch_size*NUM_STR*NUM_REP*len_output);
+	}
+
+	timer.end_time(0,1,1);
+
+
+
+
 //	__itt_resume();
 
-    parallel_embedding_wrapper(queues, len_oristrings, oristrings, set_embdata_dev, batch, n_batches, lshnumber, len_output, rev_hash);
+    parallel_embedding_wrapper(queues, len_oristrings, oristrings, set_embdata_dev, batch_size, n_batches, lshnumber, len_output, rev_hash);
 
 
     for(auto &q : queues){
@@ -1938,7 +1969,7 @@ int main(int argc, char **argv) {
 
 
 #if PRINT_EMB
-		print_embedded( set_embdata_dev, len_output, batch, string("embedded"+to_string(device)+".txt"));
+		print_embedded( set_embdata_dev, len_output, batch_size, string("embedded"+to_string(device)+".txt"));
 #endif
 
 	timer.start_time(1,0,0);
@@ -1958,7 +1989,7 @@ int main(int argc, char **argv) {
 	timer.start_time(0,2,0);
 
 
-	create_buckets_wrapper(queues, (char**)set_embdata_dev, buckets, n_batches, batch, (int*)hash_lsh, a, lshnumber, len_output);
+	create_buckets_wrapper(queues, (char**)set_embdata_dev, buckets, n_batches, batch_size, (int*)hash_lsh, a, lshnumber, len_output);
 
 	for(auto &q:queues){
 		q.wait();
@@ -2034,7 +2065,7 @@ int main(int argc, char **argv) {
 	 timer.start_time(0,5,0);
 
 
-	 generate_candidates_wrapper(queues, len_oristrings, (char*)oristrings, (char**)set_embdata_dev, buckets, batch, /*buckets_delimiter,*/ candidates, /*candidates_start,*/ (int *)hash_lsh, lshnumber, len_output/*, partitionsBucketsDelimiter, partitionsCandStart, partitionsBuckets, partitionsCandidates*/);
+	 generate_candidates_wrapper(queues, len_oristrings, (char*)oristrings, (char**)set_embdata_dev, buckets, batch_size, /*buckets_delimiter,*/ candidates, /*candidates_start,*/ (int *)hash_lsh, lshnumber, len_output/*, partitionsBucketsDelimiter, partitionsCandStart, partitionsBuckets, partitionsCandidates*/);
 
 
 
@@ -2341,7 +2372,7 @@ int main(int argc, char **argv) {
 	else{
 		distinguisher+="-ERROR";
 	}
-	distinguisher+=std::to_string(batch);
+	distinguisher+=std::to_string(batch_size);
 
 	std::cout<<std::endl<<std::endl<<std::endl;
 	{
