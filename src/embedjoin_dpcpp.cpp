@@ -1157,13 +1157,15 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<tuple<int,int,int,
 
 
 	cout<<"\nInitialize candidate vector"<<std::endl;
+
 	/*
 	 * Compute the boundary ( starting index and size ) of each buckets in the 1-D vector
 	 *
 	 * */
+	timer.start_time(0,4,1);
+
 	vector<tuple<int,int>> buckets_delimiter;
 
-	auto start=std::chrono::system_clock::now();
 
 		int j=0;
 		size_t size=0;
@@ -1171,7 +1173,7 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<tuple<int,int,int,
 		buckets_delimiter.emplace_back(make_tuple(0,0));
 
 
-		for(int i=0; i<buckets.size()-1; i++){ // Pay attention to size of "bucket"
+		for(int i=0; i<buckets.size()-1; i++){
 
 			get<1>(buckets_delimiter[j])++;
 
@@ -1183,10 +1185,13 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<tuple<int,int,int,
 			}
 		}
 
-	auto end=std::chrono::system_clock::now();
+
+	timer.end_time(0,4,1);
 
 
-	std::cout<<"\n\tTime cand-init: count element: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
+	std::cout<<"\n\tTime cand-init: count element: "<<(float)timer.get_step_time(0,4,1)<<"sec"<<std::endl;
+
+	timer.start_time(0,4,2);
 
 
 	/**
@@ -1197,7 +1202,6 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<tuple<int,int,int,
 
 
 
-	start=std::chrono::system_clock::now();
 	std::cout<<"Size before remove: "<<buckets_delimiter.size()<<std::endl;
 
 //		auto remove_policy = oneapi::dpl::execution::make_device_policy(queues.back());
@@ -1206,13 +1210,13 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<tuple<int,int,int,
 		buckets_delimiter.erase( new_end, buckets_delimiter.end());
 		std::cout<<"Size after remove: "<<buckets_delimiter.size()<<std::endl;
 
-	end=std::chrono::system_clock::now();
 
 
+	 timer.end_time(0,4,2);
 
-	std::cout<<"\tTime cand-init: remove element: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
+	std::cout<<"\tTime cand-init: remove element: "<<(float)timer.get_step_time(0,4,2)<<"sec"<<std::endl;
 
-	start=std::chrono::system_clock::now();
+
 
 
 	/**
@@ -1232,30 +1236,20 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<tuple<int,int,int,
 		}
 
 
-		start=std::chrono::system_clock::now();
 
 		std::cout<<"Size: "<<size<<std::endl;
 
+		timer.start_time(0,4,3);
+
 		candidates.resize(size);
-		end=std::chrono::system_clock::now();
 
-		std::cout<<"\tTime cand-init: resize vector: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
+		timer.end_time(0,4,3);
 
-//		start=std::chrono::system_clock::now();
-//
-//
-//		tuple<int,int,int,int,int,int> *arr_cand=new tuple<int,int,int,int,int,int>[size];
-//
-//		end=std::chrono::system_clock::now();
-//
-//
-//
-//
-//		std::cout<<"\nTime cand-init: resize array: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
+		std::cout<<"\tTime cand-init: resize vector: "<<(float)timer.get_step_time(0,4,3)<<"sec"<<std::endl;
 
-//		cout<<get<0>(arr_cand[size-1])<<std::endl;
 
-		start=std::chrono::system_clock::now();
+		timer.start_time(0,4,4);
+
 
 		int c=0;
 		for(auto &b:buckets_delimiter ){
@@ -1268,8 +1262,6 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<tuple<int,int,int,
 					get<0>(candidates[c])=i;
 					get<1>(candidates[c])=j;
 					get<2>(candidates[c])=end;
-//					get<0>(arr_cand[c])=i;
-//					get<1>(arr_cand[c])=j;
 				    c++;
 				}
 			}
@@ -1282,24 +1274,11 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<tuple<int,int,int,
 		}
 		cout<<c<<" == "<<size<<std::endl;
 
-		end=std::chrono::system_clock::now();
-
-		std::cout<<"\tTime cand-init: assign i and j to candidates: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
+		timer.end_time(0,4,4);
 
 
-//		int i=0;
-//		for(auto &c:candidates){
-//			if(i<20){
-//				cout<<get<0>(c)<<" "<<get<1>(c)<<std::endl;
-//			}
-//
-//			if(i>candidates.size()-20){
-//				cout<<get<0>(c)<<" "<<get<1>(c)<<std::endl;
-//
-//			}
-//			i++;
-//
-//		}
+		std::cout<<"\tTime cand-init: assign i and j to candidates: "<<(float)timer.get_step_time(0,4,4)<<"sec"<<std::endl;
+
 
 }
 
@@ -1312,11 +1291,19 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, vector<tuple<int
 
 		timer.start_time(0,4,1);
 
-			auto start=std::chrono::system_clock::now();
+
 			std::vector<tuple<int,int>> delimiter(buckets.size());
 			get<0>(delimiter[0]) = 0;
 
 			{
+
+				/**
+				 *
+				 * Compute starting index for each buckets
+				 * on first device available
+				 *
+				 ***/
+
 				cl::sycl::buffer<tuple<int,int>> buckets_delimiter_buf{ delimiter.data(), delimiter.size(), {property::buffer::use_host_ptr()}};
 				cl::sycl::buffer<tuple<int,int,int,int,int>> array_buf{ buckets.data(), buckets.size(), {property::buffer::use_host_ptr()}};
 
@@ -1336,14 +1323,18 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, vector<tuple<int
 				}).wait();
 			} // For synch
 
-//			auto remove_policy = dpl::execution::make_device_policy(queues.back());
 			auto new_end=remove_if(oneapi::dpl::execution::par, delimiter.begin()+1,delimiter.end(),[](std::tuple<int,int> e){return std::get<0>(e)==0;});
-				delimiter.erase( new_end, delimiter.end());
-//				auto end=std::chrono::system_clock::now();
-//			std::cout<<"Time cand-init: parallel count element: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
+
+			delimiter.erase( new_end, delimiter.end());
+
 			size_t size=0;
 
-//			start=std::chrono::system_clock::now();
+			/**
+			 *
+			 * Compute size of each buckets of first device available
+			 *
+			 * **/
+
 			{
 				cl::sycl::buffer<tuple<int,int>> buckets_delimiter_buf{ delimiter.data(), delimiter.size(), {property::buffer::use_host_ptr()}};
 
@@ -1356,53 +1347,65 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, vector<tuple<int
 					}).wait();
 			} // For synch
 
-			auto end=std::chrono::system_clock::now();
 			timer.end_time(0,4,1);
 
-			std::cout<<"\n\tTime cand-init: parallel count element: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
+			std::cout<<"\n\tTime cand-init: parallel count element: "<<(float)timer.get_step_time(0,4,1)<<"sec"<<std::endl;
 
 			timer.start_time(0,4,2);
-			start=std::chrono::system_clock::now();
 
-			//auto remove_policy = dpl::execution::make_device_policy(queues.back());
+			/**
+			 *
+			 * Remove bucekts whose size < 2 since no pair is available
+			 *
+			 * **/
 
-			 new_end=std::remove_if(dpl::execution::par, delimiter.begin(),delimiter.end(),[](std::tuple<int,int> &e){return std::get<1>(e)<2;});
+			new_end=std::remove_if(dpl::execution::par, delimiter.begin(),delimiter.end(),[](std::tuple<int,int> &e){return std::get<1>(e)<2;});
 
-			 delimiter.erase( new_end, delimiter.end());
-
-			 end=std::chrono::system_clock::now();
-
-			 timer.end_time(0,4,2);
-
-			 std::cout<<"\tTime cand-init: parallel remove element: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
+			delimiter.erase( new_end, delimiter.end());
 
 
 
+			timer.end_time(0,4,2);
 
-		size=0;
-		for(int b=0; b<delimiter.size(); b++){
-			int n=get<1>(delimiter[b]);
-			size+=((n*(n-1))/2);
-		}
+
+			std::cout<<"\tTime cand-init: parallel remove element: "<<(float)timer.get_step_time(0,4,2)<<"sec"<<std::endl;
+
+
+			size=0;
+
+			for(int b=0; b<delimiter.size(); b++){
+
+				int n=get<1>(delimiter[b]);
+				size+=((n*(n-1))/2);
+
+			}
 
 		cout<<"\t\tCandidate vector size: "<<size<<std::endl;
 
 		timer.start_time(0,4,3);
-		start=std::chrono::system_clock::now();
 
+		/**
+		 *
+		 * Resize candidates vector
+		 *
+		 * **/
 
 		candidates.resize(size,tuple<int,int,int,int,int,int>(-1,-1,-1,-1,-1,-1));
-		end=std::chrono::system_clock::now();
 
 		timer.end_time(0,4,3);
 
-		std::cout<<"\tTime cand-init: resize: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
+		std::cout<<"\tTime cand-init: resize: "<<(float)timer.get_step_time(0,4,3)<<"sec"<<std::endl;
 
+
+		/**
+		 *
+		 * Assign i and j to candidates vector itself
+		 *
+		 * */
 
 
 		timer.start_time(0,4,4);
 
-		start=std::chrono::system_clock::now();
 
 		int c=0;
 
@@ -1429,12 +1432,9 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, vector<tuple<int
 		}
 		cout<<c<<" == "<<size<<std::endl;
 
-		end=std::chrono::system_clock::now();
 
 		timer.end_time(0,4,4);
-		std::cout<<"\tTime cand-init: assign i and j to candidates: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
-
-
+		std::cout<<"\tTime cand-init: assign i and j to candidates: "<<(float)timer.get_step_time(0,4,4)<<"sec"<<std::endl;
 
 }
 
@@ -1445,7 +1445,12 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 	std::cout<< "Selected: Parallel embedding - while loop version"<<std::endl;
 
 
-	// DICTIONARY
+	/**
+	 *
+	 * Initialize the "dictionary" that contains the translation
+	 * character -> number
+	 *
+	 * */
 
 	uint8_t dictionary[256]={0};
 	inititalize_dictionary(dictionary);
@@ -1456,10 +1461,16 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 	timer.start_time(0,1,2);
 
 
+	/**
+	 *
+	 * Allocate and initialize random strings to use for embedding
+	 *
+	 * **/
+
 	uint32_t len_p=samplingrange+1;
 
-
 	int *p=new int[NUM_STR*NUM_CHAR*len_p];
+
 
 	generate_random_string(p, len_p);
 
@@ -2020,12 +2031,6 @@ int main(int argc, char **argv) {
 
 
 
-//	 auto policy_sort = dpl::execution::make_device_policy<class PolicySort>(queues.front());
-
-//	 cl::sycl::buffer<tuple<int,int,int,int,int>,1> buf(buckets.data(),range<1>{buckets.size()});
-//	 auto buf_begin = dpl::begin(buf, sycl::read_write);
-//	 auto buf_end   = dpl::end(buf, sycl::read_write);
-
 	tbb::parallel_sort(buckets.begin(), buckets.end(), [](std::tuple<int,int,int,int,int> e1, std::tuple<int,int,int,int,int> e2) {
 	 		 return ( ( get<0>(e1)<get<0>(e2) ) ||
 	 				 ( get<0>(e1)==get<0>(e2) && get<1>(e1)<get<1>(e2) ) ||
@@ -2055,9 +2060,9 @@ int main(int argc, char **argv) {
 	 timer.start_time(0,4,0);
 
 
-//	 initialize_candidate_pairs_onDevice( queues, buckets, candidates );
+	 initialize_candidate_pairs_onDevice( queues, buckets, candidates );
 
-	 initialize_candidate_pairs( queues, buckets, candidates );
+//	 initialize_candidate_pairs( queues, buckets, candidates );
 
 	 timer.end_time(0,4,0);
 
