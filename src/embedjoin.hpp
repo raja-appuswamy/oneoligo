@@ -1,7 +1,7 @@
-//#pragma once
 #ifndef EMBEDJOIN_H
 #define EMBEDJOIN_H
 
+//#pragma once
 #include <CL/sycl.hpp>
 #include <ctime>
 #include <unistd.h>
