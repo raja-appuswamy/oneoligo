@@ -8,8 +8,17 @@ build:	src/embedjoin_dpcpp.o	src/verification.o
 	dpcpp $(CXXFLAGS) src/embedjoin_dpcpp.o src/verification.o $(LDFLAGS) -o embedjoin
 
 
-#Parameters: input_filename, gpu(0)/cpu(1), step1, step2, step3, samplingrange, countfilter, batch_size, n_batches
 
-run:
-	./embedjoin reducedGen320ks.txt 1 0 0 0 5000 1 30000 10
+
+# Gen Dataset
+
+run1:
+	./embedjoin gen320ks.txt 0  5000 1 10000 45
     
+run2:
+	./embedjoin gen320ks.txt 1  5000 1 10000 45
+
+
+run3:
+	./embedjoin gen320ks.txt 2 5000 1 10000 45
+
