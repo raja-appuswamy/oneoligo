@@ -523,10 +523,13 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<tuple<
 			// If there is only one device, all remaining batches
 			// are given to the first (and only) device of the queue.
 
-			n_slow=0;
-			idx_fastest=0;
+			// Assign remaining batches as n_slow or n_fast is
+			// the same in this case since there is only 1 device;
+
+			n_slow=(n_batches-number_of_testing_batches);
 			idx_slowest=0;
 
+			idx_fastest=0;
 			n_fast=(n_batches-number_of_testing_batches);
 
 
@@ -899,10 +902,10 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 
 
 		n_slow=floor(((float)fastest/(float)(fastest+slowest))*remaining_size);
-
+		n_fast=remaining_size-n_slow;
 		cout<<"\n\tNumber of candidates to assign to the faster device: "<<n_fast<<std::endl;
 
-		n_fast=remaining_size-n_slow;
+
 
 		cout<<"\n\tNumber of candidates to assign to other device: "<<n_slow<<std::endl;
 
