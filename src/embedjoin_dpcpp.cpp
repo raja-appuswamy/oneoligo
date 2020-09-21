@@ -550,7 +550,7 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<tuple<
 
 		/**
 		 *
-		 * Start computation for remaing batches in parallel
+		 * Start computation for remaining batches in parallel
 		 * on all devices available
 		 *
 		 * **/
@@ -598,9 +598,6 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<tuple<
 
 		}
 
-//		queues[0].wait();
-
-
 
 	}
 
@@ -615,7 +612,7 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<tuple<
 }
 
 
-void generate_candidates(queue &device_queue, buffer<size_t,1> &buffer_len_oristrings, buffer<char,2> &buffer_oristrings, char **embdata, buffer<tuple<int,int,int,int,int>,1> &buffer_buckets, buffer<uint32_t,1> &buffer_buckets_offset, buffer<size_t,1> &buffer_batch_size, buffer<tuple<int,int,int,int,int,int>,1> &buffer_candidates, uint32_t candidate_size, buffer<size_t,1> &buffer_len_output ){
+void generate_candidates(queue &device_queue, buffer<size_t,1> &buffer_len_oristrings, buffer<char,2> &buffer_oristrings, char **embdata, buffer<tuple<int,int,int,int,int>,1> &buffer_buckets, buffer<size_t,1> &buffer_buckets_offset, buffer<size_t,1> &buffer_batch_size, buffer<tuple<int,int,int,int,int,int>,1> &buffer_candidates, size_t candidate_size, buffer<size_t,1> &buffer_len_output ){
 
 
 		cout << "\n\tTask: Candidate Pairs Generation\t";
@@ -727,14 +724,21 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 
 	{
 
+	int n_fast=0; // Number of batches to allocate to the fastest device
+	int n_slow=0; // Number of batches to allocate to the slowest device
+
+
+	int idx_fastest=0; // Id of fastest device
+	int idx_slowest=0; // Id of slowest device
+
 	int num_dev=queues.size();
 
 
-	vector<vector<uint32_t>> size_cand(num_dev,vector<uint32_t>());
+	vector<vector<size_t>> size_cand(num_dev,vector<size_t>());
 
 	vector<uint32_t> number_of_iter(num_dev);
 
-	vector<uint32_t> buckets_offset;
+	vector<size_t> buckets_offset;
 
 	vector<vector<int>> reverse_index;
 
@@ -759,16 +763,19 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 
 	vector<buffer<size_t, 1>> buffers_len_output;
 
-	vector<buffer<uint32_t,1>> buffers_buckets_offset;
-
-
+	vector<buffer<size_t,1>> buffers_buckets_offset;
 
 
 	vector<long> times;
-	vector<vector<long>> time_on_dev(num_dev,vector<long>());
 
 
-	uint32_t size_for_test=0.01*candidate.size();
+
+	// Select a number of candidates to use for profiling.
+	// The size can change:
+	// too big can let to a big overhead
+	// too small can reduce the quality of profiling
+
+	size_t size_for_test=0.01*candidate.size();
 
 	cout<<"Size (num candidates) for profiling: "<<size_for_test<<std::endl;
 
@@ -779,13 +786,6 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 
 	timer.start_time(0,5,1);
 
-	int n_max=0;
-	int n_min=0;
-
-
-	int idx_max=0;
-	int idx_min=0;
-
 
 	int dev=0;
 	int n=0;
@@ -793,6 +793,11 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 
 	cout<<"\n\tStart profiling..."<<std::endl;
 
+	/**
+	 *
+	 * Profiling kernel on devices by using the test batches
+	 *
+	 * */
 
 
 	for(auto &q:queues){
@@ -803,10 +808,10 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 			auto start=std::chrono::system_clock::now();
 
 
-			uint32_t start_b=get<0>(candidate[size_for_test*n]);
-			uint32_t end_b=get<2>(candidate[size_for_test*n+size_for_test-1])-1;
+			size_t start_b=get<0>(candidate[size_for_test*n]);
+			size_t end_b=get<2>(candidate[size_for_test*n+size_for_test-1])-1;
 
-			uint32_t size_buckets=end_b-start_b+1;
+			size_t size_buckets=end_b-start_b+1;
 
 			buckets_offset.emplace_back(start_b);
 
@@ -832,11 +837,10 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 
 			buffers_len_output.emplace_back( buffer<size_t, 1>(&len_output,range<1>{1}));
 
-			buffers_buckets_offset.emplace_back( buffer<uint32_t,1>(&buckets_offset.back(),range<1>{1}));
+			buffers_buckets_offset.emplace_back( buffer<size_t,1>(&buckets_offset.back(),range<1>{1}));
 
 			generate_candidates(q, buffers_len[n], buffers_oristrings[n], embdata, buffers_buckets[n], buffers_buckets_offset[n], buffers_batch_size[n], buffers_candidates[n], size_for_test, buffers_len_output[n]);
 
-//			generate_candidates_without_lshnumber_offset(q, buffers_len[n], buffers_oristrings[n], embdata, buffers_buckets[n], buffers_buckets_offset[n], buffers_batch_size[n], buffers_candidates[n], size_for_test, buffers_hash_lsh[n], buffers_len_output[n],local_range);
 
 			q.wait();
 
@@ -858,7 +862,7 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 		cout<<"Times: "<<(float)t/1000<<"sec"<<std::endl;
 	}
 
-	uint32_t remaining_size=candidate.size()-size_for_test*2*num_dev;
+	size_t remaining_size=candidate.size()-size_for_test*2*num_dev;
 
 
 
@@ -868,27 +872,43 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 
 
 	if(num_dev>1){
+
+		// If there are 2 devices, compute the number of batches
+		// to allocate to devices.
+		// Note that at most 2 devices can be used handled
+
+
+		// Get the max and min time measured during profiling.
+		// The max time is associated with the slowest device.
+		// The min time is associated with the fastest device.
+
 		auto max_iter = std::max_element(times.begin(),times.end());
 		auto min_iter = std::min_element(times.begin(),times.end());
 
-		long max=*max_iter;
-		long min=*min_iter;
-
-		idx_max=max_iter-times.begin();
-		idx_min=min_iter-times.begin();
+		long slowest=*max_iter;
+		long fastest=*min_iter;
 
 
-		n_max=floor(((float)max/(float)(min+max))*remaining_size);
+		// Get the position in the time vector corresponding
+		// to the min and max time.
+		// These positions correspond to the device positions
+		// in the device queues vector.
 
-		cout<<"\n\tNumber of candidates to assign to the faster device: "<<n_max<<std::endl;
-
-		n_min=remaining_size-n_max;
-
-		cout<<"\n\tNumber of candidates to assign to other device: "<<n_min<<std::endl;
+		idx_slowest=max_iter-times.begin();
+		idx_fastest=min_iter-times.begin();
 
 
+		n_slow=floor(((float)fastest/(float)(fastest+slowest))*remaining_size);
 
-		uint64_t s=n_min*sizeof(candidate[0]);
+		cout<<"\n\tNumber of candidates to assign to the faster device: "<<n_fast<<std::endl;
+
+		n_fast=remaining_size-n_slow;
+
+		cout<<"\n\tNumber of candidates to assign to other device: "<<n_slow<<std::endl;
+
+
+
+		size_t s=n_fast*sizeof(candidate[0]);
 
 		cout<<"size of 6-int tuple: "<<sizeof(candidate[0])<<std::endl;
 
@@ -909,23 +929,20 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 
 			if(l==num_kernels-1){
 
-				int remind=n_min%(num_kernels);
+				int remind=n_fast%(num_kernels);
 
-				size_cand[idx_max].emplace_back(n_min/(num_kernels)+remind);
+				size_cand[idx_fastest].emplace_back(n_fast/(num_kernels)+remind);
 
 			}else{
 
-				size_cand[idx_max].emplace_back(n_min/(num_kernels));
+				size_cand[idx_fastest].emplace_back(n_fast/(num_kernels));
 
 			}
 
 		}
 
 
-
-
-
-		s=n_max*sizeof(candidate[0]);
+		s=n_slow*sizeof(candidate[0]);
 
 		cout<<"size of 6-int tuple: "<<sizeof(candidate[0])<<std::endl;
 
@@ -946,13 +963,13 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 
 			if(l==num_kernels-1){
 
-				int remind=n_max%(num_kernels);
+				int remind=n_slow%(num_kernels);
 
-				size_cand[idx_min].emplace_back(n_max/(num_kernels)+remind);
+				size_cand[idx_slowest].emplace_back(n_slow/(num_kernels)+remind);
 
 			}else{
 
-				size_cand[idx_min].emplace_back(n_max/(num_kernels));
+				size_cand[idx_slowest].emplace_back(n_slow/(num_kernels));
 
 			}
 
@@ -960,12 +977,20 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 
 	}else if(num_dev==1){
 
+		// If there is only one device, all remaining batches
+		// are given to the first (and only) device of the queue.
+
+		n_slow=0;
+		idx_fastest=0;
+		idx_slowest=0;
+
 		vector<int> tmp_sizes;
 
-		n_max=0;
+
+		n_slow=0;
 
 
-		uint64_t s=remaining_size*sizeof(candidate[0]);
+		size_t s=remaining_size*sizeof(candidate[0]);
 		cout<<"size of 6-int tuple: "<<sizeof(candidate[0])<<std::endl;
 
 		int num_kernels=1;
@@ -985,21 +1010,12 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 		for(int l=0; l<num_kernels; l++){
 			if(l==num_kernels-1){
 				int remind=remaining_size%(num_kernels);
-				size_cand[idx_max].emplace_back(remaining_size/(num_kernels)+remind);
+				size_cand[idx_slowest].emplace_back(remaining_size/(num_kernels)+remind);
 			}else{
-				size_cand[idx_max].emplace_back(remaining_size/(num_kernels));
+				size_cand[idx_slowest].emplace_back(remaining_size/(num_kernels));
 			}
 		}
 
-		//To manage the remainder
-
-
-// Useless
-		n_min=remaining_size;
-		idx_max=0;
-		idx_min=0;
-
-		cout<<"\n\tNumber of candidates to assign to device: "<<n_min<<std::endl;
 
 	}
 
@@ -1012,11 +1028,11 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 	}
 
 
-	cout<<"\nn_max: "<<n_max<<std::endl;
-	cout<<"n_min: "<<n_min<<std::endl;
+	cout<<"\n\tn_fast: "<<n_fast<<std::endl;
+	cout<<"\tn_slow: "<<n_slow<<std::endl;
 
-	cout<<"id_max: "<<idx_max<<std::endl;
-	cout<<"id_min: "<<idx_min<<std::endl;
+	cout<<"\tid_fastest: "<<idx_fastest<<std::endl;
+	cout<<"\tid_slowest: "<<idx_slowest<<std::endl;
 
 
 	dev=0;
@@ -1025,7 +1041,7 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 
 	timer.start_time(0,5,2);
 
-	uint32_t offset_cand=size_for_test*2*num_dev;
+	size_t offset_cand=size_for_test*2*num_dev;
 
 
 	for(auto &q : queues){
@@ -1036,10 +1052,10 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 
 			cout<<"\n\tSize cand[dev]: "<<size_cand[dev][iter]<<std::endl;
 
-			uint32_t start_b=get<0>(candidate[offset_cand]);
-			uint32_t end_b=get<2>((candidate.data()+offset_cand)[size_cand[dev][iter]-1])-1;
+			size_t start_b=get<0>(candidate[offset_cand]);
+			size_t end_b=get<2>((candidate.data()+offset_cand)[size_cand[dev][iter]-1])-1;
 
-			uint32_t size_buckets=end_b-start_b+1;
+			size_t size_buckets=end_b-start_b+1;
 
 			buckets_offset.emplace_back(start_b);
 
@@ -1065,7 +1081,7 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 
 			buffers_len_output.emplace_back( buffer<size_t, 1>(&len_output,range<1>{1}));
 
-			buffers_buckets_offset.emplace_back( buffer<uint32_t,1>(&buckets_offset.back(),range<1>{1}));
+			buffers_buckets_offset.emplace_back( buffer<size_t,1>(&buckets_offset.back(),range<1>{1}));
 
 
 			generate_candidates(q, buffers_len[n], buffers_oristrings[n], embdata, buffers_buckets[n], buffers_buckets_offset[n], buffers_batch_size[n], buffers_candidates[n], size_cand[dev][iter], buffers_len_output[n]);
@@ -1086,8 +1102,6 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 
 	timer.end_time(0,5,2);
 
-
-	return;
 }
 
 
@@ -1483,6 +1497,9 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 		 * Thus, a vector of sycl::buffer is created for each array accessed
 		 * in the kernel.
 		 *
+		 * Buffer are created inside the scope of this function, so buffer destructor
+		 * is used as synch method to put back data in the host
+		 *
 		 * */
 
 		std::vector<buffer<int,1>> buffers_p;
@@ -1512,7 +1529,9 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 
 		/**
 		 *
-		 * Profiling kernel on devices by using the test batches
+		 * Profiling kernel on devices by using the test batches.
+		 * The test is executed on the 2 devices sequentially, waiting
+		 * at the end of each testing kernel.
 		 *
 		 * */
 
