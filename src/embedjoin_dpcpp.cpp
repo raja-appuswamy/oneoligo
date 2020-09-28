@@ -203,7 +203,7 @@ void inititalize_dictionary(uint8_t* dictionary){
 }
 
 
-void allocate_work(vector<long> times, int num_dev, size_t units_to_allocate, size_t size_one_element, size_t max_size, vector<vector<size_t>> &size_per_dev){
+void allocate_work(vector<long> times, int num_dev, size_t units_to_allocate, vector<vector<size_t>> &size_per_dev){
 
 	size_t idx_slowest=-1;
 	size_t idx_fastest=-1;
@@ -265,73 +265,12 @@ void allocate_work(vector<long> times, int num_dev, size_t units_to_allocate, si
 
 
 
-		size_t s=n_fast*size_one_element;
+//		size_t s=n_fast*size_one_element;
 
 		size_per_dev[idx_fastest].emplace_back(n_fast);
 		size_per_dev[idx_slowest].emplace_back(n_slow);
 
-//		int num_kernels=1;
-//
-//		cout<<"\t"<<s<<std::endl;
-//
-//		while(s>max_size){
-//			cout<<"Warning: too much data for a single buffer."<<std::endl;
-//
-//			num_kernels=num_kernels*2;
-//
-//			s=s/2;
-//
-//		}
-//
-//		for(int l=0; l<num_kernels; l++){
-//
-//			if(l==num_kernels-1){
-//
-//				int remind=n_fast%(num_kernels);
-//
-//				size_per_dev[idx_fastest].emplace_back(n_fast/(num_kernels)+remind);
-//
-//			}else{
-//
-//				size_per_dev[idx_fastest].emplace_back(n_fast/(num_kernels));
-//
-//			}
-//
-//		}
-//
-//
-//		s=n_slow*size_one_element;
-//
-//		cout<<"size of 6-int tuple: "<<size_one_element<<std::endl;
-//
-//		num_kernels=1;
-//
-//		cout<<s<<std::endl;
-//
-//		while(s>max_size){
-//			cout<<"\tWarning: too much data for a buffer."<<std::endl;
-//
-//			num_kernels=num_kernels*2;
-//
-//			s=s/2;
-//
-//		}
-//
-//		for(int l=0; l<num_kernels; l++){
-//
-//			if(l==num_kernels-1){
-//
-//				size_t remind=n_slow%(num_kernels);
-//
-//				size_per_dev[idx_slowest].emplace_back(n_slow/(num_kernels)+remind);
-//
-//			}else{
-//
-//				size_per_dev[idx_slowest].emplace_back(n_slow/(num_kernels));
-//
-//			}
-//
-//		}
+
 
 	}else if(num_dev==1){
 
@@ -349,33 +288,7 @@ void allocate_work(vector<long> times, int num_dev, size_t units_to_allocate, si
 
 		size_per_dev[idx_fastest].emplace_back(n_fast);
 
-		size_t s=units_to_allocate*size_one_element;
-
-		cout<<"size of 6-int tuple: "<<size_one_element<<std::endl;
-
-//		int num_kernels=1;
-//
-//		cout<<s<<std::endl;
-//
-//		while(s>max_size){
-//
-//			cout<<"\tWarning: too much data for a buffer."<<std::endl;
-//
-//			num_kernels=num_kernels*2;
-//
-//			s=s/2;
-//
-//		}
-//
-//		for(int l=0; l<num_kernels; l++){
-//			if(l==num_kernels-1){
-//				size_t remind=units_to_allocate%(num_kernels);
-//				size_per_dev[idx_fastest].emplace_back(units_to_allocate/(num_kernels)+remind);
-//			}else{
-//				size_per_dev[idx_fastest].emplace_back(units_to_allocate/(num_kernels));
-//			}
-//		}
-
+//		size_t s=units_to_allocate*size_one_element;
 
 	}
 
@@ -761,7 +674,7 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<tuple<
 		}
 
 
-		allocate_work(times,num_dev,n_batches-number_of_testing_batches, sizeof(buckets[0]),0xFFFFFFFF, size_per_dev);
+		allocate_work(times,num_dev,n_batches-number_of_testing_batches, size_per_dev);
 
 
 
@@ -1088,7 +1001,7 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 	size_t remaining_size=candidate.size()-size_for_test*2*num_dev;
 
 
-	allocate_work(times,num_dev,remaining_size, sizeof(candidate[0]), 0x0FFFFFFF, size_cand);
+	allocate_work(times,num_dev,remaining_size, size_cand);
 
 
 	cout<<"\tRemaining size: "<<remaining_size<<std::endl;
@@ -1310,41 +1223,49 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<tuple<int,int,int,
 
 		std::cout<<"Size: "<<size<<std::endl;
 
-		timer.start_time(0,4,3);
+		try{
+			timer.start_time(0,4,3);
 
-		candidates.reserve(size);
+			candidates.reserve(size);
 
-		timer.end_time(0,4,3);
+			timer.end_time(0,4,3);
 
-		std::cout<<"\tTime cand-init: resize vector: "<<(float)timer.get_step_time(0,4,3)<<"sec"<<std::endl;
-
-
-		timer.start_time(0,4,4);
+			std::cout<<"\tTime cand-init: resize vector: "<<(float)timer.get_step_time(0,4,3)<<"sec"<<std::endl;
 
 
-		size_t c=0;
-		for(auto &b:buckets_delimiter ){
-			size_t start=get<0>(b);
-			size_t size=get<1>(b);
-			size_t end=start+size;
+			timer.start_time(0,4,4);
 
-			for(size_t i=start; i<end-1; i++){
-				for(size_t j=i+1; j<end; j++ ){
-					candidates.push_back({i,j,end,-1});
-//					get<0>(candidates[c])=i;
-//					get<1>(candidates[c])=j;
-//					get<2>(candidates[c])=end;
-				    c++;
+
+			size_t c=0;
+
+			for(auto &b:buckets_delimiter ){
+				size_t start=get<0>(b);
+				size_t size=get<1>(b);
+				size_t end=start+size;
+
+				for(size_t i=start; i<end-1; i++){
+					for(size_t j=i+1; j<end; j++ ){
+						candidates.push_back({i,j,end,-1});
+	//					get<0>(candidates[c])=i;
+	//					get<1>(candidates[c])=j;
+	//					get<2>(candidates[c])=end;
+						c++;
+					}
 				}
 			}
+
+			if(c!=size){
+				cout<<c<<" != "<<size<<std::endl;
+				cout<<"Exit"<<std::endl;
+				exit(-1);
+			}
+			cout<<c<<" == "<<size<<std::endl;
+		}
+		catch(std::exception& e){
+			std::cout<<"Too many candidates. Reduce the number of input strings"<<std::endl;
+			std::cout<<"or find the parameter to spread better strings accross hash buckets"<<std::endl;
 		}
 
-		if(c!=size){
-			cout<<c<<" != "<<size<<std::endl;
-			cout<<"Exit"<<std::endl;
-			exit(-1);
-		}
-		cout<<c<<" == "<<size<<std::endl;
 
 		timer.end_time(0,4,4);
 
@@ -1685,7 +1606,7 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 
 
 
-		allocate_work(times,num_dev,n_batches-number_of_testing_batches, 4, 0xFFFFFFFF, size_per_dev);
+		allocate_work(times,num_dev,n_batches-number_of_testing_batches, size_per_dev);
 
 
 		/**
@@ -2161,10 +2082,15 @@ int main(int argc, char **argv) {
 
 
 //	 candidates.erase(std::remove_if(/*oneapi::dpl::execution::par_unseq,*/ candidates.begin(), candidates.end(),[](std::tuple<uint32_t,uint32_t,uint32_t,uint8_t> e){return (get<4>(e)>K_INPUT || (get<5>(e)!=0) || get<0>(e)==get<2>(e));}), candidates.end());
-	 candidates.erase(std::remove_if(/*oneapi::dpl::execution::par_unseq,*/ candidates.begin(), candidates.end(),[](std::tuple<uint32_t,uint32_t,uint32_t,uint8_t> e){return (get<1>(e)>K_INPUT || (get<3>(e) & 0x1)!=0 || get<0>(e)==get<2>(e));}), candidates.end());
+	 candidates.erase(std::remove_if(oneapi::dpl::execution::par_unseq, candidates.begin(), candidates.end(),[](std::tuple<uint32_t,uint32_t,uint32_t,uint8_t> e){return (get<1>(e)>K_INPUT || (get<3>(e) & 0x1)!=0 || get<0>(e)==get<2>(e));}), candidates.end());
 
 	 }catch(std::exception &e){
-		 exit(-1);
+		 std::cout<<"Error in remove function. Too many candidates for the parallel version."<<std::endl;
+		 std::cout<<"The sequential version will be used."<<std::endl;
+//		 std::cout<<"Exit"<<std::endl;
+//		 exit(-1);
+		 candidates.erase(std::remove_if(candidates.begin(), candidates.end(),[](std::tuple<uint32_t,uint32_t,uint32_t,uint8_t> e){return (get<1>(e)>K_INPUT || (get<3>(e) & 0x1)!=0 || get<0>(e)==get<2>(e));}), candidates.end());
+
 	 }
 
 	 timer.end_time(0,6,1);
