@@ -133,6 +133,11 @@ void print_candidate_pairs( vector<tuple<int,int,int,int,int,int>> &candidates, 
 
 void print_configuration(int batch_size, int n_batches, size_t len_output, int countfilter, int samplingrange);
 
+int embed_join(string filename, int device, int samplingrange, int countfilter, size_t batch_size, size_t n_batches,bool is_scan, std::vector<tuple<int,int>> &results, std::vector<string> &db);
+
+
+void DBSCAN(string filename, int device, int samplingrange, int countfilter, size_t batch_size, size_t n_batches, int nPts);
+
 #endif
 
 

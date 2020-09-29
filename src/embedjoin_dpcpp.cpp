@@ -65,6 +65,7 @@ void setuplsh(int (*hash_lsh)[NUM_BITS], std::vector<int> &a, std::vector<int> &
 			hash_lsh[i][j] = lower_bound(lshnumber.begin(), lshnumber.end(), hash_lsh[i][j]) - lshnumber.begin();
 		}
 	}
+
 }
 
 
@@ -1383,7 +1384,7 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, vector<tuple<int
 		 *
 		 * **/
 
-		candidates.resize(size,tuple<uint32_t,uint32_t,uint32_t,uint8_t>(-1,-1,-1,-1));
+		candidates.reserve(size);
 
 		timer.end_time(0,4,3);
 
@@ -1400,30 +1401,50 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, vector<tuple<int
 		timer.start_time(0,4,4);
 
 
-		int c=0;
 
-		for(auto &b:delimiter ){
-			int start=get<0>(b);
-			int size=get<1>(b);
-			int end=start+size;
+		try{
+			timer.start_time(0,4,3);
 
-			for(int i=start; i<end-1; i++){
-				for(int j=i+1; j<end; j++ ){
-					get<0>(candidates[c])=i;
-					get<1>(candidates[c])=j;
-					get<2>(candidates[c])=end;
-					c++;
+			candidates.reserve(size);
+
+			timer.end_time(0,4,3);
+
+			std::cout<<"\tTime cand-init: resize vector: "<<(float)timer.get_step_time(0,4,3)<<"sec"<<std::endl;
+
+
+			timer.start_time(0,4,4);
+
+
+			size_t c=0;
+
+			for(auto &b:delimiter ){
+				size_t start=get<0>(b);
+				size_t size=get<1>(b);
+				size_t end=start+size;
+
+				for(size_t i=start; i<end-1; i++){
+					for(size_t j=i+1; j<end; j++ ){
+						candidates.push_back({i,j,end,-1});
+	//					get<0>(candidates[c])=i;
+	//					get<1>(candidates[c])=j;
+	//					get<2>(candidates[c])=end;
+						c++;
+					}
 				}
 			}
+
+			if(c!=size){
+				cout<<c<<" != "<<size<<std::endl;
+				cout<<"Exit"<<std::endl;
+				exit(-1);
+			}
+			cout<<c<<" == "<<size<<std::endl;
+		}
+		catch(std::exception& e){
+			std::cout<<"Too many candidates. Reduce the number of input strings"<<std::endl;
+			std::cout<<"or find the parameter to spread better strings accross hash buckets"<<std::endl;
 		}
 
-
-		if(c!=size){
-			cout<<c<<" != "<<size<<std::endl;
-
-			exit(-1);
-		}
-		cout<<c<<" == "<<size<<std::endl;
 
 
 		timer.end_time(0,4,4);
@@ -1686,18 +1707,22 @@ void print_output( std::string file_name )
 	std::cout<<"Start saving results"<<std::endl;
     ofstream outFile;
 
-    outFile.open(file_name, ios::out | ios::trunc);
 
-    if (!outFile.is_open()) {
-        std::cerr<<"Not possible to open file"<<std::endl;
-        exit(-1);
-    }
 
 	tbb::parallel_sort(outputs.begin(), outputs.end());
 	outputs.erase(unique(outputs.begin(), outputs.end()), outputs.end());
 
 
 	if(ALLOUTPUTRESULT) {
+
+
+		outFile.open(file_name, ios::out | ios::trunc);
+
+		if (!outFile.is_open()) {
+			std::cerr<<"Not possible to open file"<<std::endl;
+			exit(-1);
+		}
+
         for (int i = 0; i < outputs.size(); i++) {
 
             outFile << indices[get<0>(outputs[i])] << " " << indices[get<1>(outputs[i])] << std::endl;
@@ -1711,43 +1736,19 @@ void print_output( std::string file_name )
 }
 
 
-int main(int argc, char **argv) {
+int embed_join(string new_filename, int device, int new_samplingrange, int new_countfilter, size_t batch_size, size_t n_batches, bool is_dbscan, std::vector<tuple<int,int>> &results,  std::vector<string> &db) {
 
 //	__itt_pause();
-
-	int device=0;
-
-	size_t batch_size=30000;
-	size_t n_batches=10;
-
-
-
-
-	if (argc==7){
-
-		filename = argv[1];
-		device=atoi(argv[2]);
-
-		samplingrange=atoi(argv[3]);
-
-		countfilter=atoi(argv[4]);
-
-		batch_size=atoi(argv[5]);
-
-		n_batches=atoi(argv[6]);
-
-
-
-	}
-	else{
-		std::cerr<<"usage: ./embedjoin input_data 0/1/2(cpu/gpu/both) len_input_strings count_filter batch_size number_of_batches\n"<<std::endl;
-		exit(-1);
-	}
 
 
 	//OUTPUT STRINGS
 
     size_t len_output=NUM_HASH*NUM_BITS;//samplingrange;
+
+
+    filename=new_filename;
+    samplingrange=new_samplingrange;
+    countfilter=new_countfilter;
 
 	print_configuration(batch_size, n_batches, len_output, countfilter, samplingrange);
 
@@ -2003,9 +2004,9 @@ int main(int argc, char **argv) {
 	 timer.start_time(0,4,0);
 
 
-//	 initialize_candidate_pairs_onDevice( queues, buckets, candidates );
+	 initialize_candidate_pairs_onDevice( queues, buckets, candidates );
 
-	 initialize_candidate_pairs( queues, buckets, candidates );
+//	 initialize_candidate_pairs( queues, buckets, candidates );
 
 	 timer.end_time(0,4,0);
 
@@ -2236,6 +2237,10 @@ int main(int argc, char **argv) {
 
 	timer.end_time(0,6,0);
 
+	if(is_dbscan){
+		results.insert(results.begin(), verifycan.begin(), verifycan.end());
+		db.insert(db.begin(), tmp_oridata.begin(), tmp_oridata.end());
+	}
 
 	/**
 	 *
@@ -2334,24 +2339,12 @@ int main(int argc, char **argv) {
 	delete[] hash_lsh;
 	cout<<"\nDelete hash_lsh"<<std::endl;
 
+	indices.clear();
 
 
 
-//	for(int i=0; i<n_batches; i++){
-//		if(set_embdata_dev[i]==nullptr){
-//			cout<<"ERROR: Null pointer!"<<std::endl;
-//		}else{
-//			free(set_embdata_dev[i], queues.back());
-//			cout<<"Delete embdata["<<i<<"]"<<std::endl;
-//
-//		}
-//	}
-//	if(set_embdata_dev==nullptr){
-//				cout<<"ERROR: Null pointer!"<<std::endl;
-//	}else{
-//		free(set_embdata_dev, queues.back());
-//		cout<<"Delete embdata"<<std::endl;
-//	}
+	tmp_oridata.clear();
+
 
 	std::string dev="";
 	int count_dev=0;
