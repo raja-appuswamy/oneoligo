@@ -697,25 +697,17 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 		int num_dev=queues.size();
 
 		vector<vector<size_t>> size_cand(num_dev,vector<size_t>());
-
 		vector<uint32_t> number_of_iter(num_dev);
-
 		vector<size_t> buckets_offset(1000);
-
+		
 		vector<buffer<tuple<int,int,int,int,int>>> buffers_buckets;
-
 		vector<buffer<int, 2>> buffers_hash_lsh;
-
 		vector<buffer<tuple<uint32_t,uint32_t,uint32_t,uint8_t>>> buffers_candidates;
-
 		vector<buffer<size_t,1>> buffers_len;
-
 		vector<buffer<size_t, 1>> buffers_batch_size;
-
 		vector<buffer<size_t, 1>> buffers_len_output;
-
 		vector<buffer<size_t,1>> buffers_buckets_offset;
-
+		
 		vector<long> times;
 
 		// Select a number of candidates to use for profiling.
@@ -730,7 +722,6 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 		cout<<"\n\tNew size for test: "<<size_for_test<<std::endl;
 
 		timer.start_time(0,5,1);
-
 
 		int dev=0;
 		int n=0;
@@ -1337,27 +1328,24 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 void print_output( std::string file_name )
 {
 	std::cout<<"Start saving results"<<std::endl;
-    ofstream outFile;
+	ofstream outFile;
+	outFile.open(file_name, ios::out | ios::trunc);
 
-    outFile.open(file_name, ios::out | ios::trunc);
-
-    if (!outFile.is_open()) {
-        std::cerr<<"Not possible to open file"<<std::endl;
-        exit(-1);
-    }
+	if (!outFile.is_open()) {
+		std::cerr<<"Not possible to open file"<<std::endl;
+		exit(-1);
+	}
 
 	tbb::parallel_sort(outputs.begin(), outputs.end());
 	outputs.erase(unique(outputs.begin(), outputs.end()), outputs.end());
 
-
 	if(ALLOUTPUTRESULT) {
-        for (int i = 0; i < outputs.size(); i++) {
-
-            outFile << indices[get<0>(outputs[i])] << " " << indices[get<1>(outputs[i])] << std::endl;
-            outFile << tmp_oridata[get<0>(outputs[i])] << std::endl;
-            outFile << tmp_oridata[get<1>(outputs[i])] << std::endl;
-        }
-    }
+		for (int i = 0; i < outputs.size(); i++) {
+			outFile << indices[get<0>(outputs[i])] << " " << indices[get<1>(outputs[i])] << std::endl;
+			outFile << tmp_oridata[get<0>(outputs[i])] << std::endl;
+			outFile << tmp_oridata[get<1>(outputs[i])] << std::endl;
+		}
+	}
 
 	outputs.clear();
 }
