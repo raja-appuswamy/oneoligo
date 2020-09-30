@@ -61,14 +61,14 @@ void print_buckets( vector<tuple<int,int,int,int,int>> &buckets, std::string fil
 	}
 };
 
-void print_candidate_pairs( vector<tuple<int,int,int,int,int,int>> &candidates, std::string filename ){
+void print_candidate_pairs( vector<candidate_t> &candidates, std::string filename ){
 
 	ofstream outFile;
 	outFile.open(filename, ios::out | ios::trunc);
 
 	if (outFile.is_open()) {
 		for(int i=0; i<candidates.size(); i++){
-			outFile<<get<0>(candidates[i])<<", "<<get<1>(candidates[i])<<", "<<get<2>(candidates[i])<<", "<<get<3>(candidates[i])<<", "<<get<4>(candidates[i])<<", "<<get<5>(candidates[i])<<std::endl;
+			outFile<<get<0>(candidates[i])<<", "<<get<1>(candidates[i])<<", "<<get<2>(candidates[i])<<", "<<get<3>(candidates[i])<<std::endl;
 		}
 	}
 };
