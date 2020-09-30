@@ -1,9 +1,3 @@
-/*
- * main.cpp
- *
- *  Created on: 30 set 2020
- *      Author: eugenio
- */
 #include "embedjoin.hpp"
 
 int main(int argc, char **argv){
