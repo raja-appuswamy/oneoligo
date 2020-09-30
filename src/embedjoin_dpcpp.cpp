@@ -944,7 +944,6 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<tuple<int,int,int,
 
 			for(size_t i=start; i<end-1; i++){
 				for(size_t j=i+1; j<end; j++ ){
-
 					get<0>(candidates[c])=i;
 					get<1>(candidates[c])=j;
 					get<2>(candidates[c])=end;
@@ -1061,7 +1060,6 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, vector<tuple<int
 		/**
 		 * Assign i and j to candidates vector itself
 		 **/
-
 		timer.start_time(0,4,4);
 
 		size_t c=0;
@@ -1072,7 +1070,9 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, vector<tuple<int
 
 			for(size_t i=start; i<end-1; i++){
 				for(size_t j=i+1; j<end; j++ ){
-					candidates.push_back({i,j,end,-1});
+					get<0>(candidates[c])=i;
+					get<1>(candidates[c])=j;
+					get<2>(candidates[c])=end;
 					c++;
 				}
 			}
@@ -1123,12 +1123,10 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 
 	// Number batches to use for profiling
 	// (2 batches per queue/device)
-
 	int number_of_testing_batches=2*num_dev;
 
 	// Store the time taken by each device to execute 1 kernel
 	std::vector<long> times;
-
 	{
 		/**
 		 * Each queue and each kernel has its own copy of data (sycl::buffer).
@@ -1530,9 +1528,9 @@ int main(int argc, char **argv) {
 
 	 timer.start_time(0,4,0);
 
-//	 initialize_candidate_pairs_onDevice( queues, buckets, candidates );
+	 initialize_candidate_pairs_onDevice( queues, buckets, candidates );
 
-	 initialize_candidate_pairs( queues, buckets, candidates );
+//	 initialize_candidate_pairs( queues, buckets, candidates );
 
 	 timer.end_time(0,4,0);
 
