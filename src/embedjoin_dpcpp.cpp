@@ -629,19 +629,17 @@ void generate_candidates(queue &device_queue, buffer<size_t,1> &buffer_len_orist
 			auto acc_buckets = buffer_buckets.get_access<access::mode::read>(cgh);
 			auto acc_candidate = buffer_candidates.get_access<access::mode::write>(cgh);
 			auto acc_len = buffer_len_oristrings.get_access<access::mode::read>(cgh);
-            		auto acc_batch_size=buffer_batch_size.get_access<access::mode::read>(cgh);
-            		auto acc_len_output=buffer_len_output.get_access<access::mode::read>(cgh);
-            		auto acc_buckets_offset=buffer_buckets_offset.get_access<access::mode::read>(cgh);
+			auto acc_batch_size=buffer_batch_size.get_access<access::mode::read>(cgh);
+			auto acc_len_output=buffer_len_output.get_access<access::mode::read>(cgh);
+			auto acc_buckets_offset=buffer_buckets_offset.get_access<access::mode::read>(cgh);
+			
+			std::cout<<"Candidate size: "<<candidate_size<<std::endl;
+			
+			cgh.parallel_for<class GenerateCandidates>(range<1>(candidate_size), [=](item<1> index){
 
-
-           		std::cout<<"Candidate size: "<<candidate_size<<std::endl;
-
-            		cgh.parallel_for<class GenerateCandidates>(range<1>(candidate_size), [=](item<1> index){
-
-            		int ij = index[0];
-
+				int ij = index[0];
 				int index_output=ij;
-
+		
 				int sum=0;
 
 				size_t tmp_i=get<0>(acc_candidate[ij]);
