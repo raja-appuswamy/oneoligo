@@ -1566,24 +1566,17 @@ void onejoin(string new_filename, size_t batch_size, size_t n_batches, int devic
 					int ed = edit_distance(tmp_str2.data(), len_oristrings[second_str], tmp_str1.data(), len_oristrings[first_str] /*tmp_oridata[first_str].size()*/, K_INPUT);
 
 					std::unique_lock<std::mutex> lk(mt);
-
 					if(ed != -1) {
 						cont++;
 						outputs.push_back(make_tuple(first_str, second_str));
 					}
-
 					num_candidate++;
-
 				}
 				else{
 					break;
 				}
-
 			}
-
 		}));
-
-
 	}
 
 	for(auto &t:workers){
