@@ -440,81 +440,60 @@ void parallel_embedding(queue &device_queue, buffer<size_t,1> &buffer_len_oristr
 
 void  create_buckets(queue &device_queue, char **embdata, buffer<std::tuple<int,int,int,int,int>,1> &buffer_buckets, buffer<size_t,1> &buffer_batch_size, size_t split_size, buffer<size_t,1> &buffer_split_offset, buffer<uint32_t,1> &buffer_a, buffer<size_t,1> &buffer_len_output, buffer<uint8_t,1> &buffer_dict){
 
-		std::cout << "\n\tTask: Buckets Generation\t";
-		std::cout << "Device: " << device_queue.get_device().get_info<info::device::name>() << std::endl;
+	std::cout << "\n\tTask: Buckets Generation\t";
+	std::cout << "Device: " << device_queue.get_device().get_info<info::device::name>() << std::endl;
+	std::cout<<"\t\tSplit size: "<<split_size<<std::endl;
 
-		std::cout<<"\t\tSplit size: "<<split_size<<std::endl;
+	range<2> glob_range(split_size*NUM_STR*NUM_REP,NUM_HASH);
+	range<3> local_range(250,1,1);
 
-		range<2> glob_range(split_size*NUM_STR*NUM_REP,NUM_HASH);
-		range<3> local_range(250,1,1);
-
-		std::cout<<"\t\tGlobal range: "<<"("<<glob_range[0]<<", "<<glob_range[1]<<")"<<std::endl;
-
-
+	std::cout<<"\t\tGlobal range: "<<"("<<glob_range[0]<<", "<<glob_range[1]<<")"<<std::endl;
     {
-
-
 		device_queue.submit([&](handler &cgh){
 
 		//Executing kernel
 
-			auto acc_buckets = buffer_buckets.get_access<access::mode::write>(cgh);
-			auto acc_dict = buffer_dict.get_access<access::mode::read>(cgh);
-			auto acc_a = buffer_a.get_access<access::mode::read>(cgh);
-			auto acc_batch_size=buffer_batch_size.get_access<access::mode::read>(cgh);
-			auto acc_len_output=buffer_len_output.get_access<access::mode::read>(cgh);
-	        auto acc_split_offset=buffer_split_offset.get_access<access::mode::read>(cgh);
+		auto acc_buckets = buffer_buckets.get_access<access::mode::write>(cgh);
+		auto acc_dict = buffer_dict.get_access<access::mode::read>(cgh);
+		auto acc_a = buffer_a.get_access<access::mode::read>(cgh);
+		auto acc_batch_size=buffer_batch_size.get_access<access::mode::read>(cgh);
+		auto acc_len_output=buffer_len_output.get_access<access::mode::read>(cgh);
+		auto acc_split_offset=buffer_split_offset.get_access<access::mode::read>(cgh);
 
-			cgh.parallel_for<class CreateBuckets>(range<2>(glob_range), [=](item<2> index){
+		cgh.parallel_for<class CreateBuckets>(range<2>(glob_range), [=](item<2> index){
 
-				int itq=index[0];
+			int itq=index[0];
+			int i=itq/(NUM_STR*NUM_REP)+acc_split_offset[0];
+			int tq=itq%(NUM_STR*NUM_REP);
+			int t=tq/NUM_REP;
+			int q=tq%NUM_REP;
 
-				int i=itq/(NUM_STR*NUM_REP)+acc_split_offset[0];
+			int k=index[1];
 
-				int tq=itq%(NUM_STR*NUM_REP);
+			int id=0;
+			char dict_index=0;
+			int id_mod=0;
+			int digit=-1;
 
-				int t=tq/NUM_REP;
+			for (int j = 0; j < NUM_BITS; j++){
+				digit=k*NUM_BITS+j;
+				dict_index=embdata[(int)(i/acc_batch_size[0])][ABSPOS((int)(i%acc_batch_size[0]),t,q,digit,acc_len_output[0])];
+				id += (acc_dict[dict_index]) * acc_a[j];
+			}
 
-				int q=tq%NUM_REP;
+			id_mod=id % M;
 
-				int k=index[1];
+			size_t output_position=index.get_linear_id();
 
-				int output_position;
-
-				size_t linear_id=index.get_linear_id();
-
-				int id=0;
-				char dict_index=0;
-				int id_mod=0;
-				int digit=-1;
-
-				for (int j = 0; j < NUM_BITS; j++){
-
-					digit=k*NUM_BITS+j;
-
-					dict_index=embdata[(int)(i/acc_batch_size[0])][ABSPOS((int)(i%acc_batch_size[0]),t,q,digit,acc_len_output[0])];
-
-					id += (acc_dict[dict_index]) * acc_a[j];
-
-				}
-
-				id_mod=id % M;
-
-				output_position=linear_id;
-
-				get<0>(acc_buckets[output_position])=t;
-				get<1>(acc_buckets[output_position])=k;
-				get<2>(acc_buckets[output_position])=id_mod;
-				get<3>(acc_buckets[output_position])=i;
-				get<4>(acc_buckets[output_position])=q;
+			get<0>(acc_buckets[output_position])=t;
+			get<1>(acc_buckets[output_position])=k;
+			get<2>(acc_buckets[output_position])=id_mod;
+			get<3>(acc_buckets[output_position])=i;
+			get<4>(acc_buckets[output_position])=q;
 
 			});
 		});
-
-
-
 	}
-
 }
 
 
@@ -533,20 +512,16 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<tuple<
 	 */
 
 	int number_of_testing_batches=2*num_dev;
-
 	vector<long> times;
 
 	{
 		vector<size_t> split_size;
-
 		uint8_t dictory[256]={0};
 
 		inititalize_dictory(dictory);
 
 		std::vector<vector<size_t>> size_per_dev(num_dev, vector<size_t>{});
-
 		vector<size_t> offset;
-
 		vector<sycl::buffer<tuple<int,int,int,int,int>>> buffers_buckets;
 		vector<sycl::buffer<size_t,1>> buffers_batch_size;
 		vector<sycl::buffer<size_t,1>> buffers_split_size;
@@ -560,7 +535,6 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<tuple<
 		timer.start_time(0,2,1);
 
 		int n=0; // Global number of iteration
-
 		int  dev=0; // Device index
 
 		cout<<"\n\tStart profiling on devices..."<<std::endl;
@@ -581,7 +555,6 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<tuple<
 				auto start=std::chrono::system_clock::now();
 
 				offset.emplace_back(2*batch_size*dev+i*batch_size);
-
 				size_t loc_split_size=batch_size;
 
 				cout<<"\n\tSet offset to: "<<offset[n]<<std::endl;
