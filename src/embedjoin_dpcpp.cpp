@@ -969,130 +969,6 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<tuple<int,int,int,
 }
 
 
-void initialize_candidate_pairs_onDevice(vector<queue>& queues, vector<tuple<int,int,int,int,int>> &buckets, vector<std::tuple<uint32_t,uint32_t,uint32_t,uint8_t>> &candidates ){
-
-	cout<<"Initialize candidates on device"<<std::endl;
-
-	timer.start_time(0,4,1);
-
-	std::vector<tuple<int,int>> delimiter(buckets.size());
-	get<0>(delimiter[0]) = 0;
-
-	{
-		/**
-		 *
-		 * Compute starting index for each buckets
-		 * on first device available
-		 *
-		 ***/
-
-		cl::sycl::buffer<tuple<int,int>> buckets_delimiter_buf{ delimiter.data(), delimiter.size(), {property::buffer::use_host_ptr()}};
-		cl::sycl::buffer<tuple<int,int,int,int,int>> array_buf{ buckets.data(), buckets.size(), {property::buffer::use_host_ptr()}};
-
-		queues.front().submit([&](sycl::handler& cgh) {
-
-			auto pv_acc = buckets_delimiter_buf.get_access<cl::sycl::access::mode::write>(cgh);
-			auto array_acc = array_buf.get_access<cl::sycl::access::mode::read>(cgh);
-
-			cgh.parallel_for<class partition_kernel>(cl::sycl::range<1>{buckets.size() - 1},
-					[=](cl::sycl::id<1> idx) {
-						if ( (get<0>(array_acc[idx[0]])!=get<0>(array_acc[idx[0] + 1]))
-								|| (get<0>(array_acc[idx[0]])==get<0>(array_acc[idx[0] + 1]) && get<1>(array_acc[idx[0]])!=get<1>(array_acc[idx[0] + 1]) )
-								|| (get<0>(array_acc[idx[0]])==get<0>(array_acc[idx[0] + 1]) && get<1>(array_acc[idx[0]])==get<1>(array_acc[idx[0] + 1]) && get<2>(array_acc[idx[0]])!=get<2>(array_acc[idx[0] + 1])) ) {
-							get<0>(pv_acc[idx[0] + 1]) = idx[0] + 1;
-						}
-					});
-			});
-	} // For synch
-
-	auto new_end=remove_if(oneapi::dpl::execution::par, delimiter.begin()+1,delimiter.end(),[](std::tuple<int,int> e){return std::get<0>(e)==0;});
-	delimiter.erase( new_end, delimiter.end());
-
-	/**
-	 * Compute size of each buckets of first device available
-	 */
-
-	{
-		cl::sycl::buffer<tuple<int,int>> buckets_delimiter_buf{ delimiter.data(), delimiter.size(), {property::buffer::use_host_ptr()}};
-
-		queues.front().submit([&](sycl::handler& cgh) {
-			auto pv_acc = buckets_delimiter_buf.get_access<cl::sycl::access::mode::write>(cgh);
-			cgh.parallel_for<class partition_kernel>(cl::sycl::range<1>{buckets.size()-1},
-				[=](cl::sycl::id<1> idx) {
-					get<1>(pv_acc[idx[0]]) = get<0>(pv_acc[idx[0]+1]) - get<0>(pv_acc[idx[0]]);
-				});
-			});
-	} // For synch
-
-	timer.end_time(0,4,1);
-
-	std::cout<<"\n\tTime cand-init: parallel count element: "<<(float)timer.get_step_time(0,4,1)<<"sec"<<std::endl;
-
-	timer.start_time(0,4,2);
-
-	/**
-	 * Remove buckets whose size < 2 since no pair is available
-	 * **/
-
-	new_end=std::remove_if(dpl::execution::par, delimiter.begin(),delimiter.end(),[](std::tuple<int,int> &e){return std::get<1>(e)<2;});
-	delimiter.erase( new_end, delimiter.end());
-
-	timer.end_time(0,4,2);
-	std::cout<<"\tTime cand-init: parallel remove element: "<<(float)timer.get_step_time(0,4,2)<<"sec"<<std::endl;
-
-	size_t size=0;
-	for(int b=0; b<delimiter.size(); b++){
-		int n=get<1>(delimiter[b]);
-		size+=((n*(n-1))/2);
-	}
-	cout<<"\t\tCandidate vector size: "<<size<<std::endl;
-
-	try{
-		timer.start_time(0,4,3);
-		/**
-		 * Resize candidates vector
-		 * **/
-		candidates.resize(size,tuple<uint32_t,uint32_t,uint32_t,uint8_t>(-1,-1,-1,-1));
-
-		timer.end_time(0,4,3);
-		std::cout<<"\tTime cand-init: resize: "<<(float)timer.get_step_time(0,4,3)<<"sec"<<std::endl;
-
-		/**
-		 * Assign i and j to candidates vector itself
-		 **/
-		timer.start_time(0,4,4);
-
-		size_t c=0;
-		for(auto &b:delimiter ){
-			size_t start=get<0>(b);
-			size_t size=get<1>(b);
-			size_t end=start+size;
-
-			for(size_t i=start; i<end-1; i++){
-				for(size_t j=i+1; j<end; j++ ){
-					get<0>(candidates[c])=i;
-					get<1>(candidates[c])=j;
-					get<2>(candidates[c])=end;
-					c++;
-				}
-			}
-		}
-		if(c!=size){
-			cout<<c<<" != "<<size<<std::endl;
-			exit(-1);
-		}
-		cout<<c<<" == "<<size<<std::endl;
-	}
-	catch(std::exception& e){
-		std::cout<<"Too many candidates. Reduce the number of input strings"<<std::endl;
-		std::cout<<"or find the parameter to spread better strings accross hash buckets"<<std::endl;
-	}
-
-	timer.end_time(0,4,4);
-	std::cout<<"\tTime cand-init: assign i and j to candidates: "<<(float)timer.get_step_time(0,4,4)<<"sec"<<std::endl;
-}
-
-
 void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_oristrings, char (*oristrings)[LEN_INPUT], char** set_embdata_dev, size_t batch_size, size_t n_batches, std::vector<int> &lshnumber, size_t &len_output, std::vector<tuple<int,int>> &rev_hash){
 
 	std::cout<< "Parallel Embedding"<<std::endl;
@@ -1443,9 +1319,7 @@ int main(int argc, char **argv) {
 
 	/**
 	 *
-	 *
 	 * EMBEDDING STEP
-	 *
 	 *
 	 **/
 
@@ -1483,9 +1357,7 @@ int main(int argc, char **argv) {
 
 	/**
 	 *
-	 *
 	 * CREATE BUCKETS STEP
-	 *
 	 *
 	 * **/
 	
@@ -1523,14 +1395,11 @@ int main(int argc, char **argv) {
 	  *
 	  * INITIALIZATION FOR CANDIDATE GENERATION
 	  *
-	  *
 	  * **/
 
 	 timer.start_time(0,4,0);
 
-	 initialize_candidate_pairs_onDevice( queues, buckets, candidates );
-
-//	 initialize_candidate_pairs( queues, buckets, candidates );
+	 initialize_candidate_pairs( queues, buckets, candidates );
 
 	 timer.end_time(0,4,0);
 
@@ -1538,9 +1407,7 @@ int main(int argc, char **argv) {
 
 	 /**
 	 *
-	 *
 	 * GENERATE CANDIDATE PAIRS STEP
-	 *
 	 *
 	 * **/
 
@@ -1583,9 +1450,7 @@ int main(int argc, char **argv) {
 
 	/**
 	  *
-	  *
 	  * CANDIDATES PROCESSING
-	  *
 	  *
 	  * */
 
