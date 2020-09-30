@@ -1,7 +1,5 @@
 #ifndef EMBEDJOIN_H
 #define EMBEDJOIN_H
-
-//#pragma once
 #include <CL/sycl.hpp>
 #include <ctime>
 #include <unistd.h>
@@ -14,20 +12,16 @@
 #include <algorithm>
 #include <tuple>
 #include <numeric>
-
 #include <map>
 #include <set>
 #include <chrono>
-
 #include <limits>
-
 #include <cmath>
 #include <cstdint>
 #include <thread>
 #include <mutex>
 #include <atomic>
 #include <memory>
-
 //#include <ittnotify.h>
 #include <oneapi/dpl/execution>
 #include <oneapi/dpl/algorithm>
@@ -38,23 +32,15 @@
 
 using namespace std;
 
-
 typedef std::tuple<int, int> idpair;
 typedef std::tuple<int, int, int> idthree;
 
 #define PRINT_EACH_STEP 0
 
 #define NUMREPCHARS(len_output) (len_output * NUM_REP)
-
 #define NUMSTRCHARS(len_output) (NUMREPCHARS(len_output) * NUM_STR)
-
 #define ABSPOS(i,j,k,m,len_output) static_cast<unsigned int>(i * NUMSTRCHARS(len_output) + j * NUMREPCHARS(len_output) + k * len_output + m)
-
-
 #define ABSPOS_P(j,t,d,len) static_cast<unsigned int>(j*NUM_CHAR*len +t*len+d)
-
-
-
 
 // Parameters: 150 7 16 12 4 5000 0 50 1
 
@@ -102,7 +88,6 @@ typedef std::tuple<int, int, int> idthree;
 	#define NUM_REP 3 // edit distance threshold
 #endif
 
-
 #ifndef PRINT_EMB
 	#define PRINT_EMB 0
 #endif
@@ -115,22 +100,11 @@ typedef std::tuple<int, int, int> idthree;
 	#define PRINT_CAND 0
 #endif
 
-
-
-
-
 int edit_distance(const char *x, const int x_len, const  char *y, const int y_len, int k);
-
-
 void print_oristrings( char *oristrings, vector<int> len );
-
-
 void print_embedded( char **output, int len_output, int batch_size, std::string filename );
-
 void print_buckets( vector<tuple<int,int,int,int,int>> &buckets, std::string filename);
-
 void print_candidate_pairs( vector<tuple<int,int,int,int,int,int>> &candidates, std::string filename );
-
 void print_configuration(int batch_size, int n_batches, size_t len_output, int countfilter, int samplingrange);
 
 #endif
