@@ -37,8 +37,6 @@ namespace total_alg{
 class Time {
 
 private:
-
-
 	map<int,timeinterval_t> timing;
 	timepoint_t t=std::chrono::system_clock::now();
 
@@ -63,7 +61,6 @@ private:
 	}
 
 public:
-	
 	void print_report(std::string dev, int num_candidates, int num_outputs, std::ostream &out_file=std::cout){
 
 		out_file<<"Step,SubStep,Time(sec),Device"<<std::endl;
