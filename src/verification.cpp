@@ -6,57 +6,53 @@ using namespace std;
 
 typedef int64_t int64;
 typedef int32_t int32;
-// #define max(x,y)  (((x)>(y))?(x):(y))
-// #define min(x,y)  (((x)<(y))?(x):(y))
 
-int slide(const char *x, const char *y)
-// computes slide of x and y - returns the index of the first disagreement
+// Computes slide of x and y - returns the index of the first disagreement
 // x and y should be zero terminted plus there should be 7 characters afterwards that are different for x and y
 // the procedure assumes little-endian memory layout for integers (intel x86 type). 
-// For big-endian one would need to modify the computation using __builtin_ctz to something using __builtin_clz    
-{
+// For big-endian one would need to modify the computation using __builtin_ctz to something using __builtin_clz
+
+int slide(const char *x, const char *y){
+
 	int i=0;
 
-//	printf("(%s,%s,",x,y);
-
-	while(*((int64*)x)==*((int64*)y)){ x+=8; y+=8; i+=8; }		// find the first 8-bytes that differ
-
-//	printf("%i --- %lx --- (%i) ",i,(*((int64*)x)-*((int64*)y)), __builtin_ctz(*((int64*)x)-*((int64*)y)));	
+	while(*((int64*)x)==*((int64*)y)){
+		x+=8;
+		y+=8;
+		i+=8;
+	}// find the first 8-bytes that differ
 
 	i+= (__builtin_ctzll(*((int64*)x)-*((int64*)y)) >> 3);	// calculates the first byte of the 8 that differs
 	
-//	printf("%i) ",i);
-
 	return i;
 }
 
-int slide32(const char *x, const char *y)
-// computes slide of x and y - returns the index of the first disagreement
+
+// Computes slide of x and y - returns the index of the first disagreement
 // x and y should be zero terminted plus there should be 7 characters afterwards that are different for x and y
 // the procedure assumes little-endian memory layout for integers (intel x86 type). 
-// For big-endian one would need to modify the computation using __builtin_ctz to something using __builtin_clz    
-{
+// For big-endian one would need to modify the computation using __builtin_ctz to something using __builtin_clz
+int slide32(const char *x, const char *y){
+
 	int i=0;
 
-//	printf("(%s,%s,",x,y);
-
-	while(*((int32*)x)==*((int32*)y)){ x+=4; y+=4; i+=4; }		// find the first 8-bytes that differ
-
-//	printf("%i --- %lx --- (%i) ",i,(*((int32*)x)-*((int32*)y)), __builtin_ctz(*((int32*)x)-*((int32*)y)));	
+	while(*((int32*)x)==*((int32*)y)){
+		x+=4;
+		y+=4;
+		i+=4;
+	}		// find the first 8-bytes that differ
 
 	i+= (__builtin_ctz(*((int32*)x)-*((int32*)y)) >> 3);	// calculates the first byte of the 8 that differs
 	
-//	printf("%i) ",i);
-
 	return i;
 }
 
-
-int edit_distance(const char *x, const int x_len, const  char *y, const int y_len, int k)
-// computes the edit distance of x and y
+// Computes the edit distance of x and y
 // x and y should be zero terminated plus there should be 7 characters afterwards that are different for x and y
 // (we don't really need zero termination but we need 8 characters after x and y that differ)
-{
+
+int edit_distance(const char *x, const int x_len, const  char *y, const int y_len, int k){
+
 	if(k >= K)return -1;			// error - too large k
 
 	if(x_len > y_len)return edit_distance(y,y_len,x,x_len,k);

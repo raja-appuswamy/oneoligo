@@ -273,7 +273,7 @@ public:
 		this->total_alg_time.resize(2); // 2,0,0
 	}
 
-	void print_report(std::string dev, std::ostream &out_file=std::cout){
+	void print_report(std::string dev, int num_candidates, int num_outputs, std::ostream &out_file=std::cout){
 
 		out_file<<"Step,SubStep,Time(sec),Device"<<std::endl;
 
@@ -375,6 +375,8 @@ public:
 		t=get_time(this->total_alg_time);
 		out_file<<"Total Alg time,\t,"<<t<<std::endl;
 
+		out_file<<"Number candidates,\t"<<num_candidates<<std::endl;
+		out_file<<"Number output,\t"<<num_outputs<<std::endl;
 	}
 
 	void start_time(int main_phase, int phase, int subphase){
