@@ -1176,7 +1176,7 @@ std::string getReportFileName(vector<queue>&queues, int device, size_t batch_siz
 }
 
 
-void embed_join(string new_filename, size_t batch_size, size_t n_batches, int device, int new_samplingrange, int new_countfilter) {
+void onejoin(string new_filename, size_t batch_size, size_t n_batches, int device, int new_samplingrange, int new_countfilter) {
 
 	samplingrange=new_samplingrange;
 	countfilter=new_countfilter;

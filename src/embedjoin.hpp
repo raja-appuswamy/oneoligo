@@ -31,12 +31,10 @@
 #include <optional>
 
 using namespace std;
-
 using buckets_t = std::tuple<int,int,int,int,int>;
 using candidate_t = std::tuple<uint32_t,uint32_t,uint32_t,uint8_t>;
 
-typedef std::tuple<int, int> idpair;
-typedef std::tuple<int, int, int> idthree;
+using idpair=std::tuple<int, int>;
 
 #define PRINT_EACH_STEP 0
 
@@ -109,7 +107,7 @@ void print_embedded( char **output, int len_output, int batch_size, std::string 
 void print_buckets( vector<buckets_t> &buckets, std::string filename);
 void print_candidate_pairs( vector<candidate_t> &candidates, std::string filename );
 void print_configuration(int batch_size, int n_batches, size_t len_output, int countfilter, int samplingrange);
-void embed_join(string new_filename, size_t batch_size, size_t n_batches, int device, int new_samplinrange, int new_countfilter);
+void onejoin(string new_filename, size_t batch_size, size_t n_batches, int device, int new_samplinrange, int new_countfilter);
 
 #endif
 
