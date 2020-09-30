@@ -23,7 +23,7 @@ int main(int argc, char **argv){
 		exit(-1);
 	}
 
-	embed_join(filename,batch_size,n_batches,device,samplingrange,countfilter);
+	onejoin(filename,batch_size,n_batches,device,samplingrange,countfilter);
 }
 
 
