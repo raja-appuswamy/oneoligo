@@ -411,7 +411,6 @@ void  create_buckets(queue &device_queue, char **embdata, buffer<buckets_t,1> &b
 	range<3> local_range(250,1,1);
 
 	std::cout<<"\t\tGlobal range: "<<"("<<glob_range[0]<<", "<<glob_range[1]<<")"<<std::endl;
-   	
 	{
 		device_queue.submit([&](handler &cgh){
 
@@ -471,7 +470,6 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 	 * Number batches to use for profiling:
 	 * 2 batches per queue/device
 	 */
-
 	int number_of_testing_batches=2*num_dev;
 	vector<long> times;
 
@@ -536,7 +534,6 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 
 				// Save the time only for the second kernel execution for each device
 				// because the first run includes the compiling time
-
 				if(i>0){
 					times.emplace_back(std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count());
 				}
@@ -805,14 +802,14 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 				cout<<"\n\tBuckets size: "<<size_buckets<<std::endl;
 				cout<<"\n\tBuckets offset: "<<buckets_offset.back()<<std::endl;
 
-				buffers_buckets.emplace_back( buffer<buckets_t>(buckets.data()+start_b,range<1>{size_buckets}/*, {property::buffer::use_host_ptr()}*/));
+				buffers_buckets.emplace_back( buffer<buckets_t>(buckets.data()+start_b,range<1>{size_buckets}));
 
 				cout<<"\tCand size: "<<size_cand[dev][iter]<<std::endl;
 				cout<<"\tOffset: "<<offset_cand<<std::endl;
 
-				buffers_hash_lsh.emplace_back( buffer<int, 2>(reinterpret_cast<int*>(local_hash_lsh),range<2>{NUM_HASH,NUM_BITS}/*, {property::buffer::use_host_ptr()}*/));
-				buffers_candidates.emplace_back( buffer<candidate_t>(candidate.data()+offset_cand,range<1>{size_cand[dev][iter]}/*, {property::buffer::use_host_ptr()}*/));
-				buffers_len.emplace_back( buffer<size_t,1>(len_oristrings.data(),range<1>{len_oristrings.size()}/*, {property::buffer::use_host_ptr()}*/));
+				buffers_hash_lsh.emplace_back( buffer<int, 2>(reinterpret_cast<int*>(local_hash_lsh),range<2>{NUM_HASH,NUM_BITS}));
+				buffers_candidates.emplace_back( buffer<candidate_t>(candidate.data()+offset_cand,range<1>{size_cand[dev][iter]}));
+				buffers_len.emplace_back( buffer<size_t,1>(len_oristrings.data(),range<1>{len_oristrings.size()}));
 				buffers_batch_size.emplace_back( buffer<size_t, 1>(&batch_size,range<1>{1}));
 				buffers_len_output.emplace_back( buffer<size_t, 1>(&len_output,range<1>{1}));
 				buffers_buckets_offset.emplace_back( buffer<size_t,1>(&buckets_offset[n],range<1>{1}));
@@ -1685,6 +1682,9 @@ void embed_join(string new_filename, size_t batch_size, size_t n_batches, int de
 	}
 
 	print_output("join_output_parallel.txt");
+	outputs.clear();
+	indices.clear();
+	tmp_oridata.clear();
 }
 
 
