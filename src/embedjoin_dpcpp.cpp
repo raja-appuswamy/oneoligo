@@ -305,7 +305,6 @@ void allocate_work(vector<long> times, int num_dev, size_t units_to_allocate, ve
 void split_buffers(vector<vector<size_t>> &size_per_dev, size_t size_element, size_t limit=0xFFFFFFFF){
 
 	int num_dev=size_per_dev.size();
-
 	size_t tmp_size=0;
 
 	if( num_dev>0 ){
@@ -318,7 +317,6 @@ void split_buffers(vector<vector<size_t>> &size_per_dev, size_t size_element, si
 			}
 
 			size_t size=size_per_dev[d][0];
-
 			size_t num_part=1;
 
 			while( size*size_element/num_part > limit ){
@@ -339,11 +337,8 @@ void split_buffers(vector<vector<size_t>> &size_per_dev, size_t size_element, si
 					size_per_dev[d].emplace_back(size/num_part);
 				}
 			}
-
 		}
-
 	}
-
 }
 
 
@@ -600,17 +595,12 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<tuple<
 
 				n++;
 				iter++;
-
 			}
-
 			dev++;
 		}
 	}
-
 	timer.end_time(0,2,2);
-
 	cout<<"\nTime for actual computation: "<<timer.get_step_time(0,2,2)<<std::endl;
-
 }
 
 
@@ -830,14 +820,12 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 				generate_candidates(q, buffers_len[n], embdata, buffers_buckets[n], buffers_buckets_offset[n], buffers_batch_size[n], buffers_candidates[n], size_cand[dev][iter], buffers_len_output[n]);
 
 				offset_cand+=size_cand[dev][iter];
-
 				n++;
 				iter++;
 			}
 			dev++;
 		}
 	}
-
 	timer.end_time(0,5,2);
 }
 
@@ -845,7 +833,6 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 void generate_random_string(int* p, int len_p){
 
 	for (int j = 0; j < NUM_STR; j++) {
-
 		for (int t = 0; t < NUM_CHAR; t++){
 
 			for (int d = 0; d < samplingrange + 1; d++){
@@ -853,9 +840,7 @@ void generate_random_string(int* p, int len_p){
 			}
 
 			for (int d = 0; d < samplingrange + 1; d++){
-				
 				if(p[ABSPOS_P(j,t,d,len_p)]==1){
-					
 					if(d>0 && p[ABSPOS_P(j,t,d-1,len_p)]==1){
 						p[ABSPOS_P(j,t,d,len_p)] = p[ABSPOS_P(j,t,d-1,len_p)] - 1;
 					}
@@ -881,10 +866,10 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<tuple<int,int,int,
 	 * Compute the boundary ( starting index and size ) of each buckets in the 1-D vector
 	 *
 	 * */
+
 	timer.start_time(0,4,1);
 
 	vector<tuple<int,int>> buckets_delimiter;
-
 	int j=0;
 
 	buckets_delimiter.emplace_back(make_tuple(0,0));
@@ -902,9 +887,7 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<tuple<int,int,int,
 	}
 
 	timer.end_time(0,4,1);
-
 	std::cout<<"\n\tTime cand-init: count element: "<<(float)timer.get_step_time(0,4,1)<<"sec"<<std::endl;
-
 	timer.start_time(0,4,2);
 
 	/**
@@ -916,7 +899,6 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<tuple<int,int,int,
 	std::cout<<"\n\tSize before remove: "<<buckets_delimiter.size()<<std::endl;
 
 	auto new_end=remove_if(oneapi::dpl::execution::par, buckets_delimiter.begin(),buckets_delimiter.end(),[](std::tuple<int,int> e){return std::get<1>(e)<2;});
-
 	buckets_delimiter.erase( new_end, buckets_delimiter.end());
 	std::cout<<"\tSize after remove: "<<buckets_delimiter.size()<<std::endl;
 
@@ -955,7 +937,6 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<tuple<int,int,int,
 		timer.start_time(0,4,4);
 
 		size_t c=0;
-
 		for(auto &b:buckets_delimiter ){
 			size_t start=get<0>(b);
 			size_t size=get<1>(b);
@@ -985,9 +966,7 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<tuple<int,int,int,
 	}
 
 	timer.end_time(0,4,4);
-
 	std::cout<<"\tTime cand-init: assign i and j to candidates: "<<(float)timer.get_step_time(0,4,4)<<"sec"<<std::endl;
-
 }
 
 
@@ -1028,7 +1007,6 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, vector<tuple<int
 		} // For synch
 
 		auto new_end=remove_if(oneapi::dpl::execution::par, delimiter.begin()+1,delimiter.end(),[](std::tuple<int,int> e){return std::get<0>(e)==0;});
-
 		delimiter.erase( new_end, delimiter.end());
 
 		/**
@@ -1062,37 +1040,26 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, vector<tuple<int
 		 * **/
 
 		new_end=std::remove_if(dpl::execution::par, delimiter.begin(),delimiter.end(),[](std::tuple<int,int> &e){return std::get<1>(e)<2;});
-
 		delimiter.erase( new_end, delimiter.end());
 
 		timer.end_time(0,4,2);
-
 		std::cout<<"\tTime cand-init: parallel remove element: "<<(float)timer.get_step_time(0,4,2)<<"sec"<<std::endl;
 
 		size_t size=0;
-
 		for(int b=0; b<delimiter.size(); b++){
-
 			int n=get<1>(delimiter[b]);
 			size+=((n*(n-1))/2);
-
 		}
-
 		cout<<"\t\tCandidate vector size: "<<size<<std::endl;
 
 		try{
 			timer.start_time(0,4,3);
-
 			/**
-			 *
 			 * Resize candidates vector
-			 *
 			 * **/
-
 			candidates.resize(size,tuple<uint32_t,uint32_t,uint32_t,uint8_t>(-1,-1,-1,-1));
 
 			timer.end_time(0,4,3);
-
 			std::cout<<"\tTime cand-init: resize: "<<(float)timer.get_step_time(0,4,3)<<"sec"<<std::endl;
 
 			/**
@@ -1104,7 +1071,6 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, vector<tuple<int
 			timer.start_time(0,4,4);
 
 			size_t c=0;
-
 			for(auto &b:delimiter ){
 				size_t start=get<0>(b);
 				size_t size=get<1>(b);
@@ -1112,7 +1078,6 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, vector<tuple<int
 
 				for(size_t i=start; i<end-1; i++){
 					for(size_t j=i+1; j<end; j++ ){
-
 						candidates.push_back({i,j,end,-1});
 						c++;
 					}
@@ -1132,32 +1097,24 @@ void initialize_candidate_pairs_onDevice(vector<queue>& queues, vector<tuple<int
 
 		timer.end_time(0,4,4);
 		std::cout<<"\tTime cand-init: assign i and j to candidates: "<<(float)timer.get_step_time(0,4,4)<<"sec"<<std::endl;
-
 }
 
 
 void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_oristrings, char (*oristrings)[LEN_INPUT], char** set_embdata_dev, size_t batch_size, size_t n_batches, std::vector<int> &lshnumber, size_t &len_output, std::vector<tuple<int,int>> &rev_hash){
 
 	std::cout<< "Parallel Embedding"<<std::endl;
-
 	/**
-	 *
 	 * Initialize the "dictory" that contains the translation
 	 * character -> number
-	 *
 	 * */
-
 	uint8_t dictory[256]={0};
 	inititalize_dictory(dictory);
 
 	cout<<"\n\tLen output: "<<len_output<<std::endl;
 
 	timer.start_time(0,1,2);
-
 	/**
-	 *
 	 * Allocate and initialize random strings to use for embedding
-	 *
 	 * **/
 
 	uint32_t len_p=samplingrange+1;
@@ -1176,13 +1133,11 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 
 	int number_of_testing_batches=2*num_dev;
 
-	// Store the time taken by each device to run 1 kernel
-
+	// Store the time taken by each device to execute 1 kernel
 	std::vector<long> times;
 
 	{
 		/**
-		 *
 		 * Each queue and each kernel has its own copy of data (sycl::buffer).
 		 * Also read-only data shared by all kernels, are replicated once for
 		 * each kernel, in order to reduce dependencies among different kernels
@@ -1209,13 +1164,10 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 		int dev=0; // device index
 
 		std::cout<<"\tStart profiling on devices..."<<std::endl<<std::endl;
-
 		/**
-		 *
 		 * Profiling kernel on devices by using the test batches.
 		 * The test is executed on the 2 devices sequentially, waiting
 		 * at the end of each testing kernel.
-		 *
 		 * */
 
 		for(auto &q:queues){
@@ -1224,7 +1176,6 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 			// includes kernel compiling time
 
 			for(int i=0; i<2; i++){
-
 
 				auto start=std::chrono::system_clock::now();
 
@@ -1251,29 +1202,23 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 				if(i>0){
 					times.emplace_back(std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count());
 				}
-
 				n++;
 			}
-
 			dev++;
 		}
-
 
 		for(auto t:times){
 			cout<<"\tTimes kernel: "<<(float)t/1000<<"sec"<<std::endl;
 		}
 
 		std::vector<int> iter_per_dev;
-
 		std::vector<vector<size_t>> size_per_dev(num_dev, vector<size_t>{});
 
 		allocate_work(times,num_dev,n_batches-number_of_testing_batches, size_per_dev);
 
 		/**
-		 *
 		 * Start computation for remaining batches in parallel
 		 * on all devices available
-		 *
 		 * **/
 
 		timer.end_time(0,1,3);
@@ -1285,7 +1230,6 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 		timer.start_time(0,1,4);
 
 		dev=0;
-
 		for(auto &q:queues){
 
 			int iter=0;
@@ -1314,13 +1258,10 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 			}
 			dev++;
 		}
-
 	} // End of scope: sync with host here to measure computing time
 
 	timer.end_time(0,1,4);
-
 	cout<<"\tTime for actual computation: "<<(float)timer.get_step_time(0,1,4)<<std::endl;
-
 	delete[] p;
 }
 
@@ -1353,14 +1294,6 @@ void print_output( std::string file_name )
 
 std::string getReportFileName(vector<queue>&queues, int device, size_t batch_size){
 
-	std::string dev="";
-	int count_dev=0;
-	for(auto &q : queues){
-		dev+=q.get_device().get_info<info::device::name>();
-		dev+=count_dev==(queues.size()-1)?"": " && ";
-		count_dev++;
-	}
-
 	std::string report_name="";
 
 	if(device==0){
@@ -1376,7 +1309,6 @@ std::string getReportFileName(vector<queue>&queues, int device, size_t batch_siz
 	report_name+=std::to_string(batch_size);
 
 	return report_name;
-
 }
 
 
