@@ -25,7 +25,3 @@ int main(int argc, char **argv){
 
 	onejoin(filename,batch_size,n_batches,device,samplingrange,countfilter);
 }
-
-
-
-

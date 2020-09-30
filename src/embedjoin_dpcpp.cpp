@@ -19,8 +19,10 @@ std::vector<idpair> outputs;
 std::vector<std::string> tmp_oridata;
 
 
-void setuplsh( int (*hash_lsh)[NUM_BITS], std::vector<int> &a, std::vector<int> &lshnumber, vector<tuple<int,int>> &rev_hash )
-{
+void setuplsh( int (*hash_lsh)[NUM_BITS], std::vector<int> &a, std::vector<int> &lshnumber, vector<tuple<int,int>> &rev_hash ){
+
+	timer.start_time(init::init_lsh);
+
 	for (int i = 0; i < NUM_HASH; i++){
 		for (int j = 0; j < NUM_BITS; j++){
 			hash_lsh[i][j] = rand() % (samplingrange);
@@ -46,6 +48,7 @@ void setuplsh( int (*hash_lsh)[NUM_BITS], std::vector<int> &a, std::vector<int> 
 			hash_lsh[i][j] = lower_bound(lshnumber.begin(), lshnumber.end(), hash_lsh[i][j]) - lshnumber.begin();
 		}
 	}
+	timer.end_time(init::init_lsh);
 
 	/**
 	 *
@@ -53,11 +56,9 @@ void setuplsh( int (*hash_lsh)[NUM_BITS], std::vector<int> &a, std::vector<int> 
 	 *  selected char in embedding according the lsh bit
 	 *
 	 * */
-
-	timer.start_time(0,0,3);
+	timer.start_time(init::rev_lsh);
 
 	rev_hash.resize(lshnumber.size(), make_tuple(-1,-1));
-
 	int k=0;
 
 	for(int i=0; i<NUM_HASH; i++){
@@ -82,7 +83,7 @@ void setuplsh( int (*hash_lsh)[NUM_BITS], std::vector<int> &a, std::vector<int> 
 			k++;
 		}
 	}
-	timer.end_time(0,0,3);
+	timer.end_time(init::rev_lsh);
 }
 
 
@@ -142,17 +143,13 @@ void readdata(std::vector<size_t> &len_oristrings, char (*oristrings)[LEN_INPUT]
 
 void initialization( std::vector<size_t> &len_oristrings, char (*oristrings)[LEN_INPUT], int (*hash_lsh)[NUM_BITS], std::vector<int> &a, std::vector<int> &lshnumber, vector<tuple<int,int>> &rev_hash )
 {
-	timer.start_time(0,0,1);
+	timer.start_time(init::read_data);
 
 	readdata(len_oristrings, oristrings);
 
-	timer.end_time(0,0,1);
-
-	timer.start_time(0,0,2);
+	timer.end_time(init::read_data);
 
 	setuplsh(hash_lsh, a, lshnumber, rev_hash);
-
-	timer.end_time(0,0,2);
 }
 
 
@@ -472,7 +469,6 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 	 */
 	int number_of_testing_batches=2*num_dev;
 	vector<long> times;
-
 	{
 		vector<size_t> split_size;
 		uint8_t dictory[256]={0};
@@ -491,7 +487,7 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 		vector<sycl::buffer<size_t,1>> buffers_len_output;
 		vector<sycl::buffer<uint8_t,1>>  buffers_dict;
 
-		timer.start_time(0,2,1);
+		timer.start_time(buckets::measure);
 
 		int n=0; // Global number of iteration
 		int  dev=0; // Device index
@@ -537,7 +533,6 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 				if(i>0){
 					times.emplace_back(std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count());
 				}
-
 				n++;
 			}
 			dev++;
@@ -549,9 +544,9 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 
 		allocate_work(times,num_dev,n_batches-number_of_testing_batches, size_per_dev);
 
-		timer.end_time(0,2,1);
+		timer.end_time(buckets::measure);
 
-		cout<<"Time for measure computation: "<<(float)timer.get_step_time(0,2,1)<<std::endl;
+		cout<<"Time for measure computation: "<<(float)timer.get_step_time(buckets::measure)<<std::endl;
 
 		/**
 		 *
@@ -560,7 +555,7 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 		 *
 		 * **/
 
-		timer.start_time(0,2,2);
+		timer.start_time(buckets::compute);
 
 		offset.emplace_back(number_of_testing_batches*batch_size);
 
@@ -596,8 +591,8 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 			dev++;
 		}
 	}
-	timer.end_time(0,2,2);
-	cout<<"\nTime for actual computation: "<<timer.get_step_time(0,2,2)<<std::endl;
+	timer.end_time(buckets::compute);
+	cout<<"\nTime for actual computation: "<<timer.get_step_time(buckets::compute)<<std::endl;
 }
 
 
@@ -651,14 +646,12 @@ void generate_candidates(queue &device_queue, buffer<size_t,1> &buffer_len_orist
 				if(c1!=0 && c2!=0){
 					sum+=abs_diff(c1,c2);
 				}
-
 			}
 
 			/***
 			 * q12 is made (b7)( b6, b5, b4 )( b3, b2, b1)(b0)
 			 * 			(unused) (q1) (q2) (compare result)
 			 */
-
 			uint8_t q12=(uint8_t)q1;
 			q12=q12<<3;
 			q12=q12+q2;
@@ -669,7 +662,6 @@ void generate_candidates(queue &device_queue, buffer<size_t,1> &buffer_len_orist
 			get<1>(acc_candidate[index_output])=abs_diff(acc_len[i1], acc_len[i2]);
 			get<2>(acc_candidate[index_output])=i2;
 			get<3>(acc_candidate[index_output])=q12;
-
 		});	
 	});
 }
@@ -708,7 +700,7 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 
 		cout<<"\n\tNew size for test: "<<size_for_test<<std::endl;
 
-		timer.start_time(0,5,1);
+		timer.start_time(cand::measure);
 
 		int dev=0;
 		int n=0;
@@ -774,15 +766,12 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 
 		split_buffers(size_cand, sizeof(candidate[0]));
 
-		timer.end_time(0,5,1);
+		timer.end_time(cand::measure);
 
-		timer.start_time(0,5,2);
-
+		timer.start_time(cand::compute);
 
 		size_t offset_cand=size_for_test*2*num_dev;
-
 		dev=0;
-
 		for(auto &q : queues){
 
 			int iter=0;
@@ -823,7 +812,7 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 			dev++;
 		}
 	}
-	timer.end_time(0,5,2);
+	timer.end_time(cand::compute);
 }
 
 
@@ -864,7 +853,7 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<buckets_t> &bucket
 	 *
 	 * */
 
-	timer.start_time(0,4,1);
+	timer.start_time(cand_init::comp_buck_delim);
 
 	vector<tuple<int,int>> buckets_delimiter;
 	int j=0;
@@ -883,25 +872,24 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<buckets_t> &bucket
 		}
 	}
 
-	timer.end_time(0,4,1);
-	std::cout<<"\n\tTime cand-init: count element: "<<(float)timer.get_step_time(0,4,1)<<"sec"<<std::endl;
-	timer.start_time(0,4,2);
+	timer.end_time(cand_init::comp_buck_delim);
+	std::cout<<"\n\tTime cand-init: count element: "<<(float)timer.get_step_time(cand_init::comp_buck_delim)<<"sec"<<std::endl;
 
+	timer.start_time(cand_init::filter_buck_delim);
 	/**
 	 *
 	 * Remove buckets having size == 1, since no candidates are possible
 	 *
 	 * */
-
 	std::cout<<"\n\tSize before remove: "<<buckets_delimiter.size()<<std::endl;
 
 	auto new_end=remove_if(oneapi::dpl::execution::par, buckets_delimiter.begin(),buckets_delimiter.end(),[](std::tuple<int,int> e){return std::get<1>(e)<2;});
 	buckets_delimiter.erase( new_end, buckets_delimiter.end());
 	std::cout<<"\tSize after remove: "<<buckets_delimiter.size()<<std::endl;
 
-	timer.end_time(0,4,2);
+	timer.end_time(cand_init::filter_buck_delim);
 
-	std::cout<<"\tTime cand-init: remove element: "<<(float)timer.get_step_time(0,4,2)<<"sec"<<std::endl;
+	std::cout<<"\tTime cand-init: remove element: "<<(float)timer.get_step_time(cand_init::filter_buck_delim)<<"sec"<<std::endl;
 
 	/**
 	 *
@@ -912,9 +900,7 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<buckets_t> &bucket
 	 *
 	 *
 	 * */
-
 	size_t size=0;
-
 	for(size_t b=0; b<buckets_delimiter.size(); b++){
 		size_t n=get<1>(buckets_delimiter[b]);
 		size+=((n*(n-1))/2);
@@ -923,15 +909,15 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<buckets_t> &bucket
 	std::cout<<"Size: "<<size<<std::endl;
 
 	try{
-		timer.start_time(0,4,3);
+		timer.start_time(cand_init::resize);
 
 		candidates.resize(size);
 
-		timer.end_time(0,4,3);
+		timer.end_time(cand_init::resize);
 
-		std::cout<<"\tTime cand-init: resize vector: "<<(float)timer.get_step_time(0,4,3)<<"sec"<<std::endl;
+		std::cout<<"\tTime cand-init: resize vector: "<<(float)timer.get_step_time(cand_init::resize)<<"sec"<<std::endl;
 
-		timer.start_time(0,4,4);
+		timer.start_time(cand_init::scan_cand);
 
 		size_t c=0;
 		for(auto &b:buckets_delimiter ){
@@ -948,7 +934,7 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<buckets_t> &bucket
 				}
 			}
 		}
-
+		timer.end_time(cand_init::scan_cand);
 		if(c!=size){
 			cout<<c<<" != "<<size<<std::endl;
 			cout<<"Exit"<<std::endl;
@@ -958,11 +944,10 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<buckets_t> &bucket
 	}
 	catch(std::exception& e){
 		std::cout<<"Too many candidates. Reduce the number of input strings"<<std::endl;
-		std::cout<<"or find the parameter to spread better strings accross hash buckets"<<std::endl;
+		std::cout<<"or find the parameter to spread better strings accros hash buckets"<<std::endl;
+		exit(-1);
 	}
-
-	timer.end_time(0,4,4);
-	std::cout<<"\tTime cand-init: assign i and j to candidates: "<<(float)timer.get_step_time(0,4,4)<<"sec"<<std::endl;
+	std::cout<<"\tTime cand-init: assign i and j to candidates: "<<(float)timer.get_step_time(cand_init::scan_cand)<<"sec"<<std::endl;
 }
 
 
@@ -978,19 +963,18 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 
 	cout<<"\n\tLen output: "<<len_output<<std::endl;
 
-	timer.start_time(0,1,2);
+	timer.start_time(embed::rand_str);
 	/**
 	 * Allocate and initialize random strings to use for embedding
 	 * **/
-
 	uint32_t len_p=samplingrange+1;
 	int *p=new int[NUM_STR*NUM_CHAR*len_p];
 
 	generate_random_string(p, len_p);
 
-	timer.end_time(0,1,2);
+	timer.end_time(embed::rand_str);
 
-	timer.start_time(0,1,3);
+	timer.start_time(embed::measure);
 
 	int num_dev=queues.size();
 
@@ -1085,13 +1069,13 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 		 * on all devices available
 		 * **/
 
-		timer.end_time(0,1,3);
+		timer.end_time(embed::measure);
 
-		cout<<"\tTotal time for profiling: "<<(float)timer.get_step_time(0,1,3)<<std::endl<<std::endl;;
+		cout<<"\tTotal time for profiling: "<<(float)timer.get_step_time(embed::measure)<<std::endl<<std::endl;;
 
 		std::cout<<"\n\tStart computation..."<<std::endl<<std::endl;
 
-		timer.start_time(0,1,4);
+		timer.start_time(embed::compute);
 
 		dev=0;
 		for(auto &q:queues){
@@ -1123,9 +1107,8 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 			dev++;
 		}
 	} // End of scope: sync with host here to measure computing time
-
-	timer.end_time(0,1,4);
-	cout<<"\tTime for actual computation: "<<(float)timer.get_step_time(0,1,4)<<std::endl;
+	timer.end_time(embed::compute);
+	cout<<"\tTime for actual computation: "<<(float)timer.get_step_time(embed::compute)<<std::endl;
 	delete[] p;
 }
 
@@ -1287,14 +1270,14 @@ void onejoin(string new_filename, size_t batch_size, size_t n_batches, int devic
 	 *
 	 * */
 
-	timer.start_time(2,0,0);
+	timer.start_time(total_alg::total);
 
-	timer.start_time(0,0,0);
+	timer.start_time(init::total);
 
 	srand(11110);
 	initialization(len_oristrings, oristrings, hash_lsh, a, lshnumber, rev_hash);
 
-	timer.end_time(0,0,0);
+	timer.end_time(init::total);
 
 	std::cerr << "Start parallel algorithm..." << std::endl<<std::endl;
 
@@ -1304,9 +1287,9 @@ void onejoin(string new_filename, size_t batch_size, size_t n_batches, int devic
 	 *
 	 **/
 
-	timer.start_time(0,1,0);
+	timer.start_time(embed::total);
 
-	timer.start_time(0,1,1);
+	timer.start_time(embed::alloc);
 
 	char **set_embdata_dev=(char**)malloc_shared<char*>(n_batches, queues.back());
 
@@ -1315,7 +1298,7 @@ void onejoin(string new_filename, size_t batch_size, size_t n_batches, int devic
 		memset(set_embdata_dev[n],0,batch_size*NUM_STR*NUM_REP*len_output);
 	}
 
-	timer.end_time(0,1,1);
+	timer.end_time(embed::alloc);
 
 	parallel_embedding_wrapper(queues, len_oristrings, oristrings, set_embdata_dev, batch_size, n_batches, lshnumber, len_output, rev_hash);
 
@@ -1323,18 +1306,18 @@ void onejoin(string new_filename, size_t batch_size, size_t n_batches, int devic
 		q.wait();
 	}
 
-	timer.end_time(0,1,0);
+	timer.end_time(embed::total);
 
 	delete[] oristrings;
 	
 	cout<<"\nDelete oristrings"<<std::endl;
-	cout<<"Time: "<<timer.get_step_time(0,1,0)<<"sec"<<std::endl;
+	cout<<"Time: "<<timer.get_step_time(embed::total)<<"sec"<<std::endl;
 
 #if PRINT_EMB
 		print_embedded( set_embdata_dev, len_output, batch_size, string("embedded"+to_string(device)+".txt"));
 #endif
 
-	timer.start_time(1,0,0);
+	timer.start_time(total_join::total);
 
 	/**
 	 *
@@ -1342,7 +1325,7 @@ void onejoin(string new_filename, size_t batch_size, size_t n_batches, int devic
 	 *
 	 * **/
 	
-	timer.start_time(0,2,0);
+	timer.start_time(buckets::total);
 
 	create_buckets_wrapper(queues, (char**)set_embdata_dev, buckets, n_batches, batch_size, (int*)hash_lsh, a, lshnumber, len_output);
 
@@ -1350,17 +1333,17 @@ void onejoin(string new_filename, size_t batch_size, size_t n_batches, int devic
 		q.wait();
 	}
 
-	timer.end_time(0,2,0);
+	timer.end_time(buckets::total);
 
-	cout<<"Time buckets creation: "<<timer.get_step_time(0,2,0)<<"sec"<<std::endl;
+	cout<<"Time buckets creation: "<<timer.get_step_time(buckets::total)<<"sec"<<std::endl;
 
-	timer.start_time(0,3,0);
+	timer.start_time(sort_buckets::total);
 
 	tbb::parallel_sort(buckets.begin(), buckets.end());
 
-	timer.end_time(0,3,0);
+	timer.end_time(sort_buckets::total);
 
-	std::cout<<"Sorting buckets: "<<timer.get_step_time(0,3,0)<<std::endl;
+	std::cout<<"Sorting buckets: "<<timer.get_step_time(sort_buckets::total)<<std::endl;
 
 #if PRINT_BUCK
 	 print_buckets(buckets, string("buckets"+to_string(device)+".txt"));
@@ -1372,13 +1355,13 @@ void onejoin(string new_filename, size_t batch_size, size_t n_batches, int devic
 	  *
 	  * **/
 
-	 timer.start_time(0,4,0);
+	 timer.start_time(cand_init::total);
 
 	 initialize_candidate_pairs( queues, buckets, candidates );
 
-	 timer.end_time(0,4,0);
+	 timer.end_time(cand_init::total);
 
-	 std::cout<<timer.get_step_time(0,4,0)<<std::endl;
+	 std::cout<<timer.get_step_time(cand_init::total)<<std::endl;
 
 	 /**
 	 *
@@ -1386,13 +1369,11 @@ void onejoin(string new_filename, size_t batch_size, size_t n_batches, int devic
 	 *
 	 * **/
 
-	 timer.start_time(0,5,0);
+	 timer.start_time(cand::total);
 
 	 generate_candidates_wrapper(queues, len_oristrings, (char*)oristrings, (char**)set_embdata_dev, buckets, batch_size, /*buckets_delimiter,*/ candidates, /*candidates_start,*/ (int *)hash_lsh, lshnumber, len_output/*, partitionsBucketsDelimiter, partitionsCandStart, partitionsBuckets, partitionsCandidates*/);
 
-	 timer.end_time(0,5,0);
-
-	 timer.start_time(0,6,0);
+	 timer.end_time(cand::total);
 
 	 for(auto &q:queues){
 		 q.wait();
@@ -1429,10 +1410,12 @@ void onejoin(string new_filename, size_t batch_size, size_t n_batches, int devic
 	  *
 	  * */
 
+	timer.start_time(cand_proc::total);
+
 	std::cout<<"\n\nStarting candidate processing analysis..."<<std::endl;
 	std::cout<<"\n\t\tCandidates size: "<<candidates.size()<<std::endl;
 
-	timer.start_time(0,6,1);
+	timer.start_time(cand_proc::rem_cand);
 	vector<std::tuple<int,int>> verifycan;
 
 	try{
@@ -1443,20 +1426,20 @@ void onejoin(string new_filename, size_t batch_size, size_t n_batches, int devic
 		candidates.erase(std::remove_if(candidates.begin(), candidates.end(),[](candidate_t e){return (get<1>(e)>K_INPUT || (get<3>(e) & 0x1)!=0 || get<0>(e)==get<2>(e));}), candidates.end());
 	}
 
-	timer.end_time(0,6,1);
+	timer.end_time(cand_proc::rem_cand);
 	
 	std::cout<<std::endl;
-	std::cout<<"\tRemove some candidates: "<<timer.get_step_time(0,6,1)<<std::endl;
+	std::cout<<"\tRemove some candidates: "<<timer.get_step_time(cand_proc::rem_cand)<<std::endl;
 	std::cout<<"\n\t\tCandidates to process (after filtering): "<<candidates.size();
 
-	timer.start_time(0,6,2);
+	timer.start_time(cand_proc::sort_cand);
 
 	tbb::parallel_sort( candidates.begin(), candidates.end() );
 
-	timer.end_time(0,6,2);
+	timer.end_time(cand_proc::sort_cand);
 
  	std::cout<<std::endl;
- 	std::cout<<"\n\tSorting candidates freq: "<<timer.get_step_time(0,6,2)<<std::endl;
+ 	std::cout<<"\n\tSorting candidates freq: "<<timer.get_step_time(cand_proc::sort_cand)<<std::endl;
 	std::cout<<"\n\t\tCandidate after filter out: "<<candidates.size()<<std::endl;
 
 #if PRINT_CAND
@@ -1469,7 +1452,7 @@ void onejoin(string new_filename, size_t batch_size, size_t n_batches, int devic
 	 *
 	 * **/
 
-	timer.start_time(0,6,3);
+	timer.start_time(cand_proc::count_freq);
 
 	std::vector<int> freq_uv;
 
@@ -1488,20 +1471,20 @@ void onejoin(string new_filename, size_t batch_size, size_t n_batches, int devic
 		}
 	}
 
-	timer.end_time(0,6,3);
+	timer.end_time(cand_proc::count_freq);
 
 	std::cout<<std::endl;
-	std::cout<<"\n\tCounting freq: "<<timer.get_step_time(0,6,3)<<std::endl;
+	std::cout<<"\n\tCounting freq: "<<timer.get_step_time(cand_proc::count_freq)<<std::endl;
 
-	timer.start_time(0,6,4);
+	timer.start_time(cand_proc::rem_dup);
 
 	candidates.erase(unique( candidates.begin(), candidates.end() ), candidates.end());
 
-	timer.end_time(0,6,4);
+	timer.end_time(cand_proc::rem_dup);
 
-	std::cout<<"\n\tMake uniq: "<<timer.get_step_time(0,6,4)<<std::endl;
+	std::cout<<"\n\tMake uniq: "<<timer.get_step_time(cand_proc::rem_dup)<<std::endl;
 
-	timer.start_time(0,6,5);
+	timer.start_time(cand_proc::filter_low_freq);
 
 	for (int i = 0; i < candidates.size(); i++){
 		if (freq_uv[i] > countfilter ){
@@ -1509,31 +1492,31 @@ void onejoin(string new_filename, size_t batch_size, size_t n_batches, int devic
 		}
 	}
 
-	timer.end_time(0,6,5);
+	timer.end_time(cand_proc::filter_low_freq);
 
-	std::cout<<"\n\tFilter out candidates: "<<timer.get_step_time(0,6,5)<<std::endl;
+	std::cout<<"\n\tFilter out candidates: "<<timer.get_step_time(cand_proc::filter_low_freq)<<std::endl;
 
 	int num_candidate=0;
 
-	timer.start_time(0,6,6);
+	timer.start_time(cand_proc::sort_cand_to_verify);
 
 	tbb::parallel_sort(verifycan.begin(), verifycan.end());
 
-	timer.end_time(0,6,6);
+	timer.end_time(cand_proc::sort_cand_to_verify);
 
-	std::cout<<"\n\tSort verifycan: "<<timer.get_step_time(0,6,6)<<std::endl;
+	std::cout<<"\n\tSort verifycan: "<<timer.get_step_time(cand_proc::sort_cand)<<std::endl;
 
-	timer.start_time(0,6,7);
+	timer.start_time(cand_proc::make_uniq);
 
 	verifycan.erase(unique(verifycan.begin(), verifycan.end()), verifycan.end());
 
-	timer.end_time(0,6,7);
+	timer.end_time(cand_proc::make_uniq);
 
-	std::cout<<"\n\tUniq verifycan: "<<timer.get_step_time(0,6,7)<<std::endl;
+	std::cout<<"\n\tUniq verifycan: "<<timer.get_step_time(cand_proc::make_uniq)<<std::endl;
 
 	cout<<"\nEnd candidates processing"<<std::endl;
 
-	timer.end_time(0,6,0);
+	timer.end_time(cand_proc::total);
 
 	/**
 	 *
@@ -1541,7 +1524,7 @@ void onejoin(string new_filename, size_t batch_size, size_t n_batches, int devic
 	 *
 	 * */
 
-	timer.start_time(0,7,0);
+	timer.start_time(edit_dist::total);
 
 	uint32_t num_threads = std::thread::hardware_concurrency();
 
@@ -1609,12 +1592,12 @@ void onejoin(string new_filename, size_t batch_size, size_t n_batches, int devic
 		}
 	}
 
-	timer.end_time(0,7,0);
+	timer.end_time(edit_dist::total);
 
 	cout<<"\n\t\tNum output: "<<cont<<std::endl;
 
-	timer.end_time(2,0,0);
-	timer.end_time(1,0,0);
+	timer.end_time(total_join::total);
+	timer.end_time(total_alg::total);
 
 	delete[] hash_lsh;
 	cout<<"\nDelete hash_lsh"<<std::endl;
@@ -1622,37 +1605,37 @@ void onejoin(string new_filename, size_t batch_size, size_t n_batches, int devic
 	{
 		std::cout<<"\n\n\nSummary:"<<std::endl<<std::endl;
 
-		double t=timer.get_step_time(0,0,0);
+		double t=timer.get_step_time(init::total);
 		std::cout<<"Time read data: "<<t<<std::endl;
 
-		t=timer.get_step_time(0,1,0);
+		t=timer.get_step_time(embed::total);
 		std::cout<<"Time PARALLEL embedding data:\t"<<t<<"sec"<<std::endl;
 
-		t=timer.get_step_time(0,2,0);
+		t=timer.get_step_time(buckets::total);
 		std::cout<<"Time PARALLEL buckets generation:\t"<< t<<"sec"<<std::endl;
 
-		t=timer.get_step_time(0,3,0);
+		t=timer.get_step_time(sort_buckets::total);
 		std::cout<<"Time buckets sorting:\t"<< t <<"sec"<<std::endl;
 
-		t=timer.get_step_time(0,4,0);
+		t=timer.get_step_time(cand_init::total);
 		std::cout<<"Time candidate initialization:\t"<< t<<"sec"<<std::endl;
 
-		t=timer.get_step_time(0,5,0);
+		t=timer.get_step_time(cand::total);
 		std::cout<<"Time PARALLEL candidates generation:\t"<< t<<"sec"<<std::endl;
 
-		t=timer.get_step_time(0,6,0);
+		t=timer.get_step_time(cand_proc::total);
 		std::cout<<"Time candidates processing:\t"<< t<<"sec"<<std::endl;
 
-		t=timer.get_step_time(0,6,2);
+		t=timer.get_step_time(cand_proc::sort_cand);
 		std::cout<<"Time candidates sorting (within cand-processing):\t"<< t<<"sec"<<std::endl;
 
-		t=timer.get_step_time(0,7,0);
+		t=timer.get_step_time(edit_dist::total);
 		std::cout<<"Time compute edit distance:\t"<<t <<"sec"<<std::endl;
 
-		t=timer.get_step_time(1,0,0);
+		t=timer.get_step_time(total_join::total);
 		std::cout<<"Total time parallel join:\t"<< t<<"sec"<<std::endl;
 
-		t=timer.get_step_time(2,0,0);
+		t=timer.get_step_time(total_alg::total);
 		std::cout<<"Total elapsed time :\t"<< t<<"sec"<<std::endl;
 		std::cout<<"Number of candidates verified: "<<to_verify<<std::endl;
 		std::cout<<"Number of output pairs: "<<cont<<std::endl;
