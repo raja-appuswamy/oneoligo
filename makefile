@@ -9,8 +9,6 @@ build:	#src/embedjoin_dpcpp.o	src/verification.o
 
 #Parameters: input_filename, gpu(0)/cpu(1)/both(2), samplingrange, countfilter, batch_size, n_batches
 
-
-
 # Gen Dataset
 
 run1:
