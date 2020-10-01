@@ -184,7 +184,7 @@ public:
 		std::cout<<"Time candidates processing:\t"<< t<<"sec"<<std::endl;
 
 		t=get_time(timing[cand_proc::sort_cand]);
-		std::cout<<"Time candidates sorting (timing[within cand-processing]):\t"<< t<<"sec"<<std::endl;
+		std::cout<<"Time candidates sorting (within cand-processing):\t"<< t<<"sec"<<std::endl;
 
 		t=get_time(timing[edit_dist::total]);
 		std::cout<<"Time compute edit distance:\t"<<t <<"sec"<<std::endl;
