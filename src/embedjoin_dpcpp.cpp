@@ -183,6 +183,10 @@ void allocate_work(vector<long> times, int num_dev, size_t units_to_allocate, ve
 	size_t n_fast=0;       // Number of batches to allocate to the fastest device
 	size_t n_slow=0;       // Number of batches to allocate to the slowest device
 
+	for(auto t:times){
+		cout<<"\tTimes kernel: "<<(float)t/1000<<"sec"<<std::endl;
+	}
+
 	if(num_dev>1){
 
 		// If there are 2 devices, compute the number of batches
@@ -521,10 +525,6 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 			dev++;
 		}
 
-		for(auto t:times){
-			cout<<"Times kernels: "<<(float)t/1000<<"sec"<<std::endl;
-		}
-
 		allocate_work(times,num_dev,n_batches-number_of_testing_batches, size_per_dev);
 
 		timer.end_time(buckets::measure);
@@ -733,10 +733,6 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 				n++;
 			}
 			dev++;
-		}
-
-		for(auto t:times){
-			cout<<"Times: "<<(float)t/1000<<"sec"<<std::endl;
 		}
 
 		size_t remaining_size=candidate.size()-size_for_test*2*num_dev;
@@ -1023,7 +1019,6 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 				parallel_embedding( q, buffers_len_oristrings[n], buffers_oristrings[n], buffers_embdata[n], batch_size, buffers_lshnumber[n], buffers_p[n], buffers_len_output[n], buffers_samplingrange[n], buffers_dict[n], buffers_rev_hash[n]);
 
 				q.wait();
-
 				auto end=std::chrono::system_clock::now();
 
 				if(i>0){
@@ -1032,10 +1027,6 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 				n++;
 			}
 			dev++;
-		}
-
-		for(auto t:times){
-			cout<<"\tTimes kernel: "<<(float)t/1000<<"sec"<<std::endl;
 		}
 
 		std::vector<int> iter_per_dev;
