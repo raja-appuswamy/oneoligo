@@ -28,7 +28,7 @@
 
 using namespace std;
 using namespace cl::sycl;
-using namespace oneapi;
+using namespace oneapi::std;
 
 
 
