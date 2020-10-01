@@ -109,7 +109,7 @@ void read_dataset(vector<string>& input_data, string filename){
 }
 
 
-void initialize_input_data(vector<string> &input_data, vector<size_t> &indices, vector<size_t> &len_oristrings, char (*oristrings)[LEN_INPUT] ){
+void initialize_input_data(vector<string> &input_data, vector<size_t> &len_oristrings, char (*oristrings)[LEN_INPUT] ){
 
 	auto start=std::chrono::system_clock::now();
 
@@ -126,10 +126,10 @@ void initialize_input_data(vector<string> &input_data, vector<size_t> &indices, 
 }
 
 
-void initialization( vector<string> &input_data, vector<size_t> &indices, std::vector<size_t> &len_oristrings, char (*oristrings)[LEN_INPUT], int (*hash_lsh)[NUM_BITS], std::vector<int> &a, std::vector<int> &lshnumber, vector<tuple<int,int>> &rev_hash ){
+void initialization( vector<string> &input_data, std::vector<size_t> &len_oristrings, char (*oristrings)[LEN_INPUT], int (*hash_lsh)[NUM_BITS], std::vector<int> &a, std::vector<int> &lshnumber, vector<tuple<int,int>> &rev_hash ){
 
 	timer.start_time(init::init_data);
-	initialize_input_data(input_data, indices, len_oristrings, oristrings);
+	initialize_input_data(input_data, len_oristrings, oristrings);
 	timer.end_time(init::init_data);
 
 	setuplsh(hash_lsh, a, lshnumber, rev_hash);
@@ -978,7 +978,7 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 }
 
 
-void print_output( vector<string> &input_data, vector<idpair> &output_pairs, vector<size_t> &indices, string out_filename ){
+void print_output( vector<string> &input_data, vector<idpair> &output_pairs, string out_filename ){
 
 	std::cout<<"Start saving results"<<std::endl;
 	ofstream out_file;
@@ -994,7 +994,7 @@ void print_output( vector<string> &input_data, vector<idpair> &output_pairs, vec
 
 	if(ALLOUTPUTRESULT) {
 		for (int i = 0; i < output_pairs.size(); i++) {
-			out_file << indices[get<0>(output_pairs[i])] << " " << indices[get<1>(output_pairs[i])] << std::endl;
+			out_file << get<0>(output_pairs[i]) << " " << get<1>(output_pairs[i]) << std::endl;
 			out_file << input_data[get<0>(output_pairs[i])] << std::endl;
 			out_file << input_data[get<1>(output_pairs[i])] << std::endl;
 		}
@@ -1073,10 +1073,8 @@ void onejoin(vector<string> &input_data, size_t batch_size, size_t n_batches, in
 	 *
 	 * output_pairs: contains the IDs of strings in the input vector
 	 * 				 that are similar according edit distance
-	 * indices: contains the ID of string in the dataset
 	 * */
 	vector<idpair> output_pairs;
-	vector<size_t> indices;
 
 	/*
 	 * OTHER
@@ -1144,7 +1142,7 @@ void onejoin(vector<string> &input_data, size_t batch_size, size_t n_batches, in
 	timer.start_time(init::total);
 
 	srand(11110);
-	initialization(input_data, indices, len_oristrings, oristrings, hash_lsh, a, lshnumber, rev_hash);
+	initialization(input_data, len_oristrings, oristrings, hash_lsh, a, lshnumber, rev_hash);
 
 	timer.end_time(init::total);
 
@@ -1448,5 +1446,5 @@ void onejoin(vector<string> &input_data, size_t batch_size, size_t n_batches, in
 			timer.print_report(dev, num_candidates, num_outputs, out_file);
 		}
 	}
-	print_output(input_data, output_pairs, indices, "join_output_parallel.txt");
+	print_output(input_data, output_pairs, "join_output_parallel.txt");
 }
