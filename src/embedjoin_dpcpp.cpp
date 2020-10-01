@@ -1564,6 +1564,3 @@ void onejoin(vector<string> &input_data, size_t batch_size, size_t n_batches, in
 	}
 	print_output(input_data, output_pairs, indices, "join_output_parallel.txt");
 }
-
-
-

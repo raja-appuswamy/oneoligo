@@ -110,5 +110,3 @@ void print_configuration(int batch_size, int n_batches, size_t len_output, int c
 void onejoin(vector<string> &input_data, size_t batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &timer, string dataset_name="");
 
 #endif
-
-
