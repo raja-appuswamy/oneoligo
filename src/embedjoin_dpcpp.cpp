@@ -462,8 +462,8 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 
 		inititalize_dictory(dictory);
 
-		std::vector<vector<size_t>> size_per_dev(num_dev, vector<size_t>{});
-		vector<size_t> offset;
+		std::vector<vector<size_t>> size_per_dev(num_dev, vector<size_t>(test_batches,1));
+		vector<size_t> offset(1,0);
 		vector<sycl::buffer<buckets_t>> buffers_buckets;
 		vector<sycl::buffer<size_t,1>> buffers_batch_size;
 		vector<sycl::buffer<size_t,1>> buffers_split_size;
@@ -477,84 +477,30 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 		timer.start_time(buckets::measure);
 
 		int n=0; // Global number of iteration
-		int  dev=0; // Device index
+		int dev=0; // Device index
 
 		cout<<"\n\tStart profiling on devices..."<<std::endl;
 
 		/**
 		 *
-		 * Profiling kernel on devices by using the test batches
+		 * Profiling kernel on devices by using the test batches;
+		 * Allocate work based on performances
+		 * Run kernel for remaining data
 		 *
 		 * */
-
-		for(auto &q:queues){
-
-			for(int i=0; i<2; i++){
+		bool is_profiling=true;
+		while(dev<queues.size()){
+			int iter=0;
+			while(iter<size_per_dev[dev].size() && size_per_dev[dev][iter]>0){
 
 				// Two kernel are chosen, since the first one
 				// includes kernel compiling time
 
 				auto start=std::chrono::system_clock::now();
 
-				offset.emplace_back(2*batch_size*dev+i*batch_size);
-				size_t loc_split_size=batch_size;
-
-				cout<<"\n\tSet offset to: "<<offset[n]<<std::endl;
-
-				buffers_buckets.emplace_back(sycl::buffer<buckets_t,1>(static_cast<buckets_t*>(buckets.data()+offset.back()*NUM_REP*NUM_HASH*NUM_STR),range<1>{loc_split_size*NUM_STR*NUM_HASH*NUM_REP}, {sycl::property::buffer::use_host_ptr()}));
-				buffers_a.emplace_back(buffer<uint32_t,1>((uint32_t*)a.data(),range<1>{a.size()}));
-				buffers_hash_lsh.emplace_back(buffer<uint32_t,2>((uint32_t*)hash_lsh, range<2>{NUM_HASH,NUM_BITS}));
-				buffers_dict.emplace_back(buffer<uint8_t,1>(dictory,range<1>{256}));
-				buffers_batch_size.emplace_back(buffer<size_t,1>(&batch_size, range<1>{1}));
-				buffers_len_output.emplace_back(buffer<size_t,1>(&len_output, range<1>{1}));
-				buffers_split_offset.emplace_back(buffer<size_t,1> (&offset[n], range<1>{1}));
-
-				create_buckets(q, embdata, buffers_buckets[n], buffers_batch_size[n], loc_split_size, buffers_split_offset[n], buffers_a[n], buffers_len_output[n], buffers_dict[n]);
-
-				q.wait();
-
-				auto end=std::chrono::system_clock::now();
-
-				// Save the time only for the second kernel execution for each device
-				// because the first run includes the compiling time
-				if(i>0){
-					times.emplace_back(std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count());
-				}
-				n++;
-			}
-			dev++;
-		}
-
-		allocate_work(times,num_dev,n_batches-number_of_testing_batches, size_per_dev);
-
-		timer.end_time(buckets::measure);
-
-		cout<<"\n\tTime for measure computation: "<<(float)timer.get_step_time(buckets::measure)<<std::endl;
-
-		/**
-		 *
-		 * Start computation for remaining batches in parallel
-		 * on all devices available
-		 *
-		 * **/
-
-		timer.start_time(buckets::compute);
-
-		offset.emplace_back(number_of_testing_batches*batch_size);
-
-		cout<<"\n\tStart computation..."<<std::endl<<std::endl;
-
-		dev=0;
-
-		for(int i=0; i<num_dev; i++){
-
-			int iter=0;
-
-			while(iter<size_per_dev[dev].size() && size_per_dev[dev][iter]>0){
-
 				split_size.emplace_back(size_per_dev[dev][iter]*batch_size);
-				offset.emplace_back(offset.back()+(dev==0?0:split_size[dev-1]));
-				size_t loc_split_size=split_size[dev];
+				offset.emplace_back(offset.back()+(n==0?0:split_size[n-1]));
+				size_t loc_split_size=split_size[n];
 
 				cout<<"\n\tSet offset to: "<<offset.back()<<std::endl;
 
@@ -566,12 +512,32 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 				buffers_len_output.emplace_back(buffer<size_t,1>(&len_output, range<1>{1}));
 				buffers_split_offset.emplace_back(buffer<size_t,1> (&offset.back(), range<1>{1}));
 
-				create_buckets(queues[i], embdata, buffers_buckets[n], buffers_batch_size[n], loc_split_size, buffers_split_offset[n], buffers_a[n], buffers_len_output[n], buffers_dict[n]);
+				create_buckets(queues[dev], embdata, buffers_buckets[n], buffers_batch_size[n], loc_split_size, buffers_split_offset[n], buffers_a[n], buffers_len_output[n], buffers_dict[n]);
 
+				if(is_profiling){
+					queues[dev].wait();
+				}
+				auto end=std::chrono::system_clock::now();
+
+				// Save the time only for the second kernel execution for each device
+				// because the first run includes the compiling time
+				if(iter==test_batches-1 && is_profiling){
+					times.emplace_back(std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count());
+				}
 				n++;
 				iter++;
 			}
 			dev++;
+			if(dev==queues.size() && is_profiling){
+				timer.end_time(embed::measure); // End profiling
+				is_profiling=false;
+				dev=0;
+				for(int l=0; l<num_dev; l++){
+					size_per_dev[l].clear();
+				}
+				allocate_work(times,num_dev,n_batches-number_of_testing_batches, size_per_dev);
+				timer.start_time(embed::compute); // Start actual computing
+			}
 		}
 	}
 	timer.end_time(buckets::compute);
@@ -658,7 +624,12 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 	{
 		int num_dev=queues.size();
 
-		vector<vector<size_t>> size_cand(num_dev,vector<size_t>());
+		// Select a number of candidates to use for profiling.
+		// The size can change:
+		// too big can let to a big overhead
+		// too small can reduce the quality of profiling
+		size_t size_for_test=0.01*candidate.size();
+		vector<vector<size_t>> size_cand(num_dev,vector<size_t>(test_batches,size_for_test));
 		vector<uint32_t> number_of_iter(num_dev);
 		vector<size_t> buckets_offset(1000);
 
@@ -671,89 +642,26 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 		vector<buffer<size_t,1>> buffers_buckets_offset;
 
 		vector<long> times;
-
-		// Select a number of candidates to use for profiling.
-		// The size can change:
-		// too big can let to a big overhead
-		// too small can reduce the quality of profiling
-
-		size_t size_for_test=0.01*candidate.size();
-
 		cout<<"\nSize (num candidates) for profiling: "<<size_for_test<<std::endl;
 
 		timer.start_time(cand::measure);
-
-		int dev=0;
-		int n=0;
-
 		cout<<"\n\tStart profiling..."<<std::endl;
 
 		/**
 		 *
-		 * Profiling kernel on devices by using the test batches
+		 * Profiling kernel on devices by using the test batches;
+		 * Allocate work based on performances
+		 * Run kernel for remaining data
 		 *
 		 * */
-
-		for(auto &q:queues){
-
-			for(int i=0; i<2; i++){
-
-				auto start=std::chrono::system_clock::now();
-
-				size_t start_b=get<0>(candidate[size_for_test*n]);
-				size_t end_b=get<2>(candidate[size_for_test*n+size_for_test-1])-1;
-				size_t size_buckets=end_b-start_b+1;
-
-				buckets_offset.emplace_back(start_b);
-
-				cout<<"\n\tIter "<<dev<<". Start buckets at "<<size_for_test*n<<": "<<start_b<<std::endl;
-				cout<<"\tIter "<<dev<<". End buckets at "<<size_for_test*n + size_for_test-1<<": "<<end_b<<std::endl;
-				cout<<"\n\tBuckets size: "<<size_buckets<<std::endl;
-
-				buffers_buckets.emplace_back( buffer<buckets_t>(buckets.data()+start_b,range<1>{size_buckets}));
-
-				cout<<"\tCand size: "<<size_for_test<<std::endl;
-
-				buffers_hash_lsh.emplace_back( buffer<int, 2>(reinterpret_cast<int*>(local_hash_lsh),range<2>{NUM_HASH,NUM_BITS}));
-				buffers_candidates.emplace_back( buffer<candidate_t>(candidate.data()+n*size_for_test,range<1>{size_for_test}));
-				buffers_len.emplace_back( buffer<size_t,1>(len_oristrings.data(),range<1>{len_oristrings.size()}));
-				buffers_batch_size.emplace_back( buffer<size_t, 1>(&batch_size,range<1>{1}));
-				buffers_len_output.emplace_back( buffer<size_t, 1>(&len_output,range<1>{1}));
-				buffers_buckets_offset.emplace_back( buffer<size_t,1>(&buckets_offset.back(),range<1>{1}));
-
-				generate_candidates(q, buffers_len[n], embdata, buffers_buckets[n], buffers_buckets_offset[n], buffers_batch_size[n], buffers_candidates[n], size_for_test, buffers_len_output[n]);
-
-				q.wait();
-
-				auto end=std::chrono::system_clock::now();
-
-				if(i>0){
-					times.emplace_back(std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count());
-				}
-				n++;
-			}
-			dev++;
-		}
-
-		size_t remaining_size=candidate.size()-size_for_test*2*num_dev;
-
-		allocate_work(times,num_dev,remaining_size, size_cand);
-
-		cout<<"\tRemaining size: "<<remaining_size<<std::endl;
-
-		split_buffers(size_cand, sizeof(candidate[0]));
-
-		timer.end_time(cand::measure);
-
-		timer.start_time(cand::compute);
-
-		size_t offset_cand=size_for_test*2*num_dev;
-		dev=0;
-		for(auto &q : queues){
-
+		size_t offset_cand=0;
+		int dev=0;
+		int n=0;
+		bool is_profiling=true;
+		while(dev<queues.size()){
 			int iter=0;
-
 			while(iter<size_cand[dev].size() && size_cand[dev][iter]>0){
+				auto start=std::chrono::system_clock::now();
 
 				cout<<"\n\tSize cand[dev]: "<<size_cand[dev][iter]<<std::endl;
 
@@ -780,13 +688,34 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 				buffers_len_output.emplace_back( buffer<size_t, 1>(&len_output,range<1>{1}));
 				buffers_buckets_offset.emplace_back( buffer<size_t,1>(&buckets_offset[n],range<1>{1}));
 
-				generate_candidates(q, buffers_len[n], embdata, buffers_buckets[n], buffers_buckets_offset[n], buffers_batch_size[n], buffers_candidates[n], size_cand[dev][iter], buffers_len_output[n]);
+				generate_candidates(queues[dev], buffers_len[n], embdata, buffers_buckets[n], buffers_buckets_offset[n], buffers_batch_size[n], buffers_candidates[n], size_cand[dev][iter], buffers_len_output[n]);
 
+				if(is_profiling){
+					queues[dev].wait();
+				}
+				auto end=std::chrono::system_clock::now();
+
+				if(iter==test_batches-1 && is_profiling){
+					times.emplace_back(std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count());
+				}
 				offset_cand+=size_cand[dev][iter];
 				n++;
 				iter++;
 			}
 			dev++;
+			if(dev==queues.size() && is_profiling){
+				timer.end_time(embed::measure); // End profiling
+				is_profiling=false;
+				dev=0;
+				for(int l=0; l<num_dev; l++){
+					size_cand[l].clear();
+				}
+				size_t remaining_size=candidate.size()-size_for_test*test_batches*num_dev;
+				allocate_work(times,num_dev,remaining_size, size_cand);
+				cout<<"\tRemaining size: "<<remaining_size<<std::endl;
+				split_buffers(size_cand, sizeof(candidate[0]));
+				timer.start_time(embed::compute); // Start actual computing
+			}
 		}
 	}
 	timer.end_time(cand::compute);
@@ -951,8 +880,6 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 
 	timer.end_time(embed::rand_str);
 
-	timer.start_time(embed::measure);
-
 	int num_dev=queues.size();
 
 	// Number batches to use for profiling
@@ -986,19 +913,26 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 
 		int n=0;   // number of iterations
 		int dev=0; // device index
+		//For each device, there are at least some test iteration.
+		std::vector<vector<size_t>> size_per_dev(num_dev, vector<size_t>(1,test_batches));
 
 		std::cout<<"\tStart profiling on devices..."<<std::endl;
 		/**
 		 * Profiling kernel on devices by using the test batches.
 		 * The test is executed on the 2 devices sequentially, waiting
 		 * at the end of each testing kernel.
+		 * Allocate work based on performances
+		 * Run kernels for remaining data
 		 * */
-
-		for(auto &q:queues){
+		timer.start_time(embed::measure);
+		bool is_profiling=true;
+		int state=0;
+		while(dev<queues.size()){
 
 			// Two kernel are chosen, since the first one
 			// includes kernel compiling time
-			for(int i=0; i<2; i++){
+			int iter=0;
+			while(iter<size_per_dev[dev].back()){
 
 				auto start=std::chrono::system_clock::now();
 
@@ -1016,69 +950,30 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 				buffers_len_output.emplace_back( buffer<size_t, 1>(&len_output,range<1>{1}) );
 				buffers_rev_hash.emplace_back( buffer<tuple<int,int>>(rev_hash.data(),range<1>(rev_hash.size())));
 
-				parallel_embedding( q, buffers_len_oristrings[n], buffers_oristrings[n], buffers_embdata[n], batch_size, buffers_lshnumber[n], buffers_p[n], buffers_len_output[n], buffers_samplingrange[n], buffers_dict[n], buffers_rev_hash[n]);
+				parallel_embedding( queues[dev], buffers_len_oristrings[n], buffers_oristrings[n], buffers_embdata[n], batch_size, buffers_lshnumber[n], buffers_p[n], buffers_len_output[n], buffers_samplingrange[n], buffers_dict[n], buffers_rev_hash[n]);
 
-				q.wait();
+				if(is_profiling){
+					queues[dev].wait();
+				}
 				auto end=std::chrono::system_clock::now();
 
-				if(i>0){
+				if(iter==test_batches-1 && is_profiling){
 					times.emplace_back(std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count());
 				}
 				n++;
-			}
-			dev++;
-		}
-
-		std::vector<int> iter_per_dev;
-		std::vector<vector<size_t>> size_per_dev(num_dev, vector<size_t>{});
-
-		allocate_work(times,num_dev,n_batches-number_of_testing_batches, size_per_dev);
-
-		/**
-		 * Start computation for remaining batches in parallel
-		 * on all devices available
-		 * **/
-
-		timer.end_time(embed::measure);
-
-		cout<<"\n\tTotal time for profiling: "<<(float)timer.get_step_time(embed::measure)<<std::endl<<std::endl;
-
-		std::cout<<"\tStart computation..."<<std::endl;
-
-		timer.start_time(embed::compute);
-
-		dev=0;
-		for(auto &q:queues){
-
-			int iter=0;
-
-			while(iter<size_per_dev[dev][0]){
-
-				size_t size_p=static_cast<size_t>(NUM_STR*NUM_CHAR*(samplingrange+1));
-				size_t size_emb=static_cast<size_t>(batch_size*NUM_STR*NUM_REP*len_output);
-				uint32_t samprange=samplingrange;
-
-				buffers_p.emplace_back( buffer<int,1>(p,range<1>{size_p}) );
-				buffers_oristrings.emplace_back( buffer<char, 2>(reinterpret_cast<char*>(oristrings[n*batch_size]),range<2>{batch_size,LEN_INPUT}) );
-				buffers_lshnumber.emplace_back( buffer<int, 1>(lshnumber.data(),range<1>{lshnumber.size()}) );
-				buffers_embdata.emplace_back( buffer<char, 1> (reinterpret_cast<char*>(set_embdata_dev[n]), range<1>{size_emb}, {property::buffer::use_host_ptr()}) );
-				buffers_dict.emplace_back( buffer<uint8_t,1>(dictory,range<1>{256}) );
-				buffers_len_oristrings.emplace_back( buffer<size_t,1>(len_oristrings.data()+n*batch_size,range<1>(batch_size)) );
-				buffers_samplingrange.emplace_back( buffer<uint32_t,1>(&samprange,range<1>(1)) );
-				buffers_len_output.emplace_back( buffer<size_t, 1>(&len_output,range<1>{1}) );
-				buffers_rev_hash.emplace_back( buffer<tuple<int,int>>(rev_hash.data(),range<1>(rev_hash.size())));
-
-				parallel_embedding(q, buffers_len_oristrings[n], buffers_oristrings[n], buffers_embdata[n], batch_size, buffers_lshnumber[n], buffers_p[n], buffers_len_output[n], buffers_samplingrange[n], buffers_dict[n], buffers_rev_hash[n]);
-
-				n++;
 				iter++;
-
 			}
 			dev++;
+			if(dev==queues.size() && is_profiling){
+				timer.end_time(embed::measure); // End profiling
+				is_profiling=false;
+				dev=0;
+				allocate_work(times,num_dev,n_batches-number_of_testing_batches, size_per_dev);
+				timer.start_time(embed::compute); // Start actual computing
+			}
 		}
 	} // End of scope: sync with host here to measure computing time
 	timer.end_time(embed::compute);
-	cout<<"\n\tTime for actual computation: "<<(float)timer.get_step_time(embed::compute)<<std::endl;
 	delete[] p;
 }
 
