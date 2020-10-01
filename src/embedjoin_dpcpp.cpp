@@ -1356,7 +1356,7 @@ void onejoin(vector<string> &input_data, size_t batch_size, size_t n_batches, in
 
 	 timer.start_time(cand::total);
 
-	 generate_candidates_wrapper(queues, len_oristrings, (char*)oristrings, (char**)set_embdata_dev, buckets, batch_size, /*buckets_delimiter,*/ candidates, /*candidates_start,*/ (int *)hash_lsh, lshnumber, len_output/*, partitionsBucketsDelimiter, partitionsCandStart, partitionsBuckets, partitionsCandidates*/);
+	 generate_candidates_wrapper(queues, len_oristrings, (char*)oristrings, (char**)set_embdata_dev, buckets, batch_size, candidates, (int *)hash_lsh, lshnumber, len_output);
 
 	 timer.end_time(cand::total);
 
@@ -1396,10 +1396,8 @@ void onejoin(vector<string> &input_data, size_t batch_size, size_t n_batches, in
 	  * */
 
 	timer.start_time(cand_proc::total);
-
 	std::cout<<"\n\nStarting candidate processing analysis..."<<std::endl;
 	std::cout<<"\n\t\tCandidates size: "<<candidates.size()<<std::endl;
-
 	timer.start_time(cand_proc::rem_cand);
 	vector<std::tuple<int,int>> verifycan;
 
