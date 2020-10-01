@@ -1,10 +1,15 @@
-#include "embedjoin.hpp"
+#include <map>
+#include <chrono>
+#include <tuple>
+#include <iostream>
+#include <fstream>
 
+using namespace std;
 using timepoint_t = std::chrono::system_clock::time_point;
 using timeinterval_t = std::pair<timepoint_t,timepoint_t>;
 
 namespace init {
-    enum { total, read_data, init_lsh, rev_lsh, end };
+    enum { total, read_dataset, init_data, init_lsh, rev_lsh, end };
 }
 namespace embed {
     enum { total=init::end+1, alloc, rand_str, measure, compute, end };
@@ -35,41 +40,29 @@ namespace total_alg{
 }
 
 class Time {
+public:
+	void start_time(int phase_id){
+		record_time(0, phase_id);
+	}
 
-private:
-	map<int,timeinterval_t> timing;
-	timepoint_t t=std::chrono::system_clock::now();
+	void end_time(int phase_id){
+		record_time(1, phase_id);
+	}
 
-	double get_time(timeinterval_t time){
-		long d=std::chrono::duration_cast<std::chrono::milliseconds>(time.second-time.first).count();
-		double t=(double)d/1000.0;
+	double get_step_time(int phase_id){
+		double t=get_time(timing[phase_id]);
 		return t;
 	}
 
-	double get_time_diff(int phase_id){
-		double res = 0.0;
-		res=get_time(timing[phase_id]);
-		return res;
-	}
-
-	void record_time(int i, int phase_id){
-		if(i==0){
-			timing[phase_id].first=std::chrono::system_clock::now();
-		}else if(i==1){
-			timing[phase_id].second=std::chrono::system_clock::now();
-		}
-	}
-
-public:
-	void print_report(std::string dev, int num_candidates, int num_outputs, std::ostream &out_file=std::cout){
+	void print_report(std::string dev, uint32_t num_candidates, uint32_t num_outputs, std::ostream &out_file=std::cout){
 
 		out_file<<"Step,SubStep,Time(sec),Device"<<std::endl;
 		
 		double t=get_time(timing[init::total]);
 		out_file<<"Read Data,\t,"<<t<<std::endl;
 		
-		t=get_time(timing[init::read_data]);
-		out_file<<"\t,Read Data and initial sorting,"<<t<<std::endl;
+		t=get_time(timing[init::init_data]);
+		out_file<<"\t,Init Dataset,"<<t<<std::endl;
 
 		t=get_time(timing[init::init_lsh]);
 		out_file<<"\t,Init LSH bits,"<<t<<std::endl;
@@ -165,16 +158,67 @@ public:
 		out_file<<"Number output,\t"<<num_outputs<<std::endl;
 	}
 
-	void start_time(int phase_id){
-		record_time(0, phase_id);
+	void print_summary(uint32_t num_candidates, uint32_t num_outputs){
+
+		std::cout<<"\n\n\nSummary:"<<std::endl<<std::endl;
+
+		double t=get_time(timing[init::total]);
+		std::cout<<"Time init input data: "<<t<<std::endl;
+
+		t=get_time(timing[embed::total]);
+		std::cout<<"Time PARALLEL embedding data:\t"<<t<<"sec"<<std::endl;
+
+		t=get_time(timing[buckets::total]);
+		std::cout<<"Time PARALLEL buckets generation:\t"<< t<<"sec"<<std::endl;
+
+		t=get_time(timing[sort_buckets::total]);
+		std::cout<<"Time buckets sorting:\t"<< t <<"sec"<<std::endl;
+
+		t=get_time(timing[cand_init::total]);
+		std::cout<<"Time candidate initialization:\t"<< t<<"sec"<<std::endl;
+
+		t=get_time(timing[cand::total]);
+		std::cout<<"Time PARALLEL candidates generation:\t"<< t<<"sec"<<std::endl;
+
+		t=get_time(timing[cand_proc::total]);
+		std::cout<<"Time candidates processing:\t"<< t<<"sec"<<std::endl;
+
+		t=get_time(timing[cand_proc::sort_cand]);
+		std::cout<<"Time candidates sorting (timing[within cand-processing]):\t"<< t<<"sec"<<std::endl;
+
+		t=get_time(timing[edit_dist::total]);
+		std::cout<<"Time compute edit distance:\t"<<t <<"sec"<<std::endl;
+
+		t=get_time(timing[total_join::total]);
+		std::cout<<"Total time parallel join:\t"<< t<<"sec"<<std::endl;
+
+		t=get_time(timing[total_alg::total]);
+		std::cout<<"Total elapsed time :\t"<< t<<"sec"<<std::endl;
+		std::cout<<"Number of candidates verified: "<<num_candidates<<std::endl;
+		std::cout<<"Number of output pairs: "<<num_outputs<<std::endl;
 	}
 
-	void end_time(int phase_id){
-		record_time(1, phase_id);
-	}
+private:
+	map<int,timeinterval_t> timing;
+	timepoint_t t=std::chrono::system_clock::now();
 
-	double get_step_time(int phase_id){
-		double t=get_time(timing[phase_id]);
+	double get_time(timeinterval_t time){
+		long d=std::chrono::duration_cast<std::chrono::milliseconds>(time.second-time.first).count();
+		double t=(double)d/1000.0;
 		return t;
+	}
+
+	double get_time_diff(int phase_id){
+		double res = 0.0;
+		res=get_time(timing[phase_id]);
+		return res;
+	}
+
+	void record_time(int i, int phase_id){
+		if(i==0){
+			timing[phase_id].first=std::chrono::system_clock::now();
+		}else if(i==1){
+			timing[phase_id].second=std::chrono::system_clock::now();
+		}
 	}
 };

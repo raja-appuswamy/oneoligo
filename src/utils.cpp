@@ -48,7 +48,7 @@ void print_embedded( char **output, int len_output, int batch_size, std::string 
 };
 
 
-void print_buckets( vector<tuple<int,int,int,int,int>> &buckets, std::string filename){
+void print_buckets( vector<buckets_t> &buckets, std::string filename){
 
 	ofstream outFile;
 	outFile.open(filename, ios::out | ios::trunc);

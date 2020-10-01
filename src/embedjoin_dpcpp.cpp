@@ -1,22 +1,15 @@
-
 #include "embedjoin.hpp"
-#include "Time.cpp"
 
 using namespace cl::sycl;
 using namespace oneapi::std;
 using namespace std;
 
-int samplingrange=0; // The maximum digit to embed, the range to sample
-int countfilter=1;   // Number of required matches (>T) for a pair of substrings to be considered as candidate
-int test_batches=2;
+uint32_t samplingrange=0; // The maximum digit to embed, the range to sample
+uint32_t countfilter=1;   // Number of required matches (>T) for a pair of substrings to be considered as candidate
 
-std::string filename="";
+size_t test_batches=2;
 
 Time timer;
-
-std::vector<int> indices;
-std::vector<idpair> outputs;
-std::vector<std::string> tmp_oridata;
 
 
 void setuplsh( int (*hash_lsh)[NUM_BITS], std::vector<int> &a, std::vector<int> &lshnumber, vector<tuple<int,int>> &rev_hash ){
@@ -87,9 +80,8 @@ void setuplsh( int (*hash_lsh)[NUM_BITS], std::vector<int> &a, std::vector<int> 
 }
 
 
-void readdata(std::vector<size_t> &len_oristrings, char (*oristrings)[LEN_INPUT] )
-{
-	ifstream  data(filename);
+void read_dataset(vector<string>& input_data, string filename){
+	ifstream data(filename);
 
 	if(!data.is_open()){
 		std::cerr<<"Error opening input file"<<std::endl;
@@ -107,47 +99,38 @@ void readdata(std::vector<size_t> &len_oristrings, char (*oristrings)[LEN_INPUT]
 			break;
 		}
 		number_string++;
-		tmp_oridata.push_back(cell);
+		input_data.push_back(cell);
 	}
 
 	auto end=std::chrono::system_clock::now();
 
 	std::cout<<"\nReading in read function: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<std::endl;
 
-	for (int i = 0; i < tmp_oridata.size(); i++)
-		indices.push_back(i);
+}
 
-	start=std::chrono::system_clock::now();
 
-	tbb::parallel_sort(indices.begin(), indices.end(), [&](int i1, int i2) { return tmp_oridata[i1].size() <  tmp_oridata[i2].size();});
-	tbb::parallel_sort(tmp_oridata.begin(), tmp_oridata.end(), [&](auto s1,auto s2){return s1.size()<s2.size();});
+void initialize_input_data(vector<string> &input_data, vector<size_t> &indices, vector<size_t> &len_oristrings, char (*oristrings)[LEN_INPUT] ){
 
-	end=std::chrono::system_clock::now();
-
-	std::cout<<"\nSorting in read function: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<std::endl;
-
-	start=std::chrono::system_clock::now();
+	auto start=std::chrono::system_clock::now();
 
 	for(int i=0; i<NUM_STRING; i++){
 		memset(oristrings[i],0,LEN_INPUT);
-		strncpy(oristrings[i],tmp_oridata[i].c_str(),std::min(static_cast<int>(tmp_oridata[i].size()),LEN_INPUT));
-		len_oristrings.emplace_back(tmp_oridata[i].size());
+		strncpy(oristrings[i],input_data[i].c_str(),std::min(static_cast<int>(input_data[i].size()),LEN_INPUT));
+		len_oristrings.emplace_back(input_data[i].size());
 	}
 
-	end=std::chrono::system_clock::now();
+	auto end=std::chrono::system_clock::now();
 
 	std::cout<<"\nMemory op in read function: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<std::endl;
 	std::cout<<std::endl;
 }
 
 
-void initialization( std::vector<size_t> &len_oristrings, char (*oristrings)[LEN_INPUT], int (*hash_lsh)[NUM_BITS], std::vector<int> &a, std::vector<int> &lshnumber, vector<tuple<int,int>> &rev_hash )
-{
-	timer.start_time(init::read_data);
+void initialization( vector<string> &input_data, vector<size_t> &indices, std::vector<size_t> &len_oristrings, char (*oristrings)[LEN_INPUT], int (*hash_lsh)[NUM_BITS], std::vector<int> &a, std::vector<int> &lshnumber, vector<tuple<int,int>> &rev_hash ){
 
-	readdata(len_oristrings, oristrings);
-
-	timer.end_time(init::read_data);
+	timer.start_time(init::init_data);
+	initialize_input_data(input_data, indices, len_oristrings, oristrings);
+	timer.end_time(init::init_data);
 
 	setuplsh(hash_lsh, a, lshnumber, rev_hash);
 }
@@ -997,7 +980,6 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 		 * is used as synch method to put back data in the host
 		 *
 		 * */
-
 		std::vector<buffer<int,1>> buffers_p;
 		std::vector<buffer<char,2>> buffers_oristrings;
 		std::vector<buffer<int,1>> buffers_lshnumber;
@@ -1022,7 +1004,6 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 
 			// Two kernel are chosen, since the first one
 			// includes kernel compiling time
-
 			for(int i=0; i<2; i++){
 
 				auto start=std::chrono::system_clock::now();
@@ -1113,29 +1094,27 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 }
 
 
-void print_output( std::string file_name )
-{
-	std::cout<<"Start saving results"<<std::endl;
-	ofstream outFile;
-	outFile.open(file_name, ios::out | ios::trunc);
+void print_output( vector<string> &input_data, vector<idpair> &output_pairs, vector<size_t> &indices, string out_filename ){
 
-	if (!outFile.is_open()) {
+	std::cout<<"Start saving results"<<std::endl;
+	ofstream out_file;
+	out_file.open(out_filename, ios::out | ios::trunc);
+
+	if (!out_file.is_open()) {
 		std::cerr<<"Not possible to open file"<<std::endl;
 		exit(-1);
 	}
 
-	tbb::parallel_sort(outputs.begin(), outputs.end());
-	outputs.erase(unique(outputs.begin(), outputs.end()), outputs.end());
+	tbb::parallel_sort(output_pairs.begin(), output_pairs.end());
+	output_pairs.erase(unique(output_pairs.begin(), output_pairs.end()), output_pairs.end());
 
 	if(ALLOUTPUTRESULT) {
-		for (int i = 0; i < outputs.size(); i++) {
-			outFile << indices[get<0>(outputs[i])] << " " << indices[get<1>(outputs[i])] << std::endl;
-			outFile << tmp_oridata[get<0>(outputs[i])] << std::endl;
-			outFile << tmp_oridata[get<1>(outputs[i])] << std::endl;
+		for (int i = 0; i < output_pairs.size(); i++) {
+			out_file << indices[get<0>(output_pairs[i])] << " " << indices[get<1>(output_pairs[i])] << std::endl;
+			out_file << input_data[get<0>(output_pairs[i])] << std::endl;
+			out_file << input_data[get<1>(output_pairs[i])] << std::endl;
 		}
 	}
-
-	outputs.clear();
 }
 
 
@@ -1159,12 +1138,12 @@ std::string getReportFileName(vector<queue>&queues, int device, size_t batch_siz
 }
 
 
-void onejoin(string new_filename, size_t batch_size, size_t n_batches, int device, int new_samplingrange, int new_countfilter) {
+void onejoin(vector<string> &input_data, size_t batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &t, string dataset_name) {
 
 	samplingrange=new_samplingrange;
 	countfilter=new_countfilter;
-	filename=new_filename;
 	size_t len_output=NUM_HASH*NUM_BITS;
+	timer=t;
 
 	print_configuration(batch_size, n_batches, len_output, countfilter, samplingrange);
 
@@ -1188,11 +1167,9 @@ void onejoin(string new_filename, size_t batch_size, size_t n_batches, int devic
 	 * lshnumber: all distinct lsh bits actually used
 	 * hash_lsh: matrix of hash functions and their bits
 	 * rev_hash: vector containing the position of lsh bits into an embedded string
-	 *
 	 */
-
-	std::vector<int> a;
-	std::vector<int> lshnumber;
+	vector<int> a;
+	vector<int> lshnumber;
 	int (*hash_lsh)[NUM_BITS];
 	vector<tuple<int,int>> rev_hash;
 
@@ -1205,7 +1182,17 @@ void onejoin(string new_filename, size_t batch_size, size_t n_batches, int devic
 	 * */
 	
 	char (*oristrings)[LEN_INPUT];
-	std::vector<size_t> len_oristrings;
+	vector<size_t> len_oristrings;
+
+	/**
+	 * OUTPUT
+	 *
+	 * output_pairs: contains the IDs of strings in the input vector
+	 * 				 that are similar according edit distance
+	 * indices: contains the ID of string in the dataset
+	 * */
+	vector<idpair> output_pairs;
+	vector<size_t> indices;
 
 	/*
 	 * OTHER
@@ -1227,12 +1214,10 @@ void onejoin(string new_filename, size_t batch_size, size_t n_batches, int devic
 	 * 				have all lsh bits equal.
 	 *
 	 * queues: vector containing the sycl device queues.
-	 *
 	 * */
-
-	std::vector<buckets_t> buckets;
-	std::vector<candidate_t> candidates;
-	std::vector<queue> queues;
+	vector<buckets_t> buckets;
+	vector<candidate_t> candidates;
+	vector<queue> queues;
 
 	try{
 		hash_lsh = new int[NUM_HASH][NUM_BITS];
@@ -1275,7 +1260,7 @@ void onejoin(string new_filename, size_t batch_size, size_t n_batches, int devic
 	timer.start_time(init::total);
 
 	srand(11110);
-	initialization(len_oristrings, oristrings, hash_lsh, a, lshnumber, rev_hash);
+	initialization(input_data, indices, len_oristrings, oristrings, hash_lsh, a, lshnumber, rev_hash);
 
 	timer.end_time(init::total);
 
@@ -1496,8 +1481,6 @@ void onejoin(string new_filename, size_t batch_size, size_t n_batches, int devic
 
 	std::cout<<"\n\tFilter out candidates: "<<timer.get_step_time(cand_proc::filter_low_freq)<<std::endl;
 
-	int num_candidate=0;
-
 	timer.start_time(cand_proc::sort_cand_to_verify);
 
 	tbb::parallel_sort(verifycan.begin(), verifycan.end());
@@ -1531,10 +1514,12 @@ void onejoin(string new_filename, size_t batch_size, size_t n_batches, int devic
 	cout<<"\nNumber of threads for edit distance: "<<num_threads<<std::endl;
 
 	std::vector<std::thread> workers;
-	std::atomic<int> verified(0);
+	std::atomic<size_t> verified(0);
 	
-	int to_verify=verifycan.size();
-	int cont=0;
+	size_t to_verify=verifycan.size();
+	uint32_t num_outputs=0;
+	uint32_t num_candidates=0;
+
 	std::mutex mt;
 
 	std::cout<<"\n\tTo verify: "<<to_verify<<std::endl;
@@ -1555,8 +1540,8 @@ void onejoin(string new_filename, size_t batch_size, size_t n_batches, int devic
 					first_str=get<0>(verifycan[j]);
 					second_str=get<1>(verifycan[j]);
 
-					string tmp_str1=tmp_oridata[first_str];
-					string tmp_str2=tmp_oridata[second_str];
+					string tmp_str1=input_data[first_str];
+					string tmp_str2=input_data[second_str];
 
 					for(int k = 0;k < 8; k++){
 						tmp_str1.push_back(j>>(8*k));
@@ -1567,10 +1552,10 @@ void onejoin(string new_filename, size_t batch_size, size_t n_batches, int devic
 
 					std::unique_lock<std::mutex> lk(mt);
 					if(ed != -1) {
-						cont++;
-						outputs.push_back(make_tuple(first_str, second_str));
+						num_outputs++;
+						output_pairs.push_back(make_tuple(first_str, second_str));
 					}
-					num_candidate++;
+					num_candidates++;
 				}
 				else{
 					break;
@@ -1587,7 +1572,7 @@ void onejoin(string new_filename, size_t batch_size, size_t n_batches, int devic
 
 	timer.end_time(edit_dist::total);
 
-	cout<<"\n\t\tNum output: "<<cont<<std::endl;
+	cout<<"\n\t\tNum output: "<<num_outputs<<std::endl;
 
 	timer.end_time(total_join::total);
 	timer.end_time(total_alg::total);
@@ -1595,51 +1580,12 @@ void onejoin(string new_filename, size_t batch_size, size_t n_batches, int devic
 	delete[] hash_lsh;
 	cout<<"\nDelete hash_lsh"<<std::endl;
 
-	{
-		std::cout<<"\n\n\nSummary:"<<std::endl<<std::endl;
+	timer.print_summary(num_candidates,num_outputs);
 
-		double t=timer.get_step_time(init::total);
-		std::cout<<"Time read data: "<<t<<std::endl;
-
-		t=timer.get_step_time(embed::total);
-		std::cout<<"Time PARALLEL embedding data:\t"<<t<<"sec"<<std::endl;
-
-		t=timer.get_step_time(buckets::total);
-		std::cout<<"Time PARALLEL buckets generation:\t"<< t<<"sec"<<std::endl;
-
-		t=timer.get_step_time(sort_buckets::total);
-		std::cout<<"Time buckets sorting:\t"<< t <<"sec"<<std::endl;
-
-		t=timer.get_step_time(cand_init::total);
-		std::cout<<"Time candidate initialization:\t"<< t<<"sec"<<std::endl;
-
-		t=timer.get_step_time(cand::total);
-		std::cout<<"Time PARALLEL candidates generation:\t"<< t<<"sec"<<std::endl;
-
-		t=timer.get_step_time(cand_proc::total);
-		std::cout<<"Time candidates processing:\t"<< t<<"sec"<<std::endl;
-
-		t=timer.get_step_time(cand_proc::sort_cand);
-		std::cout<<"Time candidates sorting (within cand-processing):\t"<< t<<"sec"<<std::endl;
-
-		t=timer.get_step_time(edit_dist::total);
-		std::cout<<"Time compute edit distance:\t"<<t <<"sec"<<std::endl;
-
-		t=timer.get_step_time(total_join::total);
-		std::cout<<"Total time parallel join:\t"<< t<<"sec"<<std::endl;
-
-		t=timer.get_step_time(total_alg::total);
-		std::cout<<"Total elapsed time :\t"<< t<<"sec"<<std::endl;
-		std::cout<<"Number of candidates verified: "<<to_verify<<std::endl;
-		std::cout<<"Number of output pairs: "<<cont<<std::endl;
-	}
-	cout<<std::endl;
-	
 	string report_name=getReportFileName(queues, device, batch_size);
 	{
-		ofstream outFile;
-
-		outFile.open("report-"+filename+report_name, ios::out | ios::trunc);
+		ofstream out_file;
+		out_file.open("report-"+dataset_name+report_name, ios::out | ios::trunc);
 		std::string dev="";
 
 		if(device==2){
@@ -1652,15 +1598,12 @@ void onejoin(string new_filename, size_t batch_size, size_t n_batches, int devic
 		}else{
 			dev=queues.back().get_device().get_info<info::device::name>();
 		}
-		if (outFile.is_open()) {
-			timer.print_report(dev, to_verify, cont, outFile);
+
+		if (out_file.is_open()) {
+			timer.print_report(dev, num_candidates, num_outputs, out_file);
 		}
 	}
-
-	print_output("join_output_parallel.txt");
-	outputs.clear();
-	indices.clear();
-	tmp_oridata.clear();
+	print_output(input_data, output_pairs, indices, "join_output_parallel.txt");
 }
 
 

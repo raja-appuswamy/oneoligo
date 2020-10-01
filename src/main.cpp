@@ -2,13 +2,13 @@
 
 int main(int argc, char **argv){
 
+	Time timer;
 	int device=0;
-	size_t batch_size=30000;
-	size_t n_batches=10;
+	size_t batch_size=0;
+	size_t n_batches=0;
 	string filename="";
-	int samplingrange=0; // The maximum digit to embed, the range to sample
-	int countfilter=1;   // Number of required matches (>T) for a pair of substrings to be considered as candidate
-
+	uint32_t samplingrange=0; // The maximum digit to embed, the range to sample
+	uint32_t countfilter=0;   // Number of required matches (>T) for a pair of substrings to be considered as candidate
 
 	if (argc==7){
 		filename = argv[1];
@@ -23,5 +23,10 @@ int main(int argc, char **argv){
 		exit(-1);
 	}
 
-	onejoin(filename,batch_size,n_batches,device,samplingrange,countfilter);
+	vector<string> input_data;
+	timer.start_time(init::read_dataset);
+	read_dataset(input_data, filename);
+	timer.end_time(init::read_dataset);
+
+	onejoin(input_data,batch_size,n_batches,device,samplingrange,countfilter,timer,"GEN320ks");
 }
