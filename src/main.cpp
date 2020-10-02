@@ -28,5 +28,9 @@ int main(int argc, char **argv){
 	read_dataset(input_data, filename);
 	timer.end_time(init::read_dataset);
 
-	onejoin(input_data,batch_size,n_batches,device,samplingrange,countfilter,timer,"GEN320ks");
+//	onejoin(input_data,batch_size,n_batches,device,samplingrange,countfilter,timer,"GEN320ks");
+
+
+	DBSCAN(input_data,batch_size,n_batches,device,samplingrange,countfilter,timer,50,"GEN320ks");
+
 }

@@ -27,6 +27,7 @@
 #include <oneapi/dpl/algorithm>
 #include <oneapi/dpl/iterator>
 #include "tbb/parallel_sort.h"
+#include <tbb/concurrent_vector.h>
 #include <exception>
 #include <optional>
 #include "Time.cpp"
@@ -107,11 +108,7 @@ void print_embedded( char **output, int len_output, int batch_size, std::string 
 void print_buckets( vector<buckets_t> &buckets, std::string filename);
 void print_candidate_pairs( vector<candidate_t> &candidates, std::string filename );
 void print_configuration(int batch_size, int n_batches, size_t len_output, int countfilter, int samplingrange);
-void onejoin(vector<string> &input_data, size_t batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &timer, string dataset_name="");
-
-int embed_join(string filename, int device, int samplingrange, int countfilter, size_t batch_size, size_t n_batches,bool is_scan, std::vector<tuple<int,int>> &results, std::vector<string> &db);
-
-
-void DBSCAN(string filename, int device, int samplingrange, int countfilter, size_t batch_size, size_t n_batches, int nPts);
+vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &timer, string dataset_name="");
+void DBSCAN(vector<string> &input_data, size_t batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &timer, int nPts, string dataset_name="");
 
 #endif

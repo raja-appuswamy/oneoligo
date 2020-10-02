@@ -933,17 +933,12 @@ std::string getReportFileName(vector<queue>&queues, int device, size_t batch_siz
 }
 
 
-void onejoin(vector<string> &input_data, size_t batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &t, string dataset_name) {
+vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &t, string dataset_name) {
 
 	samplingrange=new_samplingrange;
 	countfilter=new_countfilter;
 	size_t len_output=NUM_HASH*NUM_BITS;
 	timer=t;
-
-
-    filename=new_filename;
-    samplingrange=new_samplingrange;
-    countfilter=new_countfilter;
 
 	print_configuration(batch_size, n_batches, len_output, countfilter, samplingrange);
 
@@ -1110,7 +1105,7 @@ void onejoin(vector<string> &input_data, size_t batch_size, size_t n_batches, in
 
 	 timer.start_time(cand_init::total);
 
-//	 initialize_candidate_pairs( queues, buckets, candidates );
+	 initialize_candidate_pairs( queues, buckets, candidates );
 
 	 timer.end_time(cand_init::total);
 
@@ -1230,11 +1225,14 @@ void onejoin(vector<string> &input_data, size_t batch_size, size_t n_batches, in
 	cout<<"\nNumber of threads for edit distance: "<<num_threads<<std::endl;
 
 	std::vector<std::thread> workers;
+	tbb::concurrent_vector<idpair> tmp_output_pair;
+
 	std::atomic<size_t> verified(0);
+	std::atomic<size_t> atomic_num_outputs(0);
 	size_t to_verify=verifycan.size();
-	uint32_t num_outputs=0;
-	uint32_t num_candidates=0;
-	std::mutex mt;
+	uint32_t num_candidates=to_verify;
+//	mutex mt;
+	output_pairs.resize(to_verify,{-1,-1});
 	std::cout<<"\n\tTo verify: "<<to_verify<<std::endl;
 
 	for(int t=0; t<num_threads; t++){
@@ -1259,12 +1257,13 @@ void onejoin(vector<string> &input_data, size_t batch_size, size_t n_batches, in
 					}
 					int ed = edit_distance(tmp_str2.data(), len_oristrings[second_str], tmp_str1.data(), len_oristrings[first_str] /*tmp_oridata[first_str].size()*/, K_INPUT);
 
-					std::unique_lock<std::mutex> lk(mt);
+//					std::unique_lock<std::mutex> lk(mt);
 					if(ed != -1) {
-						num_outputs++;
-						output_pairs.push_back(make_tuple(first_str, second_str));
+						atomic_num_outputs++;
+						output_pairs[j]=make_tuple(first_str, second_str);
+//						tmp_output_pair.emplace_back(first_str, second_str);
 					}
-					num_candidates++;
+//					num_candidates++;
 				}
 				else{
 					break;
@@ -1278,7 +1277,12 @@ void onejoin(vector<string> &input_data, size_t batch_size, size_t n_batches, in
 			t.join();
 		}
 	}
+	auto new_end=remove_if(oneapi::dpl::execution::par, output_pairs.begin(),output_pairs.end(),[](std::tuple<int,int> e){return std::get<0>(e)==-1;});
+	output_pairs.erase( new_end, output_pairs.end());
 
+	cout<<"\n\tSize output pairs: "<<output_pairs.size()<<std::endl;
+	cout<<"\n\tSize CONCURRENT output pairs: "<<tmp_output_pair.size()<<std::endl;
+	size_t num_outputs=atomic_num_outputs.load();
 	timer.end_time(edit_dist::total);
 	cout<<"\n\t\tNum output: "<<num_outputs<<std::endl;
 
@@ -1312,4 +1316,5 @@ void onejoin(vector<string> &input_data, size_t batch_size, size_t n_batches, in
 		}
 	}
 	print_output(input_data, output_pairs, "join_output_parallel.txt");
+	return output_pairs;
 }
