@@ -2989,7 +2989,7 @@ void generate_candidates_without_lshnumber_BUFFER_offset_2dev_wrapper(vector<que
 		tmp_embed.insert(tmp_embed.end(), embdata[k], embdata[k]+(batch_size*NUM_REP*NUM_STR*len_output));
 	}
 
-	vector<vector<size_t>> size_cand(num_dev,vector<uint32_t>());
+	vector<vector<size_t>> size_cand(num_dev,vector<size_t>());
 
 	vector<uint32_t> number_of_iter(num_dev);
 
