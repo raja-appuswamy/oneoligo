@@ -470,14 +470,14 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 			}
 			dev++;
 			if(dev==queues.size() && is_profiling){
-				timer.end_time(embed::measure); // End profiling
+				timer.end_time(buckets::measure); // End profiling
 				is_profiling=false;
 				dev=0;
 				for(int l=0; l<num_dev; l++){
 					size_per_dev[l].clear();
 				}
 				allocate_work(times,num_dev,n_batches-number_of_testing_batches, size_per_dev);
-				timer.start_time(embed::compute); // Start actual computing
+				timer.start_time(buckets::compute); // Start actual computing
 			}
 		}
 	}
@@ -642,7 +642,7 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 			}
 			dev++;
 			if(dev==queues.size() && is_profiling){
-				timer.end_time(embed::measure); // End profiling
+				timer.end_time(cand::measure); // End profiling
 				is_profiling=false;
 				dev=0;
 				for(int l=0; l<num_dev; l++){
@@ -652,7 +652,7 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 				allocate_work(times,num_dev,remaining_size, size_cand);
 				cout<<"\tRemaining size: "<<remaining_size<<std::endl;
 				split_buffers(size_cand, sizeof(candidate[0]));
-				timer.start_time(embed::compute); // Start actual computing
+				timer.start_time(cand::compute); // Start actual computing
 			}
 		}
 	}
