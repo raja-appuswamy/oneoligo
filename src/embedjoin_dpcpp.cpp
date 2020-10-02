@@ -44,10 +44,7 @@ void setuplsh( int (*hash_lsh)[NUM_BITS], std::vector<int> &a, std::vector<int> 
 	timer.end_time(init::init_lsh);
 
 	/**
-	 *
-	 *  Compute the position in which to put each
-	 *  selected char in embedding according the lsh bit
-	 *
+	 *  Compute the position in the embedded string for each lsh bit
 	 * */
 	timer.start_time(init::rev_lsh);
 
@@ -55,21 +52,15 @@ void setuplsh( int (*hash_lsh)[NUM_BITS], std::vector<int> &a, std::vector<int> 
 	int k=0;
 
 	for(int i=0; i<NUM_HASH; i++){
-
 		for(int j=0; j<NUM_BITS; j++){
-
 			if(get<0>(rev_hash[hash_lsh[i][j]])!=-1){
-
 				// Find last pos
 				int t=hash_lsh[i][j];
-
 				while(get<1>(rev_hash[t])!=-1){
 					t=get<1>(rev_hash[t]);
 				}
-
 				rev_hash.emplace_back(make_tuple(k,-1));
 				get<1>(rev_hash[t])=rev_hash.size()-1;
-
 			}else {
 				get<0>(rev_hash[hash_lsh[i][j]]) = k;
 			}
@@ -81,8 +72,9 @@ void setuplsh( int (*hash_lsh)[NUM_BITS], std::vector<int> &a, std::vector<int> 
 
 
 void read_dataset(vector<string>& input_data, string filename){
-	ifstream data(filename);
 
+	std::cout<<"Reading dataset..."<<std::endl;
+	ifstream data(filename);
 	if(!data.is_open()){
 		std::cerr<<"Error opening input file"<<std::endl;
 		exit(-1);
@@ -90,9 +82,6 @@ void read_dataset(vector<string>& input_data, string filename){
 
 	string cell;
 	int number_string = 0;
-
-	auto start=std::chrono::system_clock::now();
-
 	while (getline(data, cell))
 	{
 		if(number_string==NUM_STRING){
@@ -101,11 +90,6 @@ void read_dataset(vector<string>& input_data, string filename){
 		number_string++;
 		input_data.push_back(cell);
 	}
-
-	auto end=std::chrono::system_clock::now();
-
-	std::cout<<"\nReading in read function: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<std::endl;
-
 }
 
 
@@ -131,7 +115,6 @@ void initialization( vector<string> &input_data, std::vector<size_t> &len_oristr
 	timer.start_time(init::init_data);
 	initialize_input_data(input_data, len_oristrings, oristrings);
 	timer.end_time(init::init_data);
-
 	setuplsh(hash_lsh, a, lshnumber, rev_hash);
 }
 
@@ -143,14 +126,12 @@ void inititalize_dictory(uint8_t* dictory){
 		dictory[static_cast<uint8_t>('C')]=1;
 		dictory[static_cast<uint8_t>('G')]=2;
 		dictory[static_cast<uint8_t>('T')]=3;
-
 	}else if(NUM_CHAR==5){
 		dictory[static_cast<uint8_t>('A')]=0;
 		dictory[static_cast<uint8_t>('C')]=1;
 		dictory[static_cast<uint8_t>('G')]=2;
 		dictory[static_cast<uint8_t>('T')]=3;
 		dictory[static_cast<uint8_t>('N')]=4;
-
 	}else if (NUM_CHAR == 26 || NUM_CHAR == 25){
 		int j=0;
 		for(int i=(int)'A'; i<=(int)'Z'; i++){
@@ -188,38 +169,29 @@ void allocate_work(vector<long> times, int num_dev, size_t units_to_allocate, ve
 	}
 
 	if(num_dev>1){
-
 		// If there are 2 devices, compute the number of batches
 		// to allocate to devices.
-		// Note that at most 2 devices can be handled
+		// Note that at most 2 devices can be handled with this version of the function
 
 		long slowest=-1;
 		long fastest=-1;
-
 		if(times[0]<=0 && times[1]<=0){
-
 			slowest=1;
 			fastest=1;
 			idx_slowest=0;
 			idx_fastest=1;
-
 		}else if(times[0]<=0 && times[1]>0){
-
 			slowest=1;
 			idx_slowest=1;
 			fastest=0;
 			idx_fastest=0;
-
 		}
 		else if(times[0]>0 && times[1]<=0){
-
 			slowest=1;
 			idx_slowest=0;
 			fastest=0;
 			idx_fastest=1;
-
 		}else{
-
 			// Get the max and min time measured during profiling.
 			// The max time is associated with the slowest device.
 			// The min time is associated with the fastest device.
@@ -234,39 +206,23 @@ void allocate_work(vector<long> times, int num_dev, size_t units_to_allocate, ve
 
 			idx_fastest=1-idx_slowest;
 			fastest=times[idx_fastest];
-
 		}
-
 		n_slow=floor(((float)fastest/(float)(fastest+slowest))*units_to_allocate);
 		n_fast=units_to_allocate-n_slow;
 
 		size_per_dev[idx_fastest].emplace_back(n_fast);
 		size_per_dev[idx_slowest].emplace_back(n_slow);
-
 	}else if(num_dev==1){
-
 		// If there is only one device, all remaining batches
 		// are given to the first (and only) device of the queue.
 
 		idx_fastest=0;
 		idx_slowest=-1;
-
 		vector<size_t> tmp_sizes;
-
 		n_slow=0;
 		n_fast=units_to_allocate;
-
 		size_per_dev[idx_fastest].emplace_back(n_fast);
-
 	}
-
-	/**
-	 * It is necessary preallocate the vector containings the offsets in buckets
-	 * vector, since its location in memory could change during the executions of
-	 * multiple kernels
-	 *
-	 * */
-
 	cout<<"\n\tn_fast: "<<n_fast<<std::endl;
 	cout<<"\tn_slow: "<<n_slow<<std::endl;
 
@@ -282,7 +238,6 @@ void allocate_work(vector<long> times, int num_dev, size_t units_to_allocate, ve
 			i++;
 		}
 	}
-
 }
 
 
@@ -292,27 +247,19 @@ void split_buffers(vector<vector<size_t>> &size_per_dev, size_t size_element, si
 	size_t tmp_size=0;
 
 	if( num_dev>0 ){
-
 		for(int d=0; d<num_dev; d++ ){
-
 			if(size_per_dev[d].size()!=1){
 				std::cout<<"ERROR: only one element should be in the vector at this point"<<std::endl;
 				exit(-1);
 			}
-
 			size_t size=size_per_dev[d][0];
 			size_t num_part=1;
-
 			while( size*size_element/num_part > limit ){
 				num_part++;
 			}
-
 			num_part++;
-
-			std::cout<<"Split buffer in "<<num_part<<" parts of "<<size/num_part<<" as dim."<<std::endl;
-
+			std::cout<<"\n\tSplit buffer in "<<num_part<<" parts of "<<size/num_part<<" as dim."<<std::endl;
 			size_per_dev[d].clear();
-
 			for(int j=0; j<num_part; j++){
 				if(j==num_part-1){
 					size_per_dev[d].emplace_back(size/num_part+size%num_part);
@@ -398,8 +345,6 @@ void  create_buckets(queue &device_queue, char **embdata, buffer<buckets_t,1> &b
 	{
 		device_queue.submit([&](handler &cgh){
 
-			//Executing kernel
-
 			auto acc_buckets = buffer_buckets.get_access<access::mode::write>(cgh);
 			auto acc_dict = buffer_dict.get_access<access::mode::read>(cgh);
 			auto acc_a = buffer_a.get_access<access::mode::read>(cgh);
@@ -407,6 +352,7 @@ void  create_buckets(queue &device_queue, char **embdata, buffer<buckets_t,1> &b
 			auto acc_len_output=buffer_len_output.get_access<access::mode::read>(cgh);
 			auto acc_split_offset=buffer_split_offset.get_access<access::mode::read>(cgh);
 
+			//Executing kernel
 			cgh.parallel_for<class CreateBuckets>(range<2>(glob_range), [=](item<2> index){
 
 				int itq=index[0];
