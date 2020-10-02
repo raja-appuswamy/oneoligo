@@ -1894,7 +1894,7 @@ void create_buckets_without_lshnumber_offset_BUFFER_2dev_NEW_wrapper(vector<queu
 	vector<long> times;
 	vector<vector<long>> time_on_dev(num_dev,vector<long>());
 	vector<int> iter_per_dev(num_dev);
-
+	uint32_t loc_split_size;
 	{
 		vector<uint32_t> split_size;//=9*batch_size;
 
@@ -2049,7 +2049,7 @@ void create_buckets_without_lshnumber_offset_BUFFER_2dev_NEW_wrapper(vector<queu
 
 			while(iter<iter_per_dev[i]){
 
-				uint32_t loc_split_size=batch_size;
+				loc_split_size=batch_size;
 
 				cout<<"\n\tSet offset to: "<<offset[n]<<std::endl;
 
