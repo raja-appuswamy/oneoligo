@@ -1906,7 +1906,7 @@ void create_buckets_without_lshnumber_offset_BUFFER_2dev_NEW_wrapper(vector<queu
 		inititalize_dictionary(dictionary);
 
 
-		vector<uint32_t> offset(n_batches); // A vector is necessary since no wait is performed after submission and value changes in CPU case
+		vector<uint32_t> offset(n_batches+1); // A vector is necessary since no wait is performed after submission and value changes in CPU case
 
 		vector<sycl::buffer<tuple<int,int,int,int,int>>> buffers_buckets;
 		vector<sycl::buffer<uint32_t,1>> buffers_batch_size;
@@ -2070,10 +2070,6 @@ void create_buckets_without_lshnumber_offset_BUFFER_2dev_NEW_wrapper(vector<queu
 				uint32_t size_emb=static_cast<unsigned int>(batch_size*NUM_STR*NUM_REP*len_output);
 
 				buffers_embdata.emplace_back(buffer<char,1>(reinterpret_cast<char*>(embdata[n]),range<1>(size_emb)));
-
-
-				// n*split offset w.r.t. the batches processed by the other device (ex. 3 batches)
-				// Inside these batches there is another offset, that is iter*batch_size
 
 
 				// The first one is longer then others
@@ -2834,24 +2830,7 @@ void generate_candidates_without_lshnumber_BUFFER_offset_2dev_wrapper(vector<que
 	cout << "Selected: Generate candidates - without lshnumber offset - BUFFER"<< std::endl;
 
 	cout<<"Len output: "<<len_output<<std::endl;
-//	ofstream outFile;
-//
-//
-//	outFile.open("cand_before_with_end", ios::out | ios::trunc);
-//
-//
-//	int i=0;
-//	for(auto &c:candidate){
-//		outFile<<get<0>(c)<<" "<<get<1>(c)<<" "<<get<2>(c)<<std::endl;
-//		i++;
-//	}
 
-
-
-//	int y_dim=NUM_BITS;
-//	int x_dim=static_cast<int>(250/*/NUM_BITS*/);
-//
-//	range<2> local_range(x_dim,y_dim);
 	{
 
 	int num_dev=queues.size();
@@ -4817,50 +4796,6 @@ int main(int argc, char **argv) {
 	  *
 	  * **/
 
-/*
-	 std::vector<void(*)(vector<queue>&, vector<int> &, char (*)[LEN_INPUT], char** &, unsigned int , uint32_t , vector<int> &, uint32_t &)> f_emb;
-	 std::vector<void(*)(vector<queue>&, char **, vector<tuple<int,int,int,int,int>> &, uint32_t , uint32_t , int* , vector<int> &, vector<int> &, uint32_t)> f_bucket;
-	 std::vector<void(*)(vector<queue>&, vector<int> &, char* , char **, vector<tuple<int,int,int,int,int>> &, unsigned int , vector<tuple<int,int>> &, vector<std::tuple<int,int,int,int,int,int>>&, vector<int> &, int* , vector<int>&, uint32_t , vector<arrayWrapper> &, vector<arrayWrapper> &, vector<arrayWrapper> &, vector<arrayWrapper>&)> f_cand;
-
-
-	 void (*f_parallel_embedding_batched_wrapper)(vector<queue>&, vector<int> &, char (*)[LEN_INPUT], char** &, unsigned int , uint32_t , vector<int> &, uint32_t &){parallel_embedding_batched_2dev_wrapper};
-	 void (*f_parallel_embedding_USM_while_wrapper)(vector<queue>&, vector<int> &, char (*)[LEN_INPUT], char** &, unsigned int , uint32_t , vector<int> &, uint32_t &){parallel_embedding_USM_while_wrapper};
-	 void (*f_parallel_embedding_while_loop)(vector<queue>&, vector<int> &, char (*)[LEN_INPUT], char** &, unsigned int , uint32_t , vector<int> &, uint32_t &){parallel_embedding_while_loop_2dev_wrapper};
-	 void (*f_parallel_embedding_USM_wrapper)(vector<queue>&, vector<int> &, char (*)[LEN_INPUT], char** &, unsigned int , uint32_t , vector<int> &, uint32_t &){parallel_embedding_USM_wrapper};
-
-
-
-
-
-	 void(*f_create_buckets)(vector<queue>&, char **, vector<tuple<int,int,int,int,int>> &, uint32_t , uint32_t , int* , vector<int> &, vector<int> &, uint32_t ){create_buckets_2dev_wrapper};
-
-	 void(*f_create_buckets_without_offset)(vector<queue>&, char **, vector<tuple<int,int,int,int,int>> &, uint32_t , uint32_t , int* , vector<int> &, vector<int> &, uint32_t ){create_buckets_without_lshnumber_offset_2dev_wrapper};
-
-
-
-	 void(*f_generate_candidates)(vector<queue>&, vector<int> &, char* , char **, vector<tuple<int,int,int,int,int>> &, unsigned int , vector<tuple<int,int>> &, vector<std::tuple<int,int,int,int,int,int>>&, vector<int> &, int* , vector<int>&, uint32_t , vector<arrayWrapper> &, vector<arrayWrapper> &, vector<arrayWrapper> &, vector<arrayWrapper> &){generate_candidates_2dev_wrapper};
-
-	 void(*f_generate_candidates_without_offset)(vector<queue>&, vector<int> &, char* , char **, vector<tuple<int,int,int,int,int>> &, unsigned int , vector<tuple<int,int>> &, vector<std::tuple<int,int,int,int,int,int>>& , vector<int> &, int * , vector<int> &, uint32_t , vector<arrayWrapper> &, vector<arrayWrapper> &, vector<arrayWrapper> &, vector<arrayWrapper> &){generate_candidates_without_lshnumber_offset_2dev_wrapper};
-
-
-	 /*f_emb.push_back(f_parallel_embedding_batched_wrapper); // 0
-
-	 f_emb.push_back(f_parallel_embedding_USM_wrapper); // 1
-//	 f_emb.push_back(f_parallel_embedding_batched_wrapper); // 1
-
-	 f_emb.push_back(f_parallel_embedding_while_loop); // 2
-
-	 f_emb.push_back(f_parallel_embedding_USM_while_wrapper); // 3
-
-
-
-	 f_bucket.push_back(f_create_buckets); // 0
-	 f_bucket.push_back(f_create_buckets_without_offset); // 1
-
-	 f_cand.push_back(f_generate_candidates); // 0
-	 f_cand.push_back(f_generate_candidates_without_offset); // 1
-*/
-
 	/**
 	 *
 	 * INITIALIZATION
@@ -5085,34 +5020,6 @@ int main(int argc, char **argv) {
 	time_create_buckets=std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
 
 	cout<<"Time buckets creation: "<<(float)time_create_buckets/1000<<"sec"<<std::endl;
-
-/*
- * CHECK
- *
- * */
-
-//	vector<tuple<int,int,int,int,int>> new_buckets(NUM_STRING*NUM_STR*NUM_HASH*NUM_REP);
-//
-//	create_buckets_without_lshnumber_offset_USM_2dev_NEW_wrapper(queues, (char**)set_embdata_dev, new_buckets, n_batches, batch, (int*)hash_lsh, a, lshnumber, len_output);
-//
-//	for(auto &q:queues){
-//		q.wait();
-//	}
-//
-//
-//	for(int b=0; b<buckets.size(); b++){
-//
-//		if(buckets[b]!=new_buckets[b]){
-//			cout<<"Buckets are different...at "<<b<<std::endl;
-//			cout<<get<0>(buckets[b])<<" "<<get<1>(buckets[b])<<" "<<get<2>(buckets[b])<<" "<<get<3>(buckets[b])<<" "<<get<4>(buckets[b])<<std::endl;
-//			cout<<get<0>(new_buckets[b])<<" "<<get<1>(new_buckets[b])<<" "<<get<2>(new_buckets[b])<<" "<<get<3>(new_buckets[b])<<" "<<get<4>(new_buckets[b])<<std::endl;
-//			exit(-1);
-//		}
-//
-//	}
-//
-//	cout<<"\n\nCongratz... buckets are equal"<<std::endl<<std::endl;
-
 
 
 	timer.start_time(0,3,0);
