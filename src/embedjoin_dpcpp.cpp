@@ -2994,6 +2994,11 @@ void generate_candidates_without_lshnumber_BUFFER_offset_2dev_wrapper(vector<que
 	vector<uint32_t> buckets_offset;
 	vector<vector<int>> reverse_index;
 
+	buffer<int, 2> buffers_hash_lsh(reinterpret_cast<int*>(local_hash_lsh),range<2>{NUM_HASH,NUM_BITS}, {property::buffer::use_host_ptr()});
+	buffer<char,2> buffer_embdata(tmp_embed.data(),range<2>(n_batches,batch_size*NUM_REP*NUM_STR*len_output));
+	buffer<int,1> buffers_len(len.data(),range<1>{len.size()}, {property::buffer::use_host_ptr()});
+	buffer<char,2> buffers_oristrings(oristrings,range<2>{NUM_STRING,LEN_INPUT}, {property::buffer::use_host_ptr()});
+
 //	vector<buffer<int,1>> buffers_reverse_index;
 //	vector<buffer<char,2>> buffers_oristrings;
 //	vector<buffer<int, 1>> buffers_candidate_start;
@@ -3053,10 +3058,6 @@ void generate_candidates_without_lshnumber_BUFFER_offset_2dev_wrapper(vector<que
 			cout<<"\tIter "<<dev<<". End buckets at "<<size_for_test*n + size_for_test-1<<": "<<end_b<<std::endl;
 			cout<<"\n\tBuckets size: "<<size_buckets<<std::endl;
 
-			buffer<char,2> buffers_oristrings(oristrings,range<2>{NUM_STRING,LEN_INPUT}, {property::buffer::use_host_ptr()});
-
-
-			buffer<tuple<int,int,int,int,int>> buffers_buckets(buckets.data()+start_b,range<1>{size_buckets}, {property::buffer::use_host_ptr()});
 
 
 			cout<<"\tCand size: "<<size_for_test<<std::endl;
@@ -3069,16 +3070,11 @@ void generate_candidates_without_lshnumber_BUFFER_offset_2dev_wrapper(vector<que
 //			buffers_buckets_offset.emplace_back( buffer<uint32_t,1>(&buckets_offset.back(),range<1>{1}));
 //			buffers_embdata.emplace_back(buffer<char,2>(tmp_embed.data(),range<2>(n_batches,batch_size*NUM_REP*NUM_STR*len_output)));
 
-			buffer<int, 2> buffers_hash_lsh(reinterpret_cast<int*>(local_hash_lsh),range<2>{NUM_HASH,NUM_BITS}, {property::buffer::use_host_ptr()});
 			buffer<tuple<int,int,int,int,int,int>> buffers_candidates(candidate.data()+n*size_for_test,range<1>{size_for_test}, {property::buffer::use_host_ptr()});
-			buffer<int,1> buffers_len(len.data(),range<1>{len.size()}, {property::buffer::use_host_ptr()});
 			buffer<unsigned int, 1> buffers_batch_size(&batch_size,range<1>{1});
 			buffer<uint32_t, 1> buffers_len_output(&len_output,range<1>{1});
 			buffer<uint32_t,1> buffers_buckets_offset(&buckets_offset.back(),range<1>{1});
-
-
-
-			buffer<char,2> buffer_embdata(tmp_embed.data(),range<2>(n_batches,batch_size*NUM_REP*NUM_STR*len_output));
+			buffer<tuple<int,int,int,int,int>> buffers_buckets(buckets.data()+start_b,range<1>{size_buckets}, {property::buffer::use_host_ptr()});
 
 
 			generate_candidates_without_lshnumber_BUFFER_offset_NEW(q, buffers_len, buffers_oristrings, buffer_embdata, buffers_buckets, buffers_buckets_offset, buffers_batch_size, buffers_candidates, size_for_test, buffers_hash_lsh, buffers_len_output);
@@ -3188,10 +3184,8 @@ void generate_candidates_without_lshnumber_BUFFER_offset_2dev_wrapper(vector<que
 			cout<<"\tIter "<<dev<<". End buckets at "<<offset_cand + size_cand[dev][iter]-1<<": "<<end_b<<std::endl;
 			cout<<"\n\tBuckets size: "<<size_buckets<<std::endl;
 
-			buffer<char,2> buffers_oristrings(oristrings,range<2>{NUM_STRING,LEN_INPUT}, {property::buffer::use_host_ptr()});
 
 
-			buffer<tuple<int,int,int,int,int>> buffers_buckets(buckets.data()+start_b,range<1>{size_buckets}, {property::buffer::use_host_ptr()});
 
 
 			cout<<"\tCand size: "<<size_cand[dev][iter]<<std::endl;
@@ -3203,12 +3197,9 @@ void generate_candidates_without_lshnumber_BUFFER_offset_2dev_wrapper(vector<que
 //			buffers_len_output.emplace_back( buffer<uint32_t, 1>(&len_output,range<1>{1}));
 //			buffers_buckets_offset.emplace_back( buffer<uint32_t,1>(&buckets_offset.back(),range<1>{1}));
 //			buffers_embdata.emplace_back(buffer<char,2>(tmp_embed.data(),range<2>(n_batches,batch_size*NUM_REP*NUM_STR*len_output)));
-			buffer<char,2> buffer_embdata(tmp_embed.data(),range<2>(n_batches,batch_size*NUM_REP*NUM_STR*len_output));
 
-
-			buffer<int, 2> buffers_hash_lsh(reinterpret_cast<int*>(local_hash_lsh),range<2>{NUM_HASH,NUM_BITS}, {property::buffer::use_host_ptr()});
+			buffer<tuple<int,int,int,int,int>> buffers_buckets(buckets.data()+start_b,range<1>{size_buckets}, {property::buffer::use_host_ptr()});
 			buffer<tuple<int,int,int,int,int,int>> buffers_candidates(candidate.data()+offset_cand,range<1>{size_cand[dev][iter]}, {property::buffer::use_host_ptr()});
-			buffer<int,1> buffers_len(len.data(),range<1>{len.size()}, {property::buffer::use_host_ptr()});
 			buffer<unsigned int, 1> buffers_batch_size(&batch_size,range<1>{1});
 			buffer<uint32_t, 1> buffers_len_output(&len_output,range<1>{1});
 			buffer<uint32_t,1> buffers_buckets_offset(&buckets_offset.back(),range<1>{1});
