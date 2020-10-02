@@ -11,5 +11,7 @@ build:	src/embedjoin_dpcpp.cpp	src/verification.cpp
 #Parameters: input_filename, gpu(0)/cpu(1), step1, step2, step3, samplingrange, countfilter, batch_size, n_batches
 
 run:
-	./embedjoin gen320ks.txt 1 0 0 0 5000 1 3000 150 0
+	./embedjoin g
+	
+	en320ks.txt 1 0 0 0 5000 1 3000 150 0
     

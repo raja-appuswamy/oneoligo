@@ -1682,7 +1682,7 @@ void create_buckets_without_lshnumber_offset_USM_2dev_NEW_wrapper(vector<queue> 
 
 				cout<<"\n\tSet offset to: "<<offset[n]<<std::endl;
 
-				buffers_buckets.emplace_back(sycl::buffer<tuple<int,int,int,int,int>,1>(static_cast<tuple<int,int,int,int,int>*>(buckets.data()+offset.back()*NUM_REP*NUM_HASH*NUM_STR),range<1>{loc_split_size*NUM_STR*NUM_HASH*NUM_REP}, {sycl::property::buffer::use_host_ptr()})); // Wrong dimension
+				buffers_buckets.emplace_back(sycl::buffer<tuple<int,int,int,int,int>,1>(static_cast<tuple<int,int,int,int,int>*>(buckets.data()+offset.back()*NUM_REP*NUM_HASH*NUM_STR),range<1>{loc_split_size*NUM_STR*NUM_HASH*NUM_REP})); // Wrong dimension
 
 				buffers_a.emplace_back(buffer<uint32_t,1>((uint32_t*)a.data(),range<1>{a.size()}));
 
@@ -1893,12 +1893,10 @@ void create_buckets_without_lshnumber_offset_BUFFER_2dev_NEW_wrapper(vector<queu
 
 	vector<long> times;
 	vector<vector<long>> time_on_dev(num_dev,vector<long>());
-
+	vector<int> iter_per_dev(num_dev);
 
 	{
 		vector<uint32_t> split_size;//=9*batch_size;
-
-//		int thread_num=0;
 
 		auto start_timeline=std::chrono::system_clock::now();
 
@@ -1909,7 +1907,6 @@ void create_buckets_without_lshnumber_offset_BUFFER_2dev_NEW_wrapper(vector<queu
 
 
 		vector<uint32_t> offset(n_batches); // A vector is necessary since no wait is performed after submission and value changes in CPU case
-//		uint32_t offset;
 
 		vector<sycl::buffer<tuple<int,int,int,int,int>>> buffers_buckets;
 		vector<sycl::buffer<uint32_t,1>> buffers_batch_size;
@@ -1933,9 +1930,6 @@ void create_buckets_without_lshnumber_offset_BUFFER_2dev_NEW_wrapper(vector<queu
 
 
 		auto start=std::chrono::system_clock::now();
-
-
-
 	// ---------------------------------------
 
 		for(auto &q:queues){
@@ -1945,11 +1939,7 @@ void create_buckets_without_lshnumber_offset_BUFFER_2dev_NEW_wrapper(vector<queu
 
 				auto start=std::chrono::system_clock::now();
 
-//				offset.emplace_back(2*batch_size*dev+i*batch_size);
-//				offset.emplace_back(2*batch_size*dev+i*batch_size);
-
 				offset[n]=2*batch_size*dev+i*batch_size;
-
 
 				uint32_t loc_split_size=batch_size;
 
@@ -2001,7 +1991,6 @@ void create_buckets_without_lshnumber_offset_BUFFER_2dev_NEW_wrapper(vector<queu
 			cout<<"\tTimes kernel: "<<(float)t/1000<<"sec"<<std::endl;
 		}
 
-		vector<int> iter_per_dev;
 
 		if(num_dev>1){
 
@@ -2020,7 +2009,6 @@ void create_buckets_without_lshnumber_offset_BUFFER_2dev_NEW_wrapper(vector<queu
 
 			n_min=n_batches-number_of_testing_batches-n_max;
 
-			iter_per_dev.resize(num_dev);
 			iter_per_dev[idx_max]=n_min;
 			iter_per_dev[idx_min]=n_max;
 
@@ -2030,7 +2018,7 @@ void create_buckets_without_lshnumber_offset_BUFFER_2dev_NEW_wrapper(vector<queu
 			n_min=(n_batches-number_of_testing_batches);
 			idx_max=0;
 			idx_min=0;
-			iter_per_dev.emplace_back(n_min);
+			iter_per_dev[idx_min]=n_min;
 
 		}
 
@@ -2041,11 +2029,6 @@ void create_buckets_without_lshnumber_offset_BUFFER_2dev_NEW_wrapper(vector<queu
 		cout<<"id_max: "<<idx_max<<std::endl;
 		cout<<"id_min: "<<idx_min<<std::endl;
 
-
-
-//		uint32_t other_off=number_of_testing_batches*batch_size;
-
-//		offset.emplace_back(number_of_testing_batches*batch_size);
 		offset[n]=number_of_testing_batches*batch_size;
 		// --------------------
 
@@ -2058,26 +2041,15 @@ void create_buckets_without_lshnumber_offset_BUFFER_2dev_NEW_wrapper(vector<queu
 
 		start=std::chrono::system_clock::now();
 
-//		uint32_t other_off=number_of_testing_batches*batch_size;
-
 		dev=0;
 
 		for(int i=0; i<num_dev; i++){
-
-//			cout<<"From "<<n<<" to "<<n+iter_per_dev[i]<<std::endl;
 
 			int iter=0;
 
 			while(iter<iter_per_dev[i]){
 
-
-//				auto start=std::chrono::system_clock::now();
-
-//				offset.emplace_back(offset.back()+batch_size);
-
-
 				uint32_t loc_split_size=batch_size;
-
 
 				cout<<"\n\tSet offset to: "<<offset[n]<<std::endl;
 
@@ -2106,23 +2078,10 @@ void create_buckets_without_lshnumber_offset_BUFFER_2dev_NEW_wrapper(vector<queu
 
 				// The first one is longer then others
 				create_bucket_without_lshnumber_offset_BUFFER_NEW_impr(queues[i], buffers_embdata[n], buffers_buckets[n], buffers_batch_size[n], loc_split_size, buffers_split_offset[n], buffers_hash_lsh[n], buffers_a[n], buffers_len_output[n], buffers_dict[n]);
-
-//				q.wait();
-
-//				auto end=std::chrono::system_clock::now();
-
-//				if(i>0){
-//					times.emplace_back(std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count());
-//				}
-//				queues[i].wait();
 				n++;
-//				offset.emplace_back(offset.back()+batch_size);
 				offset[n]=offset[n-1]+batch_size;
 				iter++;
-
-
 			}
-
 			dev++;
 
 		end=std::chrono::system_clock::now();
