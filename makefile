@@ -1,5 +1,5 @@
 CXX=clang++
-PARAMS="-DCUDA=1 -DNUM_STRING=450000"
+PARAMS=-DCUDA=1 -DNUM_STRING=450000
 CXXFLAGS= -O2 -fsycl-targets=nvptx64-nvidia-cuda-sycldevice -fsycl-unnamed-lambda $(PARAMS)
 LDFLAGS= -fsycl -lsycl -ltbb -lpthread
 DPCPP_EXE_NAME=embedjoin
