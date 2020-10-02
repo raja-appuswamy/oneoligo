@@ -3081,7 +3081,7 @@ void generate_candidates_without_lshnumber_BUFFER_offset_2dev_wrapper(vector<que
 			buffer<char,2> buffer_embdata(tmp_embed.data(),range<2>(n_batches,batch_size*NUM_REP*NUM_STR*len_output));
 
 
-			generate_candidates_without_lshnumber_BUFFER_offset_NEW(q, buffers_len, buffers_oristrings, buffer_embdata, buffers_buckets, buffers_buckets_offset, buffers_batch_size, buffers_candidates, size_cand[dev][iter], buffers_hash_lsh, buffers_len_output);
+			generate_candidates_without_lshnumber_BUFFER_offset_NEW(q, buffers_len, buffers_oristrings, buffer_embdata, buffers_buckets, buffers_buckets_offset, buffers_batch_size, buffers_candidates, size_for_test, buffers_hash_lsh, buffers_len_output);
 
 //			generate_candidates_without_lshnumber_offset(q, buffers_len[n], buffers_oristrings[n], embdata, buffers_buckets[n], buffers_buckets_offset[n], buffers_batch_size[n], buffers_candidates[n], size_for_test, buffers_hash_lsh[n], buffers_len_output[n],local_range);
 
@@ -3188,12 +3188,11 @@ void generate_candidates_without_lshnumber_BUFFER_offset_2dev_wrapper(vector<que
 			cout<<"\tIter "<<dev<<". End buckets at "<<offset_cand + size_cand[dev][iter]-1<<": "<<end_b<<std::endl;
 			cout<<"\n\tBuckets size: "<<size_buckets<<std::endl;
 
-//			buffers_oristrings.emplace_back( buffer<char,2>(oristrings,range<2>{NUM_STRING,LEN_INPUT}, {property::buffer::use_host_ptr()}));
-//			buffers_buckets.emplace_back( buffer<tuple<int,int,int,int,int>>(buckets.data()+start_b,range<1>{size_buckets}, {property::buffer::use_host_ptr()}));
 			buffer<char,2> buffers_oristrings(oristrings,range<2>{NUM_STRING,LEN_INPUT}, {property::buffer::use_host_ptr()});
 
 
 			buffer<tuple<int,int,int,int,int>> buffers_buckets(buckets.data()+start_b,range<1>{size_buckets}, {property::buffer::use_host_ptr()});
+
 
 			cout<<"\tCand size: "<<size_cand[dev][iter]<<std::endl;
 
