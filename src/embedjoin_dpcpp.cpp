@@ -3207,7 +3207,7 @@ void generate_candidates_without_lshnumber_BUFFER_offset_2dev_wrapper(vector<que
 
 
 			buffer<int, 2> buffers_hash_lsh(reinterpret_cast<int*>(local_hash_lsh),range<2>{NUM_HASH,NUM_BITS}, {property::buffer::use_host_ptr()});
-			buffer<tuple<int,int,int,int,int,int>> buffers_candidates(candidate.data()+n*size_for_test,range<1>{size_for_test}, {property::buffer::use_host_ptr()});
+			buffer<tuple<int,int,int,int,int,int>> buffers_candidates(candidate.data()+offset_cand,range<1>{size_cand[dev][iter]}, {property::buffer::use_host_ptr()});
 			buffer<int,1> buffers_len(len.data(),range<1>{len.size()}, {property::buffer::use_host_ptr()});
 			buffer<unsigned int, 1> buffers_batch_size(&batch_size,range<1>{1});
 			buffer<uint32_t, 1> buffers_len_output(&len_output,range<1>{1});
