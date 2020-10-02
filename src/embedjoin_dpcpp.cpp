@@ -2990,37 +2990,22 @@ void generate_candidates_without_lshnumber_BUFFER_offset_2dev_wrapper(vector<que
 	}
 
 	vector<vector<size_t>> size_cand(num_dev,vector<size_t>());
-
 	vector<uint32_t> number_of_iter(num_dev);
-
 	vector<uint32_t> buckets_offset;
-
 	vector<vector<int>> reverse_index;
 
 	vector<buffer<int,1>> buffers_reverse_index;
-
-
 	vector<buffer<char,2>> buffers_oristrings;
-
 	vector<buffer<int, 1>> buffers_candidate_start;
-
 	vector<buffer<tuple<int,int,int,int,int>>> buffers_buckets;
-
 	vector<buffer<tuple<int,int>>> buffers_bucket_delimiter;
-
 	vector<buffer<int, 2>> buffers_hash_lsh;
-
 	vector<buffer<tuple<int,int,int,int,int,int>>> buffers_candidates;
-
 	vector<buffer<int,1>> buffers_len;
-
 	vector<buffer<unsigned int, 1>> buffers_batch_size;
-
 	vector<buffer<uint32_t, 1>> buffers_len_output;
-
 	vector<buffer<uint32_t,1>> buffers_buckets_offset;
-
-	vector<buffer<char,2>> buffers_embdata;
+//	vector<buffer<char,2>> buffers_embdata;
 
 
 
@@ -3082,9 +3067,12 @@ void generate_candidates_without_lshnumber_BUFFER_offset_2dev_wrapper(vector<que
 			buffers_batch_size.emplace_back( buffer<unsigned int, 1>(&batch_size,range<1>{1}));
 			buffers_len_output.emplace_back( buffer<uint32_t, 1>(&len_output,range<1>{1}));
 			buffers_buckets_offset.emplace_back( buffer<uint32_t,1>(&buckets_offset.back(),range<1>{1}));
-			buffers_embdata.emplace_back(buffer<char,2>(tmp_embed.data(),range<2>(n_batches,batch_size*NUM_REP*NUM_STR*len_output)));
+//			buffers_embdata.emplace_back(buffer<char,2>(tmp_embed.data(),range<2>(n_batches,batch_size*NUM_REP*NUM_STR*len_output)));
 
-			generate_candidates_without_lshnumber_BUFFER_offset_NEW(q, buffers_len[n], buffers_oristrings[n], buffers_embdata[n], buffers_buckets[n], buffers_buckets_offset[n], buffers_batch_size[n], buffers_candidates[n], size_for_test, buffers_hash_lsh[n], buffers_len_output[n]);
+			buffer<char,2> buffer_embdata(tmp_embed.data(),range<2>(n_batches,batch_size*NUM_REP*NUM_STR*len_output));
+
+
+			generate_candidates_without_lshnumber_BUFFER_offset_NEW(q, buffers_len[n], buffers_oristrings[n], buffer_embdata, buffers_buckets[n], buffers_buckets_offset[n], buffers_batch_size[n], buffers_candidates[n], size_for_test, buffers_hash_lsh[n], buffers_len_output[n]);
 
 //			generate_candidates_without_lshnumber_offset(q, buffers_len[n], buffers_oristrings[n], embdata, buffers_buckets[n], buffers_buckets_offset[n], buffers_batch_size[n], buffers_candidates[n], size_for_test, buffers_hash_lsh[n], buffers_len_output[n],local_range);
 
@@ -3169,12 +3157,9 @@ void generate_candidates_without_lshnumber_BUFFER_offset_2dev_wrapper(vector<que
 	dev=0;
 
 	timer.end_time(0,5,1);
-
 	timer.start_time(0,5,2);
 
 	uint32_t offset_cand=size_for_test*2*num_dev;
-
-
 
 	for(auto &q : queues){
 
@@ -3205,9 +3190,10 @@ void generate_candidates_without_lshnumber_BUFFER_offset_2dev_wrapper(vector<que
 			buffers_batch_size.emplace_back( buffer<unsigned int, 1>(&batch_size,range<1>{1}));
 			buffers_len_output.emplace_back( buffer<uint32_t, 1>(&len_output,range<1>{1}));
 			buffers_buckets_offset.emplace_back( buffer<uint32_t,1>(&buckets_offset.back(),range<1>{1}));
-			buffers_embdata.emplace_back(buffer<char,2>(tmp_embed.data(),range<2>(n_batches,batch_size*NUM_REP*NUM_STR*len_output)));
+//			buffers_embdata.emplace_back(buffer<char,2>(tmp_embed.data(),range<2>(n_batches,batch_size*NUM_REP*NUM_STR*len_output)));
+			buffer<char,2> buffer_embdata(tmp_embed.data(),range<2>(n_batches,batch_size*NUM_REP*NUM_STR*len_output));
 
-			generate_candidates_without_lshnumber_BUFFER_offset_NEW(q, buffers_len[n], buffers_oristrings[n], buffers_embdata[n], buffers_buckets[n], buffers_buckets_offset[n], buffers_batch_size[n], buffers_candidates[n], size_cand[dev][iter], buffers_hash_lsh[n], buffers_len_output[n]);
+			generate_candidates_without_lshnumber_BUFFER_offset_NEW(q, buffers_len[n], buffers_oristrings[n], buffer_embdata, buffers_buckets[n], buffers_buckets_offset[n], buffers_batch_size[n], buffers_candidates[n], size_cand[dev][iter], buffers_hash_lsh[n], buffers_len_output[n]);
 //			generate_candidates_without_lshnumber_offset(q, buffers_len[n], buffers_oristrings[n], embdata, buffers_buckets[n], buffers_buckets_offset[n], buffers_batch_size[n], buffers_candidates[n], size_for_test, buffers_hash_lsh[n], buffers_len_output[n],local_range);
 
 			q.wait();
@@ -3237,24 +3223,7 @@ void generate_candidates_without_lshnumber_offset_2dev_wrapper(vector<queue>& qu
 	cout << "Selected: Generate candidates - without lshnumber offset"<< std::endl;
 
 	cout<<"Len output: "<<len_output<<std::endl;
-//	ofstream outFile;
-//
-//
-//	outFile.open("cand_before_with_end", ios::out | ios::trunc);
-//
-//
-//	int i=0;
-//	for(auto &c:candidate){
-//		outFile<<get<0>(c)<<" "<<get<1>(c)<<" "<<get<2>(c)<<std::endl;
-//		i++;
-//	}
 
-
-
-//	int y_dim=NUM_BITS;
-//	int x_dim=static_cast<int>(250/*/NUM_BITS*/);
-//
-//	range<2> local_range(x_dim,y_dim);
 	{
 
 	int num_dev=queues.size();
@@ -3340,11 +3309,8 @@ void generate_candidates_without_lshnumber_offset_2dev_wrapper(vector<queue>& qu
 
 			int iter=0;
 
-//			size_for_test+=(dev>0?(candidate.size()%num_dev):0);
-
 			uint32_t start_b=get<0>(candidate[size_for_test*n]);
 			uint32_t end_b=get<2>(candidate[size_for_test*n+size_for_test-1])-1;
-
 			uint32_t size_buckets=end_b-start_b+1;
 
 			buckets_offset.emplace_back(start_b);
@@ -3354,28 +3320,19 @@ void generate_candidates_without_lshnumber_offset_2dev_wrapper(vector<queue>& qu
 			cout<<"\n\tBuckets size: "<<size_buckets<<std::endl;
 
 			buffers_oristrings.emplace_back( buffer<char,2>(oristrings,range<2>{NUM_STRING,LEN_INPUT}, {property::buffer::use_host_ptr()}));
-
-
 			buffers_buckets.emplace_back( buffer<tuple<int,int,int,int,int>>(buckets.data()+start_b,range<1>{size_buckets}, {property::buffer::use_host_ptr()}));
 
 
 			cout<<"\tCand size: "<<size_for_test<<std::endl;
 
 			buffers_hash_lsh.emplace_back( buffer<int, 2>(reinterpret_cast<int*>(local_hash_lsh),range<2>{NUM_HASH,NUM_BITS}, {property::buffer::use_host_ptr()}));
-
 			buffers_candidates.emplace_back( buffer<tuple<int,int,int,int,int,int>>(candidate.data()+n*size_for_test,range<1>{size_for_test}, {property::buffer::use_host_ptr()}));
-
 			buffers_len.emplace_back( buffer<int,1>(len.data(),range<1>{len.size()}, {property::buffer::use_host_ptr()}));
-
 			buffers_batch_size.emplace_back( buffer<unsigned int, 1>(&batch_size,range<1>{1}));
-
 			buffers_len_output.emplace_back( buffer<uint32_t, 1>(&len_output,range<1>{1}));
-
 			buffers_buckets_offset.emplace_back( buffer<uint32_t,1>(&buckets_offset.back(),range<1>{1}));
 
 			generate_candidates_without_lshnumber_offset_NEW(q, buffers_len[n], buffers_oristrings[n], embdata, buffers_buckets[n], buffers_buckets_offset[n], buffers_batch_size[n], buffers_candidates[n], size_for_test, buffers_hash_lsh[n], buffers_len_output[n]);
-
-//			generate_candidates_without_lshnumber_offset(q, buffers_len[n], buffers_oristrings[n], embdata, buffers_buckets[n], buffers_buckets_offset[n], buffers_batch_size[n], buffers_candidates[n], size_for_test, buffers_hash_lsh[n], buffers_len_output[n],local_range);
 
 			q.wait();
 
@@ -3432,23 +3389,9 @@ void generate_candidates_without_lshnumber_offset_2dev_wrapper(vector<queue>& qu
 
 		n_min=remaining_size-n_max;
 
-
-//		if(n_min%local_range[0]!=0){
-//			cout<<"\n\tNumber not aligned to local_range[0]"<<std::endl;
-//			cout<<"\n\tSplit: "<<static_cast<int>(n_min/local_range[0])*local_range[0]<<"and"<<n_min%local_range[0]<<std::endl;
-//
-//			size_cand[idx_max].emplace_back(static_cast<int>(n_min/local_range[0])*local_range[0]);
-//			size_cand[idx_max].emplace_back(n_min%local_range[0]);
-//		}
-//		else{
-			size_cand[idx_max].emplace_back(n_min);
-//		}
+		size_cand[idx_max].emplace_back(n_min);
 
 		size_cand[idx_min].emplace_back(n_max); // At this point n_max is multiple of local_range[0] for sure
-
-//		number_of_iter[idx_min]=1; // Because is multiple
-//		number_of_iter[idx_max]=((n_min%local_range[0])==0)?1:2;
-
 
 	}else if(num_dev==1){
 		n_max=0;
@@ -3458,21 +3401,7 @@ void generate_candidates_without_lshnumber_offset_2dev_wrapper(vector<queue>& qu
 
 		cout<<"\n\tNumber of candidates to assign to device: "<<n_min<<std::endl;
 
-
-//		if(n_min%local_range[0]!=0){
-//			cout<<"\n\tNumber not aligned to local_range[0]"<<std::endl;
-//			cout<<"\n\tSplit: "<<static_cast<int>(n_min/local_range[0])*local_range[0]<<"and"<<n_min%local_range[0]<<std::endl;
-//
-//			size_cand[idx_max].emplace_back(static_cast<int>(n_min/local_range[0])*local_range[0]);
-//			size_cand[idx_max].emplace_back(n_min%local_range[0]);
-//		}
-//		else{
-			size_cand[idx_max].emplace_back(n_min);
-//		}
-
-
-//		number_of_iter[idx_max]=((n_min%local_range[0])==0)?1:2;
-
+		size_cand[idx_max].emplace_back(n_min);
 	}
 
 
