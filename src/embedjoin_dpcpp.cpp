@@ -2994,17 +2994,17 @@ void generate_candidates_without_lshnumber_BUFFER_offset_2dev_wrapper(vector<que
 	vector<uint32_t> buckets_offset;
 	vector<vector<int>> reverse_index;
 
-	vector<buffer<int,1>> buffers_reverse_index;
-	vector<buffer<char,2>> buffers_oristrings;
-	vector<buffer<int, 1>> buffers_candidate_start;
-	vector<buffer<tuple<int,int,int,int,int>>> buffers_buckets;
-	vector<buffer<tuple<int,int>>> buffers_bucket_delimiter;
-	vector<buffer<int, 2>> buffers_hash_lsh;
-	vector<buffer<tuple<int,int,int,int,int,int>>> buffers_candidates;
-	vector<buffer<int,1>> buffers_len;
-	vector<buffer<unsigned int, 1>> buffers_batch_size;
-	vector<buffer<uint32_t, 1>> buffers_len_output;
-	vector<buffer<uint32_t,1>> buffers_buckets_offset;
+//	vector<buffer<int,1>> buffers_reverse_index;
+//	vector<buffer<char,2>> buffers_oristrings;
+//	vector<buffer<int, 1>> buffers_candidate_start;
+//	vector<buffer<tuple<int,int,int,int,int>>> buffers_buckets;
+//	vector<buffer<tuple<int,int>>> buffers_bucket_delimiter;
+//	vector<buffer<int, 2>> buffers_hash_lsh;
+//	vector<buffer<tuple<int,int,int,int,int,int>>> buffers_candidates;
+//	vector<buffer<int,1>> buffers_len;
+//	vector<buffer<unsigned int, 1>> buffers_batch_size;
+//	vector<buffer<uint32_t, 1>> buffers_len_output;
+//	vector<buffer<uint32_t,1>> buffers_buckets_offset;
 //	vector<buffer<char,2>> buffers_embdata;
 
 
@@ -3061,18 +3061,27 @@ void generate_candidates_without_lshnumber_BUFFER_offset_2dev_wrapper(vector<que
 
 			cout<<"\tCand size: "<<size_for_test<<std::endl;
 
-			buffers_hash_lsh.emplace_back( buffer<int, 2>(reinterpret_cast<int*>(local_hash_lsh),range<2>{NUM_HASH,NUM_BITS}, {property::buffer::use_host_ptr()}));
-			buffers_candidates.emplace_back( buffer<tuple<int,int,int,int,int,int>>(candidate.data()+n*size_for_test,range<1>{size_for_test}, {property::buffer::use_host_ptr()}));
-			buffers_len.emplace_back( buffer<int,1>(len.data(),range<1>{len.size()}, {property::buffer::use_host_ptr()}));
-			buffers_batch_size.emplace_back( buffer<unsigned int, 1>(&batch_size,range<1>{1}));
-			buffers_len_output.emplace_back( buffer<uint32_t, 1>(&len_output,range<1>{1}));
-			buffers_buckets_offset.emplace_back( buffer<uint32_t,1>(&buckets_offset.back(),range<1>{1}));
+//			buffers_hash_lsh.emplace_back( buffer<int, 2>(reinterpret_cast<int*>(local_hash_lsh),range<2>{NUM_HASH,NUM_BITS}, {property::buffer::use_host_ptr()}));
+//			buffers_candidates.emplace_back( buffer<tuple<int,int,int,int,int,int>>(candidate.data()+n*size_for_test,range<1>{size_for_test}, {property::buffer::use_host_ptr()}));
+//			buffers_len.emplace_back( buffer<int,1>(len.data(),range<1>{len.size()}, {property::buffer::use_host_ptr()}));
+//			buffers_batch_size.emplace_back( buffer<unsigned int, 1>(&batch_size,range<1>{1}));
+//			buffers_len_output.emplace_back( buffer<uint32_t, 1>(&len_output,range<1>{1}));
+//			buffers_buckets_offset.emplace_back( buffer<uint32_t,1>(&buckets_offset.back(),range<1>{1}));
 //			buffers_embdata.emplace_back(buffer<char,2>(tmp_embed.data(),range<2>(n_batches,batch_size*NUM_REP*NUM_STR*len_output)));
+
+			buffer<int, 2> buffers_hash_lsh(reinterpret_cast<int*>(local_hash_lsh),range<2>{NUM_HASH,NUM_BITS}, {property::buffer::use_host_ptr()});
+			buffer<tuple<int,int,int,int,int,int>> buffers_candidates(candidate.data()+n*size_for_test,range<1>{size_for_test}, {property::buffer::use_host_ptr()});
+			buffer<int,1> buffers_len(len.data(),range<1>{len.size()}, {property::buffer::use_host_ptr()});
+			buffer<unsigned int, 1> buffers_batch_size(&batch_size,range<1>{1});
+			buffer<uint32_t, 1> buffers_len_output(&len_output,range<1>{1});
+			buffer<uint32_t,1> buffers_buckets_offset(&buckets_offset.back(),range<1>{1});
+
+
 
 			buffer<char,2> buffer_embdata(tmp_embed.data(),range<2>(n_batches,batch_size*NUM_REP*NUM_STR*len_output));
 
 
-			generate_candidates_without_lshnumber_BUFFER_offset_NEW(q, buffers_len[n], buffers_oristrings[n], buffer_embdata, buffers_buckets[n], buffers_buckets_offset[n], buffers_batch_size[n], buffers_candidates[n], size_for_test, buffers_hash_lsh[n], buffers_len_output[n]);
+			generate_candidates_without_lshnumber_BUFFER_offset_NEW(q, buffers_len, buffers_oristrings, buffer_embdata, buffers_buckets, buffers_buckets_offset, buffers_batch_size, buffers_candidates, size_cand[dev][iter], buffers_hash_lsh, buffers_len_output);
 
 //			generate_candidates_without_lshnumber_offset(q, buffers_len[n], buffers_oristrings[n], embdata, buffers_buckets[n], buffers_buckets_offset[n], buffers_batch_size[n], buffers_candidates[n], size_for_test, buffers_hash_lsh[n], buffers_len_output[n],local_range);
 
@@ -3184,16 +3193,24 @@ void generate_candidates_without_lshnumber_BUFFER_offset_2dev_wrapper(vector<que
 
 			cout<<"\tCand size: "<<size_cand[dev][iter]<<std::endl;
 
-			buffers_hash_lsh.emplace_back( buffer<int, 2>(reinterpret_cast<int*>(local_hash_lsh),range<2>{NUM_HASH,NUM_BITS}, {property::buffer::use_host_ptr()}));
-			buffers_candidates.emplace_back( buffer<tuple<int,int,int,int,int,int>>(candidate.data()+offset_cand,range<1>{size_cand[dev][iter]}, {property::buffer::use_host_ptr()}));
-			buffers_len.emplace_back( buffer<int,1>(len.data(),range<1>{len.size()}, {property::buffer::use_host_ptr()}));
-			buffers_batch_size.emplace_back( buffer<unsigned int, 1>(&batch_size,range<1>{1}));
-			buffers_len_output.emplace_back( buffer<uint32_t, 1>(&len_output,range<1>{1}));
-			buffers_buckets_offset.emplace_back( buffer<uint32_t,1>(&buckets_offset.back(),range<1>{1}));
+//			buffers_hash_lsh.emplace_back( buffer<int, 2>(reinterpret_cast<int*>(local_hash_lsh),range<2>{NUM_HASH,NUM_BITS}, {property::buffer::use_host_ptr()}));
+//			buffers_candidates.emplace_back( buffer<tuple<int,int,int,int,int,int>>(candidate.data()+offset_cand,range<1>{size_cand[dev][iter]}, {property::buffer::use_host_ptr()}));
+//			buffers_len.emplace_back( buffer<int,1>(len.data(),range<1>{len.size()}, {property::buffer::use_host_ptr()}));
+//			buffers_batch_size.emplace_back( buffer<unsigned int, 1>(&batch_size,range<1>{1}));
+//			buffers_len_output.emplace_back( buffer<uint32_t, 1>(&len_output,range<1>{1}));
+//			buffers_buckets_offset.emplace_back( buffer<uint32_t,1>(&buckets_offset.back(),range<1>{1}));
 //			buffers_embdata.emplace_back(buffer<char,2>(tmp_embed.data(),range<2>(n_batches,batch_size*NUM_REP*NUM_STR*len_output)));
 			buffer<char,2> buffer_embdata(tmp_embed.data(),range<2>(n_batches,batch_size*NUM_REP*NUM_STR*len_output));
 
-			generate_candidates_without_lshnumber_BUFFER_offset_NEW(q, buffers_len[n], buffers_oristrings[n], buffer_embdata, buffers_buckets[n], buffers_buckets_offset[n], buffers_batch_size[n], buffers_candidates[n], size_cand[dev][iter], buffers_hash_lsh[n], buffers_len_output[n]);
+
+			buffer<int, 2> buffers_hash_lsh(reinterpret_cast<int*>(local_hash_lsh),range<2>{NUM_HASH,NUM_BITS}, {property::buffer::use_host_ptr()});
+			buffer<tuple<int,int,int,int,int,int>> buffers_candidates(candidate.data()+n*size_for_test,range<1>{size_for_test}, {property::buffer::use_host_ptr()});
+			buffer<int,1> buffers_len(len.data(),range<1>{len.size()}, {property::buffer::use_host_ptr()});
+			buffer<unsigned int, 1> buffers_batch_size(&batch_size,range<1>{1});
+			buffer<uint32_t, 1> buffers_len_output(&len_output,range<1>{1});
+			buffer<uint32_t,1> buffers_buckets_offset(&buckets_offset.back(),range<1>{1});
+
+			generate_candidates_without_lshnumber_BUFFER_offset_NEW(q, buffers_len, buffers_oristrings, buffer_embdata, buffers_buckets, buffers_buckets_offset, buffers_batch_size, buffers_candidates, size_cand[dev][iter], buffers_hash_lsh, buffers_len_output);
 //			generate_candidates_without_lshnumber_offset(q, buffers_len[n], buffers_oristrings[n], embdata, buffers_buckets[n], buffers_buckets_offset[n], buffers_batch_size[n], buffers_candidates[n], size_for_test, buffers_hash_lsh[n], buffers_len_output[n],local_range);
 
 			q.wait();
