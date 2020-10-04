@@ -1231,7 +1231,6 @@ vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, size_t n_b
 	std::atomic<size_t> atomic_num_outputs(0);
 	size_t to_verify=verifycan.size();
 	uint32_t num_candidates=to_verify;
-//	mutex mt;
 	output_pairs.resize(to_verify,{-1,-1});
 	std::cout<<"\n\tTo verify: "<<to_verify<<std::endl;
 
@@ -1257,13 +1256,10 @@ vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, size_t n_b
 					}
 					int ed = edit_distance(tmp_str2.data(), len_oristrings[second_str], tmp_str1.data(), len_oristrings[first_str] /*tmp_oridata[first_str].size()*/, K_INPUT);
 
-//					std::unique_lock<std::mutex> lk(mt);
 					if(ed != -1) {
 						atomic_num_outputs++;
 						output_pairs[j]=make_tuple(first_str, second_str);
-//						tmp_output_pair.emplace_back(first_str, second_str);
 					}
-//					num_candidates++;
 				}
 				else{
 					break;
@@ -1281,7 +1277,6 @@ vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, size_t n_b
 	output_pairs.erase( new_end, output_pairs.end());
 
 	cout<<"\n\tSize output pairs: "<<output_pairs.size()<<std::endl;
-	cout<<"\n\tSize CONCURRENT output pairs: "<<tmp_output_pair.size()<<std::endl;
 	size_t num_outputs=atomic_num_outputs.load();
 	timer.end_time(edit_dist::total);
 	cout<<"\n\t\tNum output: "<<num_outputs<<std::endl;
