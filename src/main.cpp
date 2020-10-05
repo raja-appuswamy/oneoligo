@@ -19,14 +19,14 @@ int main(int argc, char **argv){
 		batch_size=atoi(argv[5]);
 		n_batches=atoi(argv[6]);
 	}
-	if (argc==8){
-			filename = argv[1];
-			device=atoi(argv[2]);
-			samplingrange=atoi(argv[3]);
-			countfilter=atoi(argv[4]);
-			batch_size=atoi(argv[5]);
-			n_batches=atoi(argv[6]);
-			min_pts=atoi(argv[7]);
+	else if (argc==8){
+		filename = argv[1];
+		device=atoi(argv[2]);
+		samplingrange=atoi(argv[3]);
+		countfilter=atoi(argv[4]);
+		batch_size=atoi(argv[5]);
+		n_batches=atoi(argv[6]);
+		min_pts=atoi(argv[7]);
 	}
 	else{
 		std::cerr<<"usage: ./embedjoin input_data 0/1/2(cpu/gpu/both) len_input_strings count_filter batch_size number_of_batches\n"<<std::endl;

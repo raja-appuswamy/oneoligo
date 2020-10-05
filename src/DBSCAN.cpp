@@ -53,21 +53,17 @@ void get_consensus(vector<string> &input_dataset, vector<int> &label, int max_st
 
 void get_indexes(vector<tuple<int,int>> &similarity_results, unordered_map<int,vector<int>> &indexes, int max_index_str){
 
-	int j=0;
 
 	for(int i=0; i<max_index_str; i++){
 			indexes[i].emplace_back(i);
 	}
-
 	for(int i=0; i<similarity_results.size(); i++){
 		indexes[get<0>(similarity_results[i])].emplace_back(get<1>(similarity_results[i]));
-		indexes[get<1>(similarity_results[i])].emplace_back(get<0>(similarity_results[i]));
 	}
 	cout<<"Size indexes: "<<indexes.size()<<std::endl;
 }
 
 vector<int> DBSCAN(unordered_map<int,vector<int>> &indexes, int nPts, size_t size_dataset){
-
 
 	vector<int> label(size_dataset, UNDEFINED);
 	int min_points=nPts;
@@ -99,7 +95,6 @@ vector<int> DBSCAN(unordered_map<int,vector<int>> &indexes, int nPts, size_t siz
 			label[q]=cluster;
 			vector<int> &neigh_2=indexes.at(q);
 			if(neigh_2.size()>=min_points){
-
 				int prev_size=seed_set.size();
 				seed_set.insert(neigh_2.begin()+1,neigh_2.end());
 				if(prev_size!=seed_set.size()){
@@ -127,21 +122,29 @@ void oneCluster(vector<string> &input_data, size_t batch_size, size_t n_batches,
 	cout<<"\tSize of db: "<<input_data.size()<<std::endl;
 	cout<<"\tSize of results: "<<similarity_results.size()<<std::endl;
 
-	cout<<"Sorting results."<<std::endl;
+	cout<<"Creating indexes."<<std::endl;
 	auto start=std::chrono::system_clock::now();
+	size_t prev_size=similarity_results.size();
+	similarity_results.reserve(similarity_results.size()*2);
 
-	tbb::parallel_sort(similarity_results.begin(), similarity_results.end(), [](idpair e1, idpair e2){
+	for(int idx=0; idx<prev_size; idx++){
+		idpair p=similarity_results[idx];
+		similarity_results.push_back(make_tuple(get<1>(p),get<0>(p)));
+	}
+	int max_index_str=input_data.size();
+	auto start_2=std::chrono::system_clock::now();
+	tbb::parallel_sort(similarity_results.begin(), similarity_results.end(), [](idpair &e1, idpair &e2){
 		return get<0>(e1)<get<0>(e2);
 	});
-	auto end=std::chrono::system_clock::now();
-	cout<<"Time sorting: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<std::endl;
+	auto end_2=std::chrono::system_clock::now();
+	cout<<"Time sorting 2: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end_2-start_2).count()/1000<<std::endl;
 
-	cout<<"Creating indexes."<<std::endl;
-	start=std::chrono::system_clock::now();
-	int max_index_str=input_data.size();
-
+	start_2=std::chrono::system_clock::now();
 	get_indexes(similarity_results,indexes,max_index_str);
-	end=std::chrono::system_clock::now();
+	end_2=std::chrono::system_clock::now();
+	cout<<"Time creating indexes sub-step: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end_2-start_2).count()/1000<<std::endl;
+
+	auto end=std::chrono::system_clock::now();
 	cout<<"Time creating indexes: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<std::endl;
 
 	cout<<"Run DBSCAN."<<std::endl;
