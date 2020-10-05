@@ -93,14 +93,17 @@ void read_dataset(vector<string>& input_data, string filename){
 }
 
 
-void initialize_input_data(vector<string> &input_data, vector<size_t> &len_oristrings, char (*oristrings)[LEN_INPUT] ){
+void initialize_input_data(vector<string> &input_data, vector<size_t> &len_oristrings, vector<size_t> &idx_oristrings, char *oristrings ){
 
 	auto start=std::chrono::system_clock::now();
-
+	size_t offset=0;
 	for(int i=0; i<NUM_STRING; i++){
-		memset(oristrings[i],0,LEN_INPUT);
-		strncpy(oristrings[i],input_data[i].c_str(),std::min(static_cast<int>(input_data[i].size()),LEN_INPUT));
+		idx_oristrings.emplace_back(offset);
+//		memset(oristrings,0,LEN_INPUT);
+//		strncpy(oristrings[i],input_data[i].c_str(),std::min(static_cast<int>(input_data[i].size()),LEN_INPUT));
+		strncpy(oristrings+offset,input_data[i].c_str(),input_data[i].size());
 		len_oristrings.emplace_back(input_data[i].size());
+		offset+=input_data[i].size();
 	}
 
 	auto end=std::chrono::system_clock::now();
@@ -110,10 +113,10 @@ void initialize_input_data(vector<string> &input_data, vector<size_t> &len_orist
 }
 
 
-void initialization( vector<string> &input_data, std::vector<size_t> &len_oristrings, char (*oristrings)[LEN_INPUT], int (*hash_lsh)[NUM_BITS], std::vector<int> &a, std::vector<int> &lshnumber, vector<tuple<int,int>> &rev_hash ){
+void initialization( vector<string> &input_data, std::vector<size_t> &len_oristrings, std::vector<size_t> &idx_oristrings, char *oristrings, int (*hash_lsh)[NUM_BITS], std::vector<int> &a, std::vector<int> &lshnumber, vector<tuple<int,int>> &rev_hash ){
 
 	timer.start_time(init::init_data);
-	initialize_input_data(input_data, len_oristrings, oristrings);
+	initialize_input_data(input_data, len_oristrings, idx_oristrings, oristrings);
 	timer.end_time(init::init_data);
 	setuplsh(hash_lsh, a, lshnumber, rev_hash);
 }
@@ -273,19 +276,21 @@ void split_buffers(vector<vector<size_t>> &size_per_dev, size_t size_element, si
 }
 
 
-void parallel_embedding(queue &device_queue, buffer<size_t,1> &buffer_len_oristrings, buffer<char,2> &buffer_oristrings, buffer<char,1> &buffer_embdata, size_t batch_size, buffer<int,1> &buffer_lshnumber, buffer<int,1> &buffer_p, buffer<size_t,1> &buffer_len_output, buffer<uint32_t,1> &buffer_samplingrange, buffer<uint8_t,1> &buffer_dict, buffer<std::tuple<int,int>> &buffer_rev_hash){
+void parallel_embedding(queue &device_queue, buffer<size_t,1> &buffer_len_oristrings, buffer<size_t,1> &buffer_idx_oristrings, buffer<size_t,1> buffer_offset, buffer<char,1> &buffer_oristrings, buffer<char,1> &buffer_embdata, size_t batch_size, buffer<int,1> &buffer_lshnumber, buffer<int,1> &buffer_p, buffer<size_t,1> &buffer_len_output, buffer<uint32_t,1> &buffer_samplingrange, buffer<uint8_t,1> &buffer_dict, buffer<std::tuple<int,int>> &buffer_rev_hash){
 
 	std::cout << "\n\t\tTask: Embedding Data";
 	std::cout << "\tDevice: " << device_queue.get_device().get_info<info::device::name>() << std::endl;
 
 	device_queue.submit([&](handler &cgh){
 
+		auto acc_offset = buffer_offset.get_access<access::mode::read>(cgh);
 		auto acc_oristrings = buffer_oristrings.get_access<access::mode::read>(cgh);
 		auto acc_lshnumber = buffer_lshnumber.get_access<access::mode::read,access::target::constant_buffer>(cgh);
 		auto acc_embdata = buffer_embdata.get_access<access::mode::write>(cgh);
 		auto acc_dict = buffer_dict.get_access<access::mode::read>(cgh);
 		auto acc_samplingrange = buffer_samplingrange.get_access<access::mode::read>(cgh);
 		auto acc_len_oristrings = buffer_len_oristrings.get_access<access::mode::read>(cgh);
+		auto acc_idx_oristrings = buffer_idx_oristrings.get_access<access::mode::read>(cgh);
 		auto acc_p=buffer_p.get_access<access::mode::read>(cgh);
 		auto acc_len_output=buffer_len_output.get_access<access::mode::read>(cgh);
 		auto acc_rev_hash=buffer_rev_hash.get_access<access::mode::read>(cgh);
@@ -301,7 +306,8 @@ void parallel_embedding(queue &device_queue, buffer<size_t,1> &buffer_len_oristr
 			int k = index[2];
 
 			int partdigit = 0;
-			int size = acc_len_oristrings[id];
+			size_t size = acc_len_oristrings[id];
+			size_t start_idx = acc_idx_oristrings[id]-acc_offset[0];
 			int r = 0;
 			int len_out = acc_lshnumber.get_range()[0];
 			int i = SHIFT*k;
@@ -309,7 +315,7 @@ void parallel_embedding(queue &device_queue, buffer<size_t,1> &buffer_len_oristr
 
 			for(int j = 0; i < size && j <= acc_samplingrange[0]; i++){
 
-				char s = acc_oristrings[id][i];
+				char s = acc_oristrings[start_idx+i];
 				r = acc_dict[s];
 
 				j += ( acc_p[ABSPOS_P(l,r,j,len)] + 1 );
@@ -774,7 +780,7 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<buckets_t> &bucket
 }
 
 
-void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_oristrings, char (*oristrings)[LEN_INPUT], char** set_embdata_dev, size_t batch_size, size_t n_batches, std::vector<int> &lshnumber, size_t &len_output, std::vector<tuple<int,int>> &rev_hash){
+void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_oristrings, vector<size_t> &idx_oristrings, char *oristrings, char** set_embdata_dev, size_t batch_size, size_t n_batches, std::vector<int> &lshnumber, size_t &len_output, std::vector<tuple<int,int>> &rev_hash){
 
 	std::cout<< "Parallel Embedding"<<std::endl;
 	/**
@@ -814,15 +820,20 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 		 * Buffer are created inside the scope of this function, so buffer destructor
 		 * is used as synch method to put back data in the host
 		 * */
+		std::vector<size_t> offsets;
+		offsets.reserve(1000);
+		offsets.push_back(0);
 		std::vector<buffer<int,1>> buffers_p;
-		std::vector<buffer<char,2>> buffers_oristrings;
+		std::vector<buffer<char,1>> buffers_oristrings;
 		std::vector<buffer<int,1>> buffers_lshnumber;
 		std::vector<buffer<char,1>> buffers_embdata;
 		std::vector<buffer<uint8_t,1>> buffers_dict;
 		std::vector<buffer<size_t,1>> buffers_len_oristrings;
+		std::vector<buffer<size_t,1>> buffers_idx_oristrings;
 		std::vector<buffer<uint32_t,1>> buffers_samplingrange;
 		std::vector<buffer<size_t,1>> buffers_len_output;
 		std::vector<buffer<tuple<int,int>>> buffers_rev_hash;
+		std::vector<buffer<size_t,1>> buffers_offset;
 
 		int n=0;   // number of iterations
 		int dev=0; // device index
@@ -851,19 +862,25 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 
 				size_t size_p=static_cast<size_t>(NUM_STR*NUM_CHAR*(samplingrange+1));
 				size_t size_emb=static_cast<size_t>(batch_size*NUM_STR*NUM_REP*len_output);
+				std::cout<<"Offset: "<<idx_oristrings[n*batch_size]<<std::endl;
+				size_t next_offset=(n==(n_batches-1)?(idx_oristrings[idx_oristrings.size()-1]+len_oristrings[len_oristrings.size()-1]):idx_oristrings[(n+1)*batch_size]);
+				size_t current_offset=idx_oristrings[n*batch_size];
+				size_t size_oristrings=next_offset-current_offset;
 				uint32_t samprange=samplingrange;
 
 				buffers_p.emplace_back( buffer<int,1>(p, range<1>{size_p}) );
-				buffers_oristrings.emplace_back( buffer<char, 2>(reinterpret_cast<char*>((char*)oristrings[n*batch_size]),range<2>{batch_size,LEN_INPUT}) );
+				buffers_oristrings.emplace_back( buffer<char, 1>(oristrings+idx_oristrings[n*batch_size],range<1>{size_oristrings}) );
 				buffers_lshnumber.emplace_back( buffer<int, 1>(lshnumber.data(),range<1>{lshnumber.size()}) );
 				buffers_embdata.emplace_back( buffer<char, 1> (reinterpret_cast<char*>(set_embdata_dev[n]), range<1>{size_emb}, {property::buffer::use_host_ptr()}) );
 				buffers_dict.emplace_back( buffer<uint8_t,1>(dictory,range<1>{256}) );
 				buffers_len_oristrings.emplace_back( buffer<size_t,1>(len_oristrings.data()+n*batch_size,range<1>(batch_size)) );
+				buffers_idx_oristrings.emplace_back( buffer<size_t,1>(idx_oristrings.data()+n*batch_size,range<1>(batch_size)) );
 				buffers_samplingrange.emplace_back( buffer<uint32_t,1>(&samprange,range<1>(1)) );
 				buffers_len_output.emplace_back( buffer<size_t, 1>(&len_output,range<1>{1}) );
 				buffers_rev_hash.emplace_back( buffer<tuple<int,int>>(rev_hash.data(),range<1>(rev_hash.size())));
+				buffers_offset.emplace_back( buffer<size_t,1>(&offsets[n],range<1>{1}) );
 
-				parallel_embedding( queues[dev], buffers_len_oristrings[n], buffers_oristrings[n], buffers_embdata[n], batch_size, buffers_lshnumber[n], buffers_p[n], buffers_len_output[n], buffers_samplingrange[n], buffers_dict[n], buffers_rev_hash[n]);
+				parallel_embedding( queues[dev], buffers_len_oristrings[n], buffers_idx_oristrings[n], buffers_offset[n], buffers_oristrings[n], buffers_embdata[n], batch_size, buffers_lshnumber[n], buffers_p[n], buffers_len_output[n], buffers_samplingrange[n], buffers_dict[n], buffers_rev_hash[n]);
 
 				if(is_profiling){
 					queues[dev].wait();
@@ -875,6 +892,7 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 				}
 				n++;
 				iter++;
+				offsets.push_back(idx_oristrings[n*batch_size]);
 			}
 			dev++;
 			if(dev==queues.size() && is_profiling){
@@ -939,6 +957,10 @@ vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, size_t n_b
 	countfilter=new_countfilter;
 	size_t len_output=NUM_HASH*NUM_BITS;
 	timer=t;
+	size_t tot_input_strings_len=0;
+	for(auto &s:input_data){
+		tot_input_strings_len+=s.size();
+	}
 
 	print_configuration(batch_size, n_batches, len_output, countfilter, samplingrange);
 
@@ -972,8 +994,9 @@ vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, size_t n_b
 	 * len_oristrings: actual len of each input string
 	 * */
 
-	char (*oristrings)[LEN_INPUT];
+	char *oristrings;
 	vector<size_t> len_oristrings;
+	vector<size_t> idx_oristrings;
 
 	/**
 	 * OUTPUT:
@@ -1007,7 +1030,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, size_t n_b
 	vector<queue> queues;
 	try{
 		hash_lsh = new int[NUM_HASH][NUM_BITS];
-		oristrings = new char[NUM_STRING][LEN_INPUT];
+		oristrings = new char[tot_input_strings_len];
 		buckets.resize(NUM_STRING*NUM_STR*NUM_HASH*NUM_REP);
 
 	}catch(std::bad_alloc& e){
@@ -1039,7 +1062,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, size_t n_b
 	timer.start_time(init::total);
 
 	srand(11110);
-	initialization(input_data, len_oristrings, oristrings, hash_lsh, a, lshnumber, rev_hash);
+	initialization(input_data, len_oristrings, idx_oristrings, oristrings, hash_lsh, a, lshnumber, rev_hash);
 
 	timer.end_time(init::total);
 	std::cerr << "Start parallel algorithm..." << std::endl<<std::endl;
@@ -1057,7 +1080,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, size_t n_b
 	}
 	timer.end_time(embed::alloc);
 
-	parallel_embedding_wrapper(queues, len_oristrings, oristrings, set_embdata_dev, batch_size, n_batches, lshnumber, len_output, rev_hash);
+	parallel_embedding_wrapper(queues, len_oristrings, idx_oristrings, oristrings, set_embdata_dev, batch_size, n_batches, lshnumber, len_output, rev_hash);
 
 	for(auto &q : queues){
 		q.wait();
