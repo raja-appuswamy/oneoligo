@@ -36,7 +36,10 @@ namespace total_join{
     enum{ total=edit_dist::end+1, end };
 }
 namespace total_alg{
-    enum { total=total_join::end+1 };
+    enum { total=total_join::end+1, end };
+}
+namespace cluster{
+    enum { total=total_alg::end+1, create_indexes, sort, dbscan, consensus, end };
 }
 
 class Time {
