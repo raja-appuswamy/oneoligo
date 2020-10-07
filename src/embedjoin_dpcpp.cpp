@@ -84,9 +84,6 @@ void read_dataset(vector<string>& input_data, string filename){
 	int number_string = 0;
 	while (getline(data, cell))
 	{
-		if(number_string==NUM_STRING){
-			break;
-		}
 		number_string++;
 		input_data.push_back(cell);
 	}
@@ -97,7 +94,7 @@ void initialize_input_data(vector<string> &input_data, vector<size_t> &len_orist
 
 	auto start=std::chrono::system_clock::now();
 	size_t offset=0;
-	for(int i=0; i<NUM_STRING; i++){
+	for(int i=0; i<input_data.size(); i++){
 		idx_oristrings.emplace_back(offset);
 //		memset(oristrings,0,LEN_INPUT);
 //		strncpy(oristrings[i],input_data[i].c_str(),std::min(static_cast<int>(input_data[i].size()),LEN_INPUT));
@@ -393,7 +390,7 @@ void  create_buckets(queue &device_queue, char **embdata, buffer<buckets_t,1> &b
 }
 
 
-void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<buckets_t> &buckets, size_t n_batches, size_t batch_size, int* hash_lsh, vector<int> &a, vector<int> &lshnumber, size_t len_output){
+void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<buckets_t> &buckets, size_t n_batches, vector<batch_hdr> &batch_hdrs, int* hash_lsh, vector<int> &a, vector<int> &lshnumber, size_t len_output){
 
 	std::cout<< "\nCreate buckets"<<std::endl;
 	std::cout<<"\n\tLen output: "<<len_output<<std::endl;
@@ -413,7 +410,9 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 		inititalize_dictory(dictory);
 
 		std::vector<vector<size_t>> size_per_dev(num_dev, vector<size_t>(test_batches,1));
-		vector<size_t> offset(1,0);
+		list<size_t> offset(1,0);
+		size_t max_batch_size=batch_hdrs[0].size; //all values are equals, except for the last one
+
 		vector<sycl::buffer<buckets_t>> buffers_buckets;
 		vector<sycl::buffer<size_t,1>> buffers_batch_size;
 		vector<sycl::buffer<size_t,1>> buffers_split_size;
@@ -428,13 +427,13 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 
 		int n=0; // Global number of iteration
 		int dev=0; // Device index
-
+		int displacement=0;
 		cout<<"\n\tStart profiling on devices..."<<std::endl;
 		/**
 		 * Profiling kernel on devices by using the test batches;
 		 * Allocate work based on performances
 		 * Run kernel for remaining data
-		 * */
+		 **/
 		bool is_profiling=true;
 		while(dev<queues.size()){
 			int iter=0;
@@ -444,8 +443,8 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 				// includes kernel compiling time
 
 				auto start=std::chrono::system_clock::now();
-
-				split_size.emplace_back(size_per_dev[dev][iter]*batch_size);
+				size_t batches_to_process=size_per_dev[dev][iter];
+				split_size.emplace_back(batch_hdrs[displacement+batches_to_process-1].offset+batch_hdrs[displacement+batches_to_process-1].size-batch_hdrs[displacement].offset);
 				offset.emplace_back(offset.back()+(n==0?0:split_size[n-1]));
 				size_t loc_split_size=split_size[n];
 
@@ -455,7 +454,7 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 				buffers_a.emplace_back(buffer<uint32_t,1>((uint32_t*)a.data(),range<1>{a.size()}));
 				buffers_hash_lsh.emplace_back(buffer<uint32_t,2>((uint32_t*)hash_lsh, range<2>{NUM_HASH,NUM_BITS}));
 				buffers_dict.emplace_back(buffer<uint8_t,1>(dictory,range<1>{256}));
-				buffers_batch_size.emplace_back(buffer<size_t,1>(&batch_size, range<1>{1}));
+				buffers_batch_size.emplace_back(buffer<size_t,1>(&max_batch_size, range<1>{1}));
 				buffers_len_output.emplace_back(buffer<size_t,1>(&len_output, range<1>{1}));
 				buffers_split_offset.emplace_back(buffer<size_t,1> (&offset.back(), range<1>{1}));
 
@@ -473,6 +472,7 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 				}
 				n++;
 				iter++;
+				displacement+=batches_to_process;
 			}
 			dev++;
 			if(dev==queues.size() && is_profiling){
@@ -562,7 +562,7 @@ void generate_candidates(queue &device_queue, buffer<size_t,1> &buffer_len_orist
 }
 
 
-void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oristrings, char* oristrings, char **embdata, vector<buckets_t> &buckets, size_t batch_size, vector<candidate_t>& candidate, int * local_hash_lsh, vector<int> &lshnumber, size_t len_output){
+void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oristrings, char* oristrings, char **embdata, vector<buckets_t> &buckets, vector<batch_hdr> &batch_hdrs, vector<candidate_t>& candidate, int * local_hash_lsh, vector<int> &lshnumber, size_t len_output){
 
 	cout <<"\nGenerate candidates"<< std::endl;
 	cout<<"\n\tLen output: "<<len_output<<std::endl;
@@ -577,7 +577,8 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 		size_t size_for_test=0.01*candidate.size();
 		vector<vector<size_t>> size_cand(num_dev,vector<size_t>(test_batches,size_for_test));
 		vector<uint32_t> number_of_iter(num_dev);
-		vector<size_t> buckets_offset(1000);
+		list<size_t> buckets_offset;
+		size_t max_batch_size=batch_hdrs[0].size;
 
 		vector<buffer<buckets_t>> buffers_buckets;
 		vector<buffer<int, 2>> buffers_hash_lsh;
@@ -615,7 +616,7 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 				size_t end_b=get<2>((candidate.data()+offset_cand)[size_cand[dev][iter]-1])-1;
 				size_t size_buckets=end_b-start_b+1;
 
-				buckets_offset[n]=start_b;
+				buckets_offset.emplace_back(start_b);
 
 				cout<<"\n\tIter "<<dev<<". Start buckets at "<<offset_cand<<": "<<start_b<<std::endl;
 				cout<<"\tIter "<<dev<<". End buckets at "<<offset_cand + size_cand[dev][iter]-1<<": "<<end_b<<std::endl;
@@ -628,9 +629,9 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 				buffers_hash_lsh.emplace_back( buffer<int, 2>(reinterpret_cast<int*>(local_hash_lsh),range<2>{NUM_HASH,NUM_BITS}));
 				buffers_candidates.emplace_back( buffer<candidate_t>(candidate.data()+offset_cand,range<1>{size_cand[dev][iter]}));
 				buffers_len.emplace_back( buffer<size_t,1>(len_oristrings.data(),range<1>{len_oristrings.size()}));
-				buffers_batch_size.emplace_back( buffer<size_t, 1>(&batch_size,range<1>{1}));
+				buffers_batch_size.emplace_back( buffer<size_t, 1>(&max_batch_size,range<1>{1}));
 				buffers_len_output.emplace_back( buffer<size_t, 1>(&len_output,range<1>{1}));
-				buffers_buckets_offset.emplace_back( buffer<size_t,1>(&buckets_offset[n],range<1>{1}));
+				buffers_buckets_offset.emplace_back( buffer<size_t,1>(&buckets_offset.back(),range<1>{1}));
 
 				generate_candidates(queues[dev], buffers_len[n], embdata, buffers_buckets[n], buffers_buckets_offset[n], buffers_batch_size[n], buffers_candidates[n], size_cand[dev][iter], buffers_len_output[n]);
 
@@ -780,7 +781,7 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<buckets_t> &bucket
 }
 
 
-void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_oristrings, vector<size_t> &idx_oristrings, char *oristrings, char** set_embdata_dev, size_t batch_size, size_t n_batches, std::vector<int> &lshnumber, size_t &len_output, std::vector<tuple<int,int>> &rev_hash){
+void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_oristrings, vector<size_t> &idx_oristrings, char *oristrings, char** set_embdata_dev, vector<batch_hdr> &batch_hdrs, size_t n_batches, std::vector<int> &lshnumber, size_t &len_output, std::vector<tuple<int,int>> &rev_hash){
 
 	std::cout<< "Parallel Embedding"<<std::endl;
 	/**
@@ -820,9 +821,7 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 		 * Buffer are created inside the scope of this function, so buffer destructor
 		 * is used as synch method to put back data in the host
 		 * */
-		std::vector<size_t> offsets;
-		offsets.reserve(1000);
-		offsets.push_back(0);
+		std::list<size_t> offsets;
 		std::vector<buffer<int,1>> buffers_p;
 		std::vector<buffer<char,1>> buffers_oristrings;
 		std::vector<buffer<int,1>> buffers_lshnumber;
@@ -837,6 +836,7 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 
 		int n=0;   // number of iterations
 		int dev=0; // device index
+		size_t displacement=0;
 		//For each device, there are at least some test iteration.
 		std::vector<vector<size_t>> size_per_dev(num_dev, vector<size_t>(1,test_batches));
 
@@ -859,28 +859,29 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 			while(iter<size_per_dev[dev].back()){
 
 				auto start=std::chrono::system_clock::now();
-
+				offsets.push_back(idx_oristrings[batch_hdrs[n].offset]);
 				size_t size_p=static_cast<size_t>(NUM_STR*NUM_CHAR*(samplingrange+1));
-				size_t size_emb=static_cast<size_t>(batch_size*NUM_STR*NUM_REP*len_output);
-				std::cout<<"Offset: "<<idx_oristrings[n*batch_size]<<std::endl;
-				size_t next_offset=(n==(n_batches-1)?(idx_oristrings[idx_oristrings.size()-1]+len_oristrings[len_oristrings.size()-1]):idx_oristrings[(n+1)*batch_size]);
-				size_t current_offset=idx_oristrings[n*batch_size];
+				size_t size_emb=static_cast<size_t>(batch_hdrs[n].size*NUM_STR*NUM_REP*len_output);
+
+				std::cout<<"Offset: "<<idx_oristrings[batch_hdrs[n].offset]<<std::endl;
+				size_t next_offset=(n==(n_batches-1)?(idx_oristrings[idx_oristrings.size()-1]+len_oristrings[len_oristrings.size()-1]):idx_oristrings[batch_hdrs[n+1].offset]);
+				size_t current_offset=idx_oristrings[batch_hdrs[n].offset];
 				size_t size_oristrings=next_offset-current_offset;
 				uint32_t samprange=samplingrange;
 
 				buffers_p.emplace_back( buffer<int,1>(p, range<1>{size_p}) );
-				buffers_oristrings.emplace_back( buffer<char, 1>(oristrings+idx_oristrings[n*batch_size],range<1>{size_oristrings}) );
+				buffers_oristrings.emplace_back( buffer<char, 1>(oristrings+idx_oristrings[batch_hdrs[n].offset],range<1>{size_oristrings}) );
 				buffers_lshnumber.emplace_back( buffer<int, 1>(lshnumber.data(),range<1>{lshnumber.size()}) );
 				buffers_embdata.emplace_back( buffer<char, 1> (reinterpret_cast<char*>(set_embdata_dev[n]), range<1>{size_emb}, {property::buffer::use_host_ptr()}) );
 				buffers_dict.emplace_back( buffer<uint8_t,1>(dictory,range<1>{256}) );
-				buffers_len_oristrings.emplace_back( buffer<size_t,1>(len_oristrings.data()+n*batch_size,range<1>(batch_size)) );
-				buffers_idx_oristrings.emplace_back( buffer<size_t,1>(idx_oristrings.data()+n*batch_size,range<1>(batch_size)) );
+				buffers_len_oristrings.emplace_back( buffer<size_t,1>(len_oristrings.data()+batch_hdrs[n].offset,range<1>(batch_hdrs[n].size)) );
+				buffers_idx_oristrings.emplace_back( buffer<size_t,1>(idx_oristrings.data()+batch_hdrs[n].offset,range<1>(batch_hdrs[n].size)) );
 				buffers_samplingrange.emplace_back( buffer<uint32_t,1>(&samprange,range<1>(1)) );
 				buffers_len_output.emplace_back( buffer<size_t, 1>(&len_output,range<1>{1}) );
 				buffers_rev_hash.emplace_back( buffer<tuple<int,int>>(rev_hash.data(),range<1>(rev_hash.size())));
-				buffers_offset.emplace_back( buffer<size_t,1>(&offsets[n],range<1>{1}) );
+				buffers_offset.emplace_back( buffer<size_t,1>(&offsets.back(),range<1>{1}) );
 
-				parallel_embedding( queues[dev], buffers_len_oristrings[n], buffers_idx_oristrings[n], buffers_offset[n], buffers_oristrings[n], buffers_embdata[n], batch_size, buffers_lshnumber[n], buffers_p[n], buffers_len_output[n], buffers_samplingrange[n], buffers_dict[n], buffers_rev_hash[n]);
+				parallel_embedding( queues[dev], buffers_len_oristrings[n], buffers_idx_oristrings[n], buffers_offset[n], buffers_oristrings[n], buffers_embdata[n], batch_hdrs[n].size, buffers_lshnumber[n], buffers_p[n], buffers_len_output[n], buffers_samplingrange[n], buffers_dict[n], buffers_rev_hash[n]);
 
 				if(is_profiling){
 					queues[dev].wait();
@@ -892,7 +893,6 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 				}
 				n++;
 				iter++;
-				offsets.push_back(idx_oristrings[n*batch_size]);
 			}
 			dev++;
 			if(dev==queues.size() && is_profiling){
@@ -951,18 +951,20 @@ std::string getReportFileName(vector<queue>&queues, int device, size_t batch_siz
 }
 
 
-vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &t, string dataset_name) {
+vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &t, string dataset_name) {
 
 	samplingrange=new_samplingrange;
 	countfilter=new_countfilter;
 	size_t len_output=NUM_HASH*NUM_BITS;
 	timer=t;
-	size_t tot_input_strings_len=0;
+	size_t tot_input_size=0;
 	for(auto &s:input_data){
-		tot_input_strings_len+=s.size();
+		tot_input_size+=s.size();
 	}
+	size_t num_strings=input_data.size();
+	n_batches=num_strings/max_batch_size;
 
-	print_configuration(batch_size, n_batches, len_output, countfilter, samplingrange);
+	print_configuration(max_batch_size, n_batches, len_output, num_strings, countfilter, samplingrange);
 
 	auto asyncHandler = [&](cl::sycl::exception_list eL) {
 		for (auto& e : eL) {
@@ -1024,14 +1026,26 @@ vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, size_t n_b
 	 * 				have all lsh bits equal.
 	 *
 	 * queues: vector containing the sycl device queues.
-	 * */
+	 **/
 	vector<buckets_t> buckets;
 	vector<candidate_t> candidates;
 	vector<queue> queues;
+	vector<batch_hdr> batch_hdrs(n_batches,{max_batch_size,0});
+	if( (num_strings%max_batch_size) !=0){
+		std::cout<<"Size last batch: "<<num_strings%max_batch_size<<std::endl;
+		batch_hdrs.emplace_back(batch_hdr(num_strings%max_batch_size,0));
+		n_batches++;
+		std::cout<<"Updated n_batches: "<<n_batches<<std::endl;
+	}
+	std::cout<<"Batch size: "<<batch_hdrs[0].size<<" "<<batch_hdrs[0].offset<<std::endl;
+	for(int i=1; i<batch_hdrs.size(); i++){
+		batch_hdrs[i].offset+=batch_hdrs[i-1].offset+batch_hdrs[i-1].size;
+		std::cout<<"Batch size: "<<batch_hdrs[i].size<<" "<<batch_hdrs[i].offset<<std::endl;
+	}
 	try{
 		hash_lsh = new int[NUM_HASH][NUM_BITS];
-		oristrings = new char[tot_input_strings_len];
-		buckets.resize(NUM_STRING*NUM_STR*NUM_HASH*NUM_REP);
+		oristrings = new char[tot_input_size];
+		buckets.resize(num_strings*NUM_STR*NUM_HASH*NUM_REP);
 
 	}catch(std::bad_alloc& e){
 		std::cerr<<"It is not possible allocate the requested size."<<std::endl;
@@ -1044,13 +1058,12 @@ vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, size_t n_b
 		try{
 			queue tmp_queue(gpu_selector{}, asyncHandler, property::queue::in_order());
 			queues.push_back(std::move(tmp_queue));
-
 		}catch(std::exception& e){ // No GPU available, use CPU if not selected yet
 			std::cout<<"Attention: no GPU device detected. The program will run on CPU."<<std::endl;
-
 			if( queues.size()==0 ){
 				queues.push_back(queue(cpu_selector{}, asyncHandler, property::queue::in_order()));
 			}
+			device=0;
 		}
 	}
 	cout<<"\nNumber of devices: "<<queues.size()<<std::endl<<std::endl;
@@ -1075,12 +1088,12 @@ vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, size_t n_b
 	timer.start_time(embed::alloc);
 	char **set_embdata_dev=(char**)malloc_shared<char*>(n_batches, queues.back());
 	for(int n=0; n<n_batches; n++){
-		set_embdata_dev[n]=malloc_shared<char>(batch_size*NUM_STR*NUM_REP*len_output, queues.back());
-		memset(set_embdata_dev[n],0,batch_size*NUM_STR*NUM_REP*len_output);
+		set_embdata_dev[n]=malloc_shared<char>(batch_hdrs[n].size*NUM_STR*NUM_REP*len_output, queues.back());
+		memset(set_embdata_dev[n],0,batch_hdrs[n].size*NUM_STR*NUM_REP*len_output);
 	}
 	timer.end_time(embed::alloc);
 
-	parallel_embedding_wrapper(queues, len_oristrings, idx_oristrings, oristrings, set_embdata_dev, batch_size, n_batches, lshnumber, len_output, rev_hash);
+	parallel_embedding_wrapper(queues, len_oristrings, idx_oristrings, oristrings, set_embdata_dev, batch_hdrs, n_batches, lshnumber, len_output, rev_hash);
 
 	for(auto &q : queues){
 		q.wait();
@@ -1102,7 +1115,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, size_t n_b
 
 	timer.start_time(buckets::total);
 
-	create_buckets_wrapper(queues, (char**)set_embdata_dev, buckets, n_batches, batch_size, (int*)hash_lsh, a, lshnumber, len_output);
+	create_buckets_wrapper(queues, (char**)set_embdata_dev, buckets, n_batches, batch_hdrs, (int*)hash_lsh, a, lshnumber, len_output);
 
 	for(auto &q:queues){
 		q.wait();
@@ -1140,7 +1153,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, size_t n_b
 
 	 timer.start_time(cand::total);
 
-	 generate_candidates_wrapper(queues, len_oristrings, (char*)oristrings, (char**)set_embdata_dev, buckets, batch_size, candidates, (int *)hash_lsh, lshnumber, len_output);
+	 generate_candidates_wrapper(queues, len_oristrings, (char*)oristrings, (char**)set_embdata_dev, buckets, batch_hdrs, candidates, (int *)hash_lsh, lshnumber, len_output);
 
 	 timer.end_time(cand::total);
 
@@ -1312,7 +1325,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, size_t n_b
 
 	timer.print_summary(num_candidates,num_outputs);
 
-	string report_name=getReportFileName(queues, device, batch_size);
+	string report_name=getReportFileName(queues, device, max_batch_size);
 	{
 		ofstream out_file;
 		out_file.open("report-"+dataset_name+report_name, ios::out | ios::trunc);

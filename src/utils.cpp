@@ -2,43 +2,35 @@
 
 using namespace std;
 
-void print_oristrings( char *oristrings, vector<int> len )
+void print_oristrings( vector<string> &oristrings, vector<int> len )
 {
-	char **tmp;
-	tmp=&oristrings;
 	string filename_output="oristrings.txt";
 	ofstream outFile;
 
 	outFile.open(filename_output, ios::out | ios::trunc);
 
 	if (outFile.is_open()) {
-		for(int i=0; i<NUM_STRING; i++){
-			for(int t=0; t<len[i]; t++){
-				outFile<<tmp[i][t];
-			}
+		for(auto &s:oristrings){
 			outFile<<std::endl;
-			}
+		}
 	}
 };
 
 
-void print_embedded( char **output, int len_output, int batch_size, std::string filename ){
+void print_embedded( char **output, size_t len_output, vector<batch_hdr> &batch_hdrs, size_t num_strings, std::string filename ){
 
 	ofstream outFile;
 	outFile.open(filename, ios::out | ios::trunc);
-
+	size_t max_batch_size=batch_hdrs[0].size;
 	if (outFile.is_open()) {
-		
-		for(int i=0; i<NUM_STRING; i++){
+		for(int i=0; i<num_strings; i++){
 			for(int j=0; j<NUM_STR; j++ ){
 				for(int k=0; k<NUM_REP; k++){
 					for(int t=0; t<len_output; t++){
-
-						if(output[(int)(i/batch_size)][ABSPOS((int)(i%batch_size),j,k,t,len_output)]==0){
+						if(output[(int)(i/max_batch_size)][ABSPOS((int)(i%max_batch_size),j,k,t,len_output)]==0){
 							break;
 						}
-						
-						outFile<<output[(int)(i/batch_size)][ABSPOS((int)(i%batch_size),j,k,t,len_output)];
+						outFile<<output[(int)(i/max_batch_size)][ABSPOS((int)(i%max_batch_size),j,k,t,len_output)];
 					}
 					outFile<<std::endl;
 				}
@@ -74,10 +66,9 @@ void print_candidate_pairs( vector<candidate_t> &candidates, std::string filenam
 };
 
 
-void print_configuration(int batch_size,int n_batches, size_t len_output, int countfilter, int samplingrange){
+void print_configuration(int batch_size,int n_batches, size_t len_output, size_t num_input_strings, int countfilter, int samplingrange){
 	std::cout<<"\nParameter selected:"<<std::endl;
-	std::cout<<"\tNum of strings:\t\t\t\t\t"<<NUM_STRING<<std::endl;
-	std::cout<<"\tMax len of strings:\t\t\t\t"<<LEN_INPUT<<std::endl;
+	std::cout<<"\tNum of strings:\t\t\t\t\t"<<num_input_strings<<std::endl;
 	std::cout<<"\tLen output:\t\t\t\t\t"<<len_output<<std::endl;
 	std::cout<<"\tSamplingrange:\t\t\t\t\t"<<samplingrange<<std::endl;
 	std::cout<<"\tNumber of Hash Function:\t\t\t"<<NUM_HASH<<std::endl;

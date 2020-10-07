@@ -38,6 +38,12 @@ using buckets_t = std::tuple<int,int,int,int,int>;
 using candidate_t = std::tuple<uint32_t,uint32_t,uint32_t,uint8_t>;
 using idpair=std::tuple<int, int>;
 
+struct batch_hdr{
+	size_t size;
+	size_t offset;
+	batch_hdr(size_t size, size_t offset): size(size), offset(offset){}
+};
+
 #define PRINT_EACH_STEP 0
 #define NUMREPCHARS(len_output) (len_output * NUM_REP)
 #define NUMSTRCHARS(len_output) (NUMREPCHARS(len_output) * NUM_STR)
@@ -60,14 +66,6 @@ using idpair=std::tuple<int, int>;
 
 #ifndef NUM_CHAR
 	#define NUM_CHAR 4 //dictsize: alpha beta size of input strings, could be 4 for DNA dataset (ACGT); 26 for UNIREF dataset (A~Z); 37 for TREC dataset (A~Z,0~9,' ')
-#endif
-
-#ifndef NUM_STRING
-	#define NUM_STRING 300000
-#endif
-
-#ifndef LEN_INPUT
-	#define LEN_INPUT 5153
 #endif
 
 #ifndef ALLOUTPUTRESULT
@@ -105,10 +103,10 @@ using idpair=std::tuple<int, int>;
 int edit_distance(const char *x, const int x_len, const  char *y, const int y_len, int k);
 void read_dataset(vector<string> &input_data, string filename);
 void print_oristrings( char *oristrings, vector<int> len );
-void print_embedded( char **output, int len_output, int batch_size, std::string filename );
+void print_embedded( char **output, size_t len_output, vector<batch_hdr> &batch_hdrs, size_t num_strings, std::string filename );
 void print_buckets( vector<buckets_t> &buckets, std::string filename);
 void print_candidate_pairs( vector<candidate_t> &candidates, std::string filename );
-void print_configuration(int batch_size, int n_batches, size_t len_output, int countfilter, int samplingrange);
+void print_configuration(int batch_size,int n_batches, size_t len_output, size_t num_input_strings, int countfilter, int samplingrange);
 vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &timer, string dataset_name="");
 void oneCluster(vector<string> &input_data, size_t batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &timer, int nPts, string dataset_name="");
 
