@@ -42,13 +42,13 @@ int main(int argc, char **argv){
 
 //	onejoin(input_data,batch_size,n_batches,device,samplingrange,countfilter,timer,"GEN320ks");
 
-//	vector<int> parameters={10,50,100,150,200,250,300,350};
+	vector<int> parameters={10,50,100,150,200,250,300,350};
 //	vector<int> parameters={1,2,3,4,5,10,15,20,25,30,35,40};
 
 
 
-//	for(auto &min_pts:parameters){
+	for(auto &min_pts:parameters){
 	cout<<"oneDBSCAN min points: "<<min_pts<<std::endl;
 	oneCluster(input_data,batch_size,n_batches,device,samplingrange,countfilter,timer,min_pts,"GEN320ks");
-//	}
+	}
 }

@@ -23,7 +23,7 @@ void get_consensus(vector<string> &input_dataset, vector<int> &label, int max_st
 	}
 	std::cout<<clusters.size()<<std::endl;
 
-	vector<uint8_t> counter(256,0);
+	vector<uint32_t> counter(256,0);
 	counter['A']=0;
 	counter['C']=0;
 	counter['T']=0;
@@ -35,10 +35,14 @@ void get_consensus(vector<string> &input_dataset, vector<int> &label, int max_st
 		for(int digit=0; digit<max_string_len; digit++){
 			for(auto &string_idx:c.second){
 				char ch=input_dataset[string_idx][digit];
-				counter[(uint8_t)ch]++;
+				counter[ch]++;
 			}
 			auto max_ch=max_element(counter.begin(), counter.end());
 			char true_ch=std::distance(counter.begin(), max_ch);
+			if(true_ch!='A' && true_ch!='C' && true_ch!='G' && true_ch!='T' &&  true_ch!='N'){
+				cout<<"Error character"<<std::endl;
+				exit(-1);
+			}
 			true_string+=true_ch;
 			counter['A']=0;
 			counter['C']=0;
