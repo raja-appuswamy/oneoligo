@@ -1,14 +1,10 @@
-//==============================================================
-// Copyright © 2020 Intel Corporation
-//
-// SPDX-License-Identifier: MIT
-// =============================================================
 #include<CL/sycl.hpp>
-#include<dpstd/execution>
-#include<dpstd/algorithm>
+#include<oneapi/dpl/execution>
+#include<oneapi/dpl/algorithm>
+#include<oneapi/dpl/iterator>
 #include "tbb/parallel_sort.h"
 using namespace sycl;
-using namespace dpstd::execution;
+using namespace oneapi::dpl::execution;
 using namespace std;
 
 struct MyStruct{
@@ -80,7 +76,7 @@ void sort_dpl(queue &q, size_t max_size){
      {
         buffer<MyStruct> buf{v.data(), v.size()};
 
-        std::sort(make_device_policy(q), dpstd::begin(buf), dpstd::end(buf), [](MyStruct t1, MyStruct t2){
+        std::sort(make_device_policy(q), oneapi::dpl::begin(buf), oneapi::dpl::end(buf), [](MyStruct t1, MyStruct t2){
             return t1.key<t2.key;
         });
      }
@@ -169,7 +165,7 @@ void sort_dpl_tuples(queue &q, size_t max_size){
      {
         buffer<tuple<size_t,size_t,size_t>> buf{v.data(), v.size()};
 
-        std::sort(make_device_policy(q), dpstd::begin(buf), dpstd::end(buf), [](tuple<size_t,size_t,size_t> t1, tuple<size_t,size_t,size_t> t2){
+        std::sort(make_device_policy(q), oneapi::dpl::begin(buf), oneapi::dpl::end(buf), [](tuple<size_t,size_t,size_t> t1, tuple<size_t,size_t,size_t> t2){
             return get<0>(t1)<get<0>(t2);
         });
      }
@@ -207,3 +203,4 @@ int main() {
 
     return 0;
 }
+

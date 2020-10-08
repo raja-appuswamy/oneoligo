@@ -1110,8 +1110,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	timer.start_time(total_join::total);
 	/**
 	 * CREATE BUCKETS STEP
-	 * **/
-
+	 ***/
 	timer.start_time(buckets::total);
 
 	create_buckets_wrapper(queues, (char**)set_embdata_dev, buckets, n_batches, batch_hdrs, (int*)hash_lsh, a, lshnumber, len_output);
