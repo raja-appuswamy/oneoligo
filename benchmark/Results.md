@@ -1,5 +1,6 @@
 u-----@s001-n174:~/oneoligo/benchmark$ make run
 ./sorting_test
+
 SORTING TEST
 
 Time DPL SORT with STRUCT on Intel(R) Gen9 HD Graphics NEO: 10sec - PASSED
