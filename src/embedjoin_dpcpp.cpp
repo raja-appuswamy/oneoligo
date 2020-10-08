@@ -1040,7 +1040,6 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	std::cout<<"Batch size: "<<batch_hdrs[0].size<<" "<<batch_hdrs[0].offset<<std::endl;
 	for(int i=1; i<batch_hdrs.size(); i++){
 		batch_hdrs[i].offset+=batch_hdrs[i-1].offset+batch_hdrs[i-1].size;
-		std::cout<<"Batch size: "<<batch_hdrs[i].size<<" "<<batch_hdrs[i].offset<<std::endl;
 	}
 	try{
 		hash_lsh = new int[NUM_HASH][NUM_BITS];

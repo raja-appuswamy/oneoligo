@@ -108,6 +108,5 @@ void print_buckets( vector<buckets_t> &buckets, std::string filename);
 void print_candidate_pairs( vector<candidate_t> &candidates, std::string filename );
 void print_configuration(int batch_size,int n_batches, size_t len_output, size_t num_input_strings, int countfilter, int samplingrange);
 vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &timer, string dataset_name="");
-void oneCluster(vector<string> &input_data, size_t batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &timer, int nPts, string dataset_name="");
 
 #endif
