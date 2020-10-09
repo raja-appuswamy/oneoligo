@@ -137,7 +137,9 @@ void oneCluster(vector<string> &input_data, size_t batch_size, size_t n_batches,
 		if(input_data.size()==0 && total_output_dataset.size()>0){
 			//Begins the last iteration
 			end=true;
-			input_chunk=move(total_output_dataset);
+			if(chunk_num>1){
+				input_chunk=move(total_output_dataset);
+			}
 		}
 		else{
 			input_chunk.insert(input_chunk.end(), make_move_iterator(input_data.begin()),make_move_iterator(input_data.begin()+range));
