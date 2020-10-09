@@ -38,17 +38,16 @@ int main(int argc, char **argv){
 	read_dataset(input_data, filename);
 	timer.end_time(init::read_dataset);
 
-
-
 //	onejoin(input_data,batch_size,n_batches,device,samplingrange,countfilter,timer,"GEN320ks");
 
-	vector<int> parameters={10,50,100,150,200,250,300,350};
-//	vector<int> parameters={1,2,3,4,5,10,15,20,25,30,35,40};
+//	vector<int> parameters={10,50,100,150,200,250,300,350};
 
 
-
-	for(auto &min_pts:parameters){
+//	for(auto &min_pts:parameters){
+	auto start=std::chrono::system_clock::now();
 	cout<<"oneDBSCAN min points: "<<min_pts<<std::endl;
 	oneCluster(input_data,batch_size,n_batches,device,samplingrange,countfilter,timer,min_pts,"GEN320ks");
-	}
+	auto end=std::chrono::system_clock::now();
+	std::cout<<"Total CLUSTERING time: "<<std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
+//	}
 }

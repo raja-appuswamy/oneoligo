@@ -8,7 +8,7 @@ using namespace std;
 
 constexpr int UNDEFINED=-2;
 constexpr int NOISE=-1;
-
+constexpr size_t chunk_size=10000;
 
 void get_consensus(vector<string> &input_dataset, vector<int> &label, int max_string_len, vector<string> &output_dataset){
 
@@ -113,59 +113,100 @@ vector<int> DBSCAN(unordered_map<int,vector<int>> &indexes, int nPts, size_t siz
 
 void oneCluster(vector<string> &input_data, size_t batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &timer, int nPts, string dataset_name){
 
-	vector<idpair> similarity_results;
-	unordered_map<int,vector<int>> indexes;
-	vector<string> output_dataset;
-	vector<int> labels;
 	size_t len_input=91;
 	int min_points=nPts;
+	vector<string> total_output_dataset;
+	int chunk_num=0;
+	bool end=false;
 
-	cout<<"Computing edit distance."<<std::endl;
-	similarity_results=onejoin(input_data,batch_size,n_batches,device,new_samplingrange,new_countfilter,timer,"GEN320ks");
+	while(!end){
 
-	cout<<"\tSize of db: "<<input_data.size()<<std::endl;
-	cout<<"\tSize of results: "<<similarity_results.size()<<std::endl;
+		vector<idpair> similarity_results;
+		unordered_map<int,vector<int>> indexes;
+		vector<string> output_dataset;
+		vector<int> labels;
 
-	cout<<"Creating indexes."<<std::endl;
-	auto start=std::chrono::system_clock::now();
-	size_t prev_size=similarity_results.size();
-	similarity_results.reserve(similarity_results.size()*2);
+		random_shuffle(input_data.begin(),input_data.end());
 
-	for(int idx=0; idx<prev_size; idx++){
-		idpair p=similarity_results[idx];
-		similarity_results.push_back(make_tuple(get<1>(p),get<0>(p)));
-	}
-	int max_index_str=input_data.size();
-	auto start_2=std::chrono::system_clock::now();
-	tbb::parallel_sort(similarity_results.begin(), similarity_results.end(), [](idpair &e1, idpair &e2){
-		return get<0>(e1)<get<0>(e2);
-	});
-	auto end_2=std::chrono::system_clock::now();
-	cout<<"Time sorting 2: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end_2-start_2).count()/1000<<std::endl;
+		size_t range=std::min(chunk_size,input_data.size());
 
-	start_2=std::chrono::system_clock::now();
-	get_indexes(similarity_results,indexes,max_index_str);
-	end_2=std::chrono::system_clock::now();
-	cout<<"Time creating indexes sub-step: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end_2-start_2).count()/1000<<std::endl;
+		std::cout<<range<<std::endl;
 
-	auto end=std::chrono::system_clock::now();
-	cout<<"Time creating indexes: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<std::endl;
+		vector<string> input_chunk;
 
-	cout<<"Run DBSCAN."<<std::endl;
-	start=std::chrono::system_clock::now();
-	labels=DBSCAN(indexes,min_points,input_data.size());
-	end=std::chrono::system_clock::now();
-	cout<<"Time oneDBSCAN: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<std::endl;
+		if(input_data.size()==0 && total_output_dataset.size()>0){
+			//Begins the last iteration
+			end=true;
+			input_chunk=move(total_output_dataset);
+		}
+		else{
+			input_chunk.insert(input_chunk.end(), make_move_iterator(input_data.begin()),make_move_iterator(input_data.begin()+range));
+			input_data.erase(input_data.begin(),input_data.begin()+range);
+			std::cout<<"Input chunk size: "<<input_chunk.size()<<std::endl;
+		}
 
-	start=std::chrono::system_clock::now();
-	get_consensus(input_data, labels, len_input, output_dataset);
-	end=std::chrono::system_clock::now();
 
-	cout<<"Time consensus: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<std::endl;
+		cout<<"Computing join."<<std::endl;
 
-	ofstream out_file("consensus_results_min_points_"+to_string(min_points));
-	for(auto&s:output_dataset){
-		out_file<<s<<std::endl;
+		similarity_results=onejoin(input_chunk,batch_size,n_batches,device,new_samplingrange,new_countfilter,timer,"GEN320ks");
+
+		cout<<"\tSize of db: "<<input_data.size()<<std::endl;
+		cout<<"\tSize of results: "<<similarity_results.size()<<std::endl;
+
+		cout<<"Creating indexes."<<std::endl;
+		auto start=std::chrono::system_clock::now();
+
+		size_t prev_size=similarity_results.size();
+
+		similarity_results.reserve(similarity_results.size()*2);
+
+		for(int idx=0; idx<prev_size; idx++){
+			idpair p=similarity_results[idx];
+			similarity_results.push_back(make_tuple(get<1>(p),get<0>(p)));
+		}
+
+		int max_index_str=input_chunk.size();
+		auto start_2=std::chrono::system_clock::now();
+		tbb::parallel_sort(similarity_results.begin(), similarity_results.end(), [](idpair &e1, idpair &e2){
+			return get<0>(e1)<get<0>(e2);
+		});
+		auto end_2=std::chrono::system_clock::now();
+		cout<<"Time sorting 2: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end_2-start_2).count()/1000<<std::endl;
+
+		start_2=std::chrono::system_clock::now();
+
+		get_indexes(similarity_results,indexes,max_index_str);
+
+		end_2=std::chrono::system_clock::now();
+		cout<<"Time creating indexes sub-step: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end_2-start_2).count()/1000<<std::endl;
+
+		auto end=std::chrono::system_clock::now();
+		cout<<"Time creating indexes: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<std::endl;
+
+		cout<<"Run DBSCAN."<<std::endl;
+		start=std::chrono::system_clock::now();
+
+		labels=DBSCAN(indexes,min_points,input_chunk.size());
+
+		end=std::chrono::system_clock::now();
+		cout<<"Time oneDBSCAN: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<std::endl;
+
+		start=std::chrono::system_clock::now();
+
+		get_consensus(input_chunk, labels, len_input, output_dataset);
+
+		end=std::chrono::system_clock::now();
+
+		cout<<"Time consensus: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<std::endl;
+
+		ofstream out_file("consensus_results_chunk_"+to_string(chunk_num));
+		chunk_num++;
+
+		for(auto&s:output_dataset){
+			out_file<<s<<std::endl;
+		}
+		total_output_dataset.insert(total_output_dataset.end(), make_move_iterator(output_dataset.begin()), make_move_iterator(output_dataset.end()));
+
 	}
 }
 
