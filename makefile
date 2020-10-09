@@ -1,5 +1,5 @@
 CXX=dpcpp
-PARAMS=-DNUM_STRING=450000UL -DNUM_STR=7 -DNUM_HASH=16 -DNUM_BITS=12 -DNUM_CHAR=4 -DK_INPUT=150 -DLEN_INPUT=5110 -DNUM_REP=3
+PARAMS=-DNUM_STR=1 -DNUM_HASH=2 -DNUM_BITS=48 -DNUM_CHAR=5 -DK_INPUT=10 -DNUM_REP=1
 CXXFLAGS= -O2 -std=c++17 -fsycl -fsycl-unnamed-lambda $(PARAMS) #-gline-tables-only -fdebug-info-for-profiling
 LDFLAGS= -lsycl -ltbb -lpthread #-littnotify -ldl
 DPCPP_EXE_NAME=embedjoin
