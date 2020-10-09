@@ -8,7 +8,7 @@ using namespace std;
 
 constexpr int UNDEFINED=-2;
 constexpr int NOISE=-1;
-constexpr size_t chunk_size=10000;
+constexpr size_t chunk_size=1000000;
 
 void get_consensus(vector<string> &input_dataset, vector<int> &label, int max_string_len, vector<string> &output_dataset){
 
