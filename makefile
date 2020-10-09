@@ -13,11 +13,10 @@ build:	#src/embedjoin_dpcpp.o	src/verification.o
 # Gen Dataset
 
 run1:
-	./embedjoin only91nts.merged.fastq 0  5000 1 10000 45
+	./embedjoin only91nts.merged.fastq 0 91 1 10000 45
     
 run2:
 	./embedjoin gen320ks.txt 1  5000 1 10000 45
-
 
 run3:
 	./embedjoin gen320ks.txt 2 5000 1 10000 45
