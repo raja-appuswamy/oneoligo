@@ -134,7 +134,7 @@ void oneCluster(vector<string> &input_data, size_t batch_size, size_t n_batches,
 
 		vector<string> input_chunk;
 
-		if(input_data.size()==0 && total_output_dataset.size()>0 && chunk_num>1){
+		if(input_data.size()==0 && total_output_dataset.size()>0){
 			//Begins the last iteration
 			end=true;
 			input_chunk=move(total_output_dataset);
@@ -145,6 +145,9 @@ void oneCluster(vector<string> &input_data, size_t batch_size, size_t n_batches,
 			std::cout<<"Input chunk size: "<<input_chunk.size()<<std::endl;
 		}
 
+		if(input_chunk.size()==0){
+			break;
+		}
 
 		cout<<"Computing join."<<std::endl;
 
