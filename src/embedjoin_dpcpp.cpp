@@ -1037,7 +1037,6 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 		n_batches++;
 		std::cout<<"Updated n_batches: "<<n_batches<<std::endl;
 	}
-	std::cout<<"Batch size: "<<batch_hdrs[0].size<<" "<<batch_hdrs[0].offset<<std::endl;
 	for(int i=1; i<batch_hdrs.size(); i++){
 		batch_hdrs[i].offset+=batch_hdrs[i-1].offset+batch_hdrs[i-1].size;
 	}
