@@ -635,6 +635,7 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 
 				generate_candidates(queues[dev], buffers_len[n], embdata, buffers_buckets[n], buffers_buckets_offset[n], buffers_batch_size[n], buffers_candidates[n], size_cand[dev][iter], buffers_len_output[n]);
 
+				cout<<"Exit from kernel"<<std::endl;
 				if(is_profiling){
 					queues[dev].wait();
 				}
@@ -909,6 +910,63 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 }
 
 
+void verify_pairs(vector<string> &input_data, vector<size_t> &len_oristrings,  vector<idpair> &verifycan, vector<idpair> &output_pairs){
+	uint32_t num_threads = std::thread::hardware_concurrency();
+	cout<<"\nNumber of threads for edit distance: "<<num_threads<<std::endl;
+
+	std::vector<std::thread> workers;
+
+	std::atomic<size_t> verified(0);
+	size_t to_verify=verifycan.size();
+	uint32_t num_candidates=to_verify;
+	output_pairs.resize(to_verify,{-1,-1});
+	std::cout<<"\n\tTo verify: "<<to_verify<<std::endl;
+
+	for(int t=0; t<num_threads; t++){
+		workers.push_back(std::thread([&](){
+
+			while(true){
+				int j=verified.fetch_add(1);
+				if(j<to_verify){
+
+					int first_str;
+					int second_str;
+
+					first_str=get<0>(verifycan[j]);
+					second_str=get<1>(verifycan[j]);
+
+					string tmp_str1=input_data[first_str];
+					string tmp_str2=input_data[second_str];
+
+					for(int k = 0;k < 8; k++){
+						tmp_str1.push_back(j>>(8*k));
+						tmp_str2.push_back(j>>(8*k));
+					}
+					int ed = edit_distance(tmp_str2.data(), len_oristrings[second_str], tmp_str1.data(), len_oristrings[first_str] /*tmp_oridata[first_str].size()*/, K_INPUT);
+
+					if(ed != -1) {
+						output_pairs[j]=make_tuple(first_str, second_str);
+					}
+				}
+				else{
+					break;
+				}
+			}
+		}));
+	}
+
+	for(auto &t:workers){
+		if(t.joinable()){
+			t.join();
+		}
+	}
+	auto new_end=remove_if(oneapi::dpl::execution::par, output_pairs.begin(),output_pairs.end(),[](std::tuple<int,int> e){return std::get<0>(e)==-1;});
+	output_pairs.erase( new_end, output_pairs.end());
+
+	size_t num_outputs=output_pairs.size();
+	cout<<"\n\t\tNum output: "<<num_outputs<<std::endl;
+}
+
 void print_output( vector<string> &input_data, vector<idpair> &output_pairs, string out_filename ){
 
 	std::cout<<"Start saving results"<<std::endl;
@@ -951,7 +1009,7 @@ std::string getReportFileName(vector<queue>&queues, int device, size_t batch_siz
 }
 
 
-vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &t, string dataset_name) {
+vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &t, bool enable_edit_dist, string dataset_name) {
 
 	samplingrange=new_samplingrange;
 	countfilter=new_countfilter;
@@ -1087,8 +1145,13 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 
 	timer.start_time(embed::alloc);
 	char **set_embdata_dev=(char**)malloc_shared<char*>(n_batches, queues.back());
+	if(set_embdata_dev==nullptr){
+		exit(-1);
+	}
 	for(int n=0; n<n_batches; n++){
-		set_embdata_dev[n]=malloc_shared<char>(batch_hdrs[n].size*NUM_STR*NUM_REP*len_output, queues.back());
+		if( ( set_embdata_dev[n]=malloc_shared<char>(batch_hdrs[n].size*NUM_STR*NUM_REP*len_output, queues.back()) )==nullptr ){
+			exit(-1);
+		}
 		memset(set_embdata_dev[n],0,batch_hdrs[n].size*NUM_STR*NUM_REP*len_output);
 	}
 	timer.end_time(embed::alloc);
@@ -1103,10 +1166,6 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 
 	delete[] oristrings;
 	cout<<"Time: "<<timer.get_step_time(embed::total)<<"sec"<<std::endl;
-
-#if PRINT_EMB
-		print_embedded( set_embdata_dev, len_output, batch_size, string("embedded"+to_string(device)+".txt"));
-#endif
 
 	timer.start_time(total_join::total);
 	/**
@@ -1130,10 +1189,6 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 
 	timer.end_time(sort_buckets::total);
 	std::cout<<"\nSorting buckets: "<<timer.get_step_time(sort_buckets::total)<<std::endl;
-
-#if PRINT_BUCK
-	 print_buckets(buckets, string("buckets"+to_string(device)+".txt"));
-#endif
 
 	 /**
 	  * INITIALIZATION FOR CANDIDATE GENERATION
@@ -1163,7 +1218,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 
 	 /**
 	  * Since buckets and embed strings are not used anymore,
-	  * their memory is released before continuing
+	  * their memory is released here
 	  * */
 	buckets.clear();
 	for(int i=0; i<n_batches; i++){
@@ -1174,7 +1229,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 		}
 	}
 	if(set_embdata_dev==nullptr){
-				cout<<"ERROR: Null pointer!"<<std::endl;
+			cout<<"ERROR: Null pointer!"<<std::endl;
 	}else{
 		free(set_embdata_dev, queues.back());
 	}
@@ -1202,10 +1257,6 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	timer.start_time(cand_proc::sort_cand);
 	tbb::parallel_sort( candidates.begin(), candidates.end() );
 	timer.end_time(cand_proc::sort_cand);
-
-#if PRINT_CAND
-	print_candidate_pairs(candidates, string("candidates"+to_string(device)));
-#endif
 
 	/*
 	 * COUNTING FREQUENCIES
@@ -1255,73 +1306,29 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	/**
 	 * EDIT DISTANCE
 	 * */
+
+	size_t num_candidates=verifycan.size();
+	size_t num_outputs;
+
 	timer.start_time(edit_dist::total);
-
-	uint32_t num_threads = std::thread::hardware_concurrency();
-	cout<<"\nNumber of threads for edit distance: "<<num_threads<<std::endl;
-
-	std::vector<std::thread> workers;
-	tbb::concurrent_vector<idpair> tmp_output_pair;
-
-	std::atomic<size_t> verified(0);
-	std::atomic<size_t> atomic_num_outputs(0);
-	size_t to_verify=verifycan.size();
-	uint32_t num_candidates=to_verify;
-	output_pairs.resize(to_verify,{-1,-1});
-	std::cout<<"\n\tTo verify: "<<to_verify<<std::endl;
-
-	for(int t=0; t<num_threads; t++){
-		workers.push_back(std::thread([&](){
-
-			while(true){
-				int j=verified.fetch_add(1);
-				if(j<to_verify){
-
-					int first_str;
-					int second_str;
-
-					first_str=get<0>(verifycan[j]);
-					second_str=get<1>(verifycan[j]);
-
-					string tmp_str1=input_data[first_str];
-					string tmp_str2=input_data[second_str];
-
-					for(int k = 0;k < 8; k++){
-						tmp_str1.push_back(j>>(8*k));
-						tmp_str2.push_back(j>>(8*k));
-					}
-					int ed = edit_distance(tmp_str2.data(), len_oristrings[second_str], tmp_str1.data(), len_oristrings[first_str] /*tmp_oridata[first_str].size()*/, K_INPUT);
-
-					if(ed != -1) {
-						atomic_num_outputs++;
-						output_pairs[j]=make_tuple(first_str, second_str);
-					}
-				}
-				else{
-					break;
-				}
-			}
-		}));
+	if(enable_edit_dist){
+		verify_pairs(input_data, len_oristrings, verifycan, output_pairs );
 	}
-
-	for(auto &t:workers){
-		if(t.joinable()){
-			t.join();
-		}
+	else{
+		output_pairs=move(verifycan);
 	}
-	auto new_end=remove_if(oneapi::dpl::execution::par, output_pairs.begin(),output_pairs.end(),[](std::tuple<int,int> e){return std::get<0>(e)==-1;});
-	output_pairs.erase( new_end, output_pairs.end());
+	num_outputs=output_pairs.size();
 
-	cout<<"\n\tSize output pairs: "<<output_pairs.size()<<std::endl;
-	size_t num_outputs=atomic_num_outputs.load();
 	timer.end_time(edit_dist::total);
-	cout<<"\n\t\tNum output: "<<num_outputs<<std::endl;
+
 
 	timer.end_time(total_join::total);
 	timer.end_time(total_alg::total);
 
 	delete[] hash_lsh;
 	cout<<"\nDelete hash_lsh"<<std::endl;
+
+
 
 	timer.print_summary(num_candidates,num_outputs);
 

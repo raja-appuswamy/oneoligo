@@ -88,18 +88,6 @@ struct batch_hdr{
 	#define NUM_REP 3 // edit distance threshold
 #endif
 
-#ifndef PRINT_EMB
-	#define PRINT_EMB 0
-#endif
-
-#ifndef PRINT_BUCK
-	#define PRINT_BUCK 0
-#endif
-
-#ifndef PRINT_CAND
-	#define PRINT_CAND 0
-#endif
-
 int edit_distance(const char *x, const int x_len, const  char *y, const int y_len, int k);
 void read_dataset(vector<string> &input_data, string filename);
 void print_oristrings( char *oristrings, vector<int> len );
@@ -107,7 +95,7 @@ void print_embedded( char **output, size_t len_output, vector<batch_hdr> &batch_
 void print_buckets( vector<buckets_t> &buckets, std::string filename);
 void print_candidate_pairs( vector<candidate_t> &candidates, std::string filename );
 void print_configuration(int batch_size,int n_batches, size_t len_output, size_t num_input_strings, int countfilter, int samplingrange);
-vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &timer, string dataset_name="");
+vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &timer, bool enable_edit_dist=true, string dataset_name="");
 void oneCluster(vector<string> &input_data, size_t batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &timer, int nPts, string dataset_name="");
 
 #endif

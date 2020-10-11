@@ -126,6 +126,7 @@ void oneCluster(vector<string> &input_data, size_t batch_size, size_t n_batches,
 		vector<string> output_dataset;
 		vector<int> labels;
 
+
 		random_shuffle(input_data.begin(),input_data.end());
 
 		size_t range=std::min(chunk_size,input_data.size());
@@ -151,9 +152,15 @@ void oneCluster(vector<string> &input_data, size_t batch_size, size_t n_batches,
 			break;
 		}
 
+		ofstream file_input("input_chunk"+to_string(chunk_num));
+
+		for(auto&s:input_chunk){
+			file_input<<s<<std::endl;
+		}
+
 		cout<<"Computing join."<<std::endl;
 
-		similarity_results=onejoin(input_chunk,batch_size,n_batches,device,new_samplingrange,new_countfilter,timer,"GEN320ks");
+		similarity_results=onejoin(input_chunk,batch_size,n_batches,device,new_samplingrange,new_countfilter,timer, false, "GEN320ks");
 
 		cout<<"\tSize of db: "<<input_data.size()<<std::endl;
 		cout<<"\tSize of results: "<<similarity_results.size()<<std::endl;
