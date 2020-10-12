@@ -12,7 +12,7 @@ size_t test_batches=2;
 Time timer;
 
 
-void setuplsh( int (*hash_lsh)[NUM_BITS], std::vector<int> &a, std::vector<int> &lshnumber, vector<tuple<int,int>> &rev_hash ){
+void setuplsh( vector<vector<int>> &hash_lsh, std::vector<int> &a, std::vector<int> &lshnumber, vector<tuple<int,int>> &rev_hash ){
 
 	timer.start_time(init::init_lsh);
 
@@ -110,7 +110,7 @@ void initialize_input_data(vector<string> &input_data, vector<size_t> &len_orist
 }
 
 
-void initialization( vector<string> &input_data, std::vector<size_t> &len_oristrings, std::vector<size_t> &idx_oristrings, char *oristrings, int (*hash_lsh)[NUM_BITS], std::vector<int> &a, std::vector<int> &lshnumber, vector<tuple<int,int>> &rev_hash ){
+void initialization( vector<string> &input_data, std::vector<size_t> &len_oristrings, std::vector<size_t> &idx_oristrings, char *oristrings, vector<vector<int>> &hash_lsh, std::vector<int> &a, std::vector<int> &lshnumber, vector<tuple<int,int>> &rev_hash ){
 
 	timer.start_time(init::init_data);
 	initialize_input_data(input_data, len_oristrings, idx_oristrings, oristrings);
@@ -390,7 +390,7 @@ void  create_buckets(queue &device_queue, char **embdata, buffer<buckets_t,1> &b
 }
 
 
-void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<buckets_t> &buckets, size_t n_batches, vector<batch_hdr> &batch_hdrs, int* hash_lsh, vector<int> &a, vector<int> &lshnumber, size_t len_output){
+void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<buckets_t> &buckets, size_t n_batches, vector<batch_hdr> &batch_hdrs, vector<int> &a, vector<int> &lshnumber, size_t len_output){
 
 	std::cout<< "\nCreate buckets"<<std::endl;
 	std::cout<<"\n\tLen output: "<<len_output<<std::endl;
@@ -417,7 +417,6 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 		vector<sycl::buffer<size_t,1>> buffers_batch_size;
 		vector<sycl::buffer<size_t,1>> buffers_split_size;
 		vector<sycl::buffer<size_t,1>> buffers_split_offset;
-		vector<sycl::buffer<uint32_t,2>> buffers_hash_lsh;
 		vector<sycl::buffer<uint32_t,1>> buffers_a;
 		vector<sycl::buffer<uint32_t,1>> buffers_lshnumber;
 		vector<sycl::buffer<size_t,1>> buffers_len_output;
@@ -452,7 +451,6 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 
 				buffers_buckets.emplace_back(sycl::buffer<buckets_t,1>(static_cast<buckets_t*>(buckets.data()+offset.back()*NUM_REP*NUM_HASH*NUM_STR),range<1>{loc_split_size*NUM_STR*NUM_HASH*NUM_REP}, {sycl::property::buffer::use_host_ptr()}));
 				buffers_a.emplace_back(buffer<uint32_t,1>((uint32_t*)a.data(),range<1>{a.size()}));
-				buffers_hash_lsh.emplace_back(buffer<uint32_t,2>((uint32_t*)hash_lsh, range<2>{NUM_HASH,NUM_BITS}));
 				buffers_dict.emplace_back(buffer<uint8_t,1>(dictory,range<1>{256}));
 				buffers_batch_size.emplace_back(buffer<size_t,1>(&max_batch_size, range<1>{1}));
 				buffers_len_output.emplace_back(buffer<size_t,1>(&len_output, range<1>{1}));
@@ -562,7 +560,7 @@ void generate_candidates(queue &device_queue, buffer<size_t,1> &buffer_len_orist
 }
 
 
-void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oristrings, char* oristrings, char **embdata, vector<buckets_t> &buckets, vector<batch_hdr> &batch_hdrs, vector<candidate_t>& candidate, int * local_hash_lsh, vector<int> &lshnumber, size_t len_output){
+void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oristrings, char* oristrings, char **embdata, vector<buckets_t> &buckets, vector<batch_hdr> &batch_hdrs, vector<candidate_t>& candidate, vector<int> &lshnumber, size_t len_output){
 
 	cout <<"\nGenerate candidates"<< std::endl;
 	cout<<"\n\tLen output: "<<len_output<<std::endl;
@@ -581,7 +579,6 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 		size_t max_batch_size=batch_hdrs[0].size;
 
 		vector<buffer<buckets_t>> buffers_buckets;
-		vector<buffer<int, 2>> buffers_hash_lsh;
 		vector<buffer<candidate_t>> buffers_candidates;
 		vector<buffer<size_t,1>> buffers_len;
 		vector<buffer<size_t, 1>> buffers_batch_size;
@@ -626,7 +623,6 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 				cout<<"\tOffset: "<<offset_cand<<std::endl;
 
 				buffers_buckets.emplace_back( buffer<buckets_t>(buckets.data()+start_b,range<1>{size_buckets}));
-				buffers_hash_lsh.emplace_back( buffer<int, 2>(reinterpret_cast<int*>(local_hash_lsh),range<2>{NUM_HASH,NUM_BITS}));
 				buffers_candidates.emplace_back( buffer<candidate_t>(candidate.data()+offset_cand,range<1>{size_cand[dev][iter]}));
 				buffers_len.emplace_back( buffer<size_t,1>(len_oristrings.data(),range<1>{len_oristrings.size()}));
 				buffers_batch_size.emplace_back( buffer<size_t, 1>(&max_batch_size,range<1>{1}));
@@ -987,7 +983,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	 */
 	vector<int> a;
 	vector<int> lshnumber;
-	int (*hash_lsh)[NUM_BITS];
+	vector<vector<int>> hash_lsh(NUM_HASH,vector<int>(NUM_BITS));
 	vector<tuple<int,int>> rev_hash;
 
 	/**
@@ -1041,7 +1037,6 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 		batch_hdrs[i].offset+=batch_hdrs[i-1].offset+batch_hdrs[i-1].size;
 	}
 	try{
-		hash_lsh = new int[NUM_HASH][NUM_BITS];
 		oristrings = new char[tot_input_size];
 		buckets.resize(num_strings*NUM_STR*NUM_HASH*NUM_REP);
 
@@ -1112,7 +1107,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	 ***/
 	timer.start_time(buckets::total);
 
-	create_buckets_wrapper(queues, (char**)set_embdata_dev, buckets, n_batches, batch_hdrs, (int*)hash_lsh, a, lshnumber, len_output);
+	create_buckets_wrapper(queues, (char**)set_embdata_dev, buckets, n_batches, batch_hdrs, a, lshnumber, len_output);
 
 	for(auto &q:queues){
 		q.wait();
@@ -1150,7 +1145,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 
 	 timer.start_time(cand::total);
 
-	 generate_candidates_wrapper(queues, len_oristrings, (char*)oristrings, (char**)set_embdata_dev, buckets, batch_hdrs, candidates, (int *)hash_lsh, lshnumber, len_output);
+	 generate_candidates_wrapper(queues, len_oristrings, (char*)oristrings, (char**)set_embdata_dev, buckets, batch_hdrs, candidates, lshnumber, len_output);
 
 	 timer.end_time(cand::total);
 
@@ -1317,8 +1312,6 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	timer.end_time(total_join::total);
 	timer.end_time(total_alg::total);
 
-	delete[] hash_lsh;
-	cout<<"\nDelete hash_lsh"<<std::endl;
 
 	timer.print_summary(num_candidates,num_outputs);
 
