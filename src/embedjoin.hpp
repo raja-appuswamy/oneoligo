@@ -88,18 +88,6 @@ struct batch_hdr{
 	#define NUM_REP 3 // edit distance threshold
 #endif
 
-#ifndef PRINT_EMB
-	#define PRINT_EMB 0
-#endif
-
-#ifndef PRINT_BUCK
-	#define PRINT_BUCK 0
-#endif
-
-#ifndef PRINT_CAND
-	#define PRINT_CAND 0
-#endif
-
 int edit_distance(const char *x, const int x_len, const  char *y, const int y_len, int k);
 void read_dataset(vector<string> &input_data, string filename);
 void print_oristrings( char *oristrings, vector<int> len );

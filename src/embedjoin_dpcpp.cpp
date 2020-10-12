@@ -90,7 +90,7 @@ void read_dataset(vector<string>& input_data, string filename){
 }
 
 
-void initialize_input_data(vector<string> &input_data, vector<size_t> &len_oristrings, vector<size_t> &idx_oristrings, char *oristrings ){
+void initialize_input_data(vector<string> &input_data, vector<size_t> &len_oristrings, vector<size_t> &idx_oristrings, vector<char> &oristrings ){
 
 	auto start=std::chrono::system_clock::now();
 	size_t offset=0;
@@ -98,7 +98,7 @@ void initialize_input_data(vector<string> &input_data, vector<size_t> &len_orist
 		idx_oristrings.emplace_back(offset);
 //		memset(oristrings,0,LEN_INPUT);
 //		strncpy(oristrings[i],input_data[i].c_str(),std::min(static_cast<int>(input_data[i].size()),LEN_INPUT));
-		strncpy(oristrings+offset,input_data[i].c_str(),input_data[i].size());
+		strncpy(oristrings.data()+offset,input_data[i].c_str(),input_data[i].size());
 		len_oristrings.emplace_back(input_data[i].size());
 		offset+=input_data[i].size();
 	}
@@ -110,7 +110,7 @@ void initialize_input_data(vector<string> &input_data, vector<size_t> &len_orist
 }
 
 
-void initialization( vector<string> &input_data, std::vector<size_t> &len_oristrings, std::vector<size_t> &idx_oristrings, char *oristrings, vector<vector<int>> &hash_lsh, std::vector<int> &a, std::vector<int> &lshnumber, vector<tuple<int,int>> &rev_hash ){
+void initialization( vector<string> &input_data, std::vector<size_t> &len_oristrings, std::vector<size_t> &idx_oristrings, vector<char> &oristrings, vector<vector<int>> &hash_lsh, std::vector<int> &a, std::vector<int> &lshnumber, vector<tuple<int,int>> &rev_hash ){
 
 	timer.start_time(init::init_data);
 	initialize_input_data(input_data, len_oristrings, idx_oristrings, oristrings);
@@ -560,7 +560,7 @@ void generate_candidates(queue &device_queue, buffer<size_t,1> &buffer_len_orist
 }
 
 
-void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oristrings, char* oristrings, char **embdata, vector<buckets_t> &buckets, vector<batch_hdr> &batch_hdrs, vector<candidate_t>& candidate, vector<int> &lshnumber, size_t len_output){
+void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oristrings,vector<char> &oristrings, char **embdata, vector<buckets_t> &buckets, vector<batch_hdr> &batch_hdrs, vector<candidate_t>& candidate, vector<int> &lshnumber, size_t len_output){
 
 	cout <<"\nGenerate candidates"<< std::endl;
 	cout<<"\n\tLen output: "<<len_output<<std::endl;
@@ -777,7 +777,7 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<buckets_t> &bucket
 }
 
 
-void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_oristrings, vector<size_t> &idx_oristrings, char *oristrings, char** set_embdata_dev, vector<batch_hdr> &batch_hdrs, size_t n_batches, std::vector<int> &lshnumber, size_t &len_output, std::vector<tuple<int,int>> &rev_hash){
+void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_oristrings, vector<size_t> &idx_oristrings, vector<char> &oristrings, char** set_embdata_dev, vector<batch_hdr> &batch_hdrs, size_t n_batches, std::vector<int> &lshnumber, size_t &len_output, std::vector<tuple<int,int>> &rev_hash){
 
 	std::cout<< "Parallel Embedding"<<std::endl;
 	/**
@@ -866,7 +866,7 @@ void parallel_embedding_wrapper(std::vector<queue> &queues, vector<size_t> &len_
 				uint32_t samprange=samplingrange;
 
 				buffers_p.emplace_back( buffer<int,1>(p, range<1>{size_p}) );
-				buffers_oristrings.emplace_back( buffer<char, 1>(oristrings+idx_oristrings[batch_hdrs[n].offset],range<1>{size_oristrings}) );
+				buffers_oristrings.emplace_back( buffer<char, 1>(oristrings.data()+idx_oristrings[batch_hdrs[n].offset],range<1>{size_oristrings}) );
 				buffers_lshnumber.emplace_back( buffer<int, 1>(lshnumber.data(),range<1>{lshnumber.size()}) );
 				buffers_embdata.emplace_back( buffer<char, 1> (reinterpret_cast<char*>(set_embdata_dev[n]), range<1>{size_emb}, {property::buffer::use_host_ptr()}) );
 				buffers_dict.emplace_back( buffer<uint8_t,1>(dictory,range<1>{256}) );
@@ -953,6 +953,9 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	countfilter=new_countfilter;
 	size_t len_output=NUM_HASH*NUM_BITS;
 	timer=t;
+
+	timer.start_time(total_alg::total);
+
 	size_t tot_input_size=0;
 	for(auto &s:input_data){
 		tot_input_size+=s.size();
@@ -992,7 +995,8 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	 * len_oristrings: actual len of each input string
 	 * */
 
-	char *oristrings;
+	//char *oristrings;
+	vector<char> oristrings;
 	vector<size_t> len_oristrings;
 	vector<size_t> idx_oristrings;
 
@@ -1027,6 +1031,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	vector<candidate_t> candidates;
 	vector<queue> queues;
 	vector<batch_hdr> batch_hdrs(n_batches,{max_batch_size,0});
+
 	if( (num_strings%max_batch_size) !=0){
 		std::cout<<"Size last batch: "<<num_strings%max_batch_size<<std::endl;
 		batch_hdrs.emplace_back(batch_hdr(num_strings%max_batch_size,0));
@@ -1037,8 +1042,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 		batch_hdrs[i].offset+=batch_hdrs[i-1].offset+batch_hdrs[i-1].size;
 	}
 	try{
-		oristrings = new char[tot_input_size];
-		buckets.resize(num_strings*NUM_STR*NUM_HASH*NUM_REP);
+		oristrings.resize(tot_input_size);
 
 	}catch(std::bad_alloc& e){
 		std::cerr<<"It is not possible allocate the requested size."<<std::endl;
@@ -1064,9 +1068,8 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	/**
 	 * INITIALIZATION
 	 * */
-	timer.start_time(total_alg::total);
-	timer.start_time(init::total);
 
+	timer.start_time(init::total);
 	srand(11110);
 	initialization(input_data, len_oristrings, idx_oristrings, oristrings, hash_lsh, a, lshnumber, rev_hash);
 
@@ -1094,18 +1097,21 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 
 	timer.end_time(embed::total);
 
-	delete[] oristrings;
 	cout<<"Time: "<<timer.get_step_time(embed::total)<<"sec"<<std::endl;
 
-#if PRINT_EMB
-		print_embedded( set_embdata_dev, len_output, batch_size, string("embedded"+to_string(device)+".txt"));
-#endif
 
 	timer.start_time(total_join::total);
 	/**
 	 * CREATE BUCKETS STEP
 	 ***/
 	timer.start_time(buckets::total);
+
+	try{
+		buckets.resize(num_strings*NUM_STR*NUM_HASH*NUM_REP);
+	}catch(std::bad_alloc& e){
+		std::cerr<<"It is not possible allocate the requested size."<<std::endl;
+		exit(-1);
+	}
 
 	create_buckets_wrapper(queues, (char**)set_embdata_dev, buckets, n_batches, batch_hdrs, a, lshnumber, len_output);
 
@@ -1123,9 +1129,6 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	timer.end_time(sort_buckets::total);
 	std::cout<<"\nSorting buckets: "<<timer.get_step_time(sort_buckets::total)<<std::endl;
 
-#if PRINT_BUCK
-	 print_buckets(buckets, string("buckets"+to_string(device)+".txt"));
-#endif
 
 	 /**
 	  * INITIALIZATION FOR CANDIDATE GENERATION
@@ -1145,7 +1148,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 
 	 timer.start_time(cand::total);
 
-	 generate_candidates_wrapper(queues, len_oristrings, (char*)oristrings, (char**)set_embdata_dev, buckets, batch_hdrs, candidates, lshnumber, len_output);
+	 generate_candidates_wrapper(queues, len_oristrings, oristrings, (char**)set_embdata_dev, buckets, batch_hdrs, candidates, lshnumber, len_output);
 
 	 timer.end_time(cand::total);
 
@@ -1163,12 +1166,14 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 			cout<<"ERROR: Null pointer!"<<std::endl;
 		}else{
 			free(set_embdata_dev[i], queues.back());
+			set_embdata_dev[i]=nullptr;
 		}
 	}
 	if(set_embdata_dev==nullptr){
 				cout<<"ERROR: Null pointer!"<<std::endl;
 	}else{
 		free(set_embdata_dev, queues.back());
+		set_embdata_dev=nullptr;
 	}
 	cout<<"Clear buckets"<<std::endl;
 	cout<<"Delete embdata"<<std::endl;
@@ -1194,10 +1199,6 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	timer.start_time(cand_proc::sort_cand);
 	tbb::parallel_sort( candidates.begin(), candidates.end() );
 	timer.end_time(cand_proc::sort_cand);
-
-#if PRINT_CAND
-	print_candidate_pairs(candidates, string("candidates"+to_string(device)));
-#endif
 
 	/*
 	 * COUNTING FREQUENCIES
