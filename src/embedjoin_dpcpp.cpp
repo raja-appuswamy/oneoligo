@@ -1182,6 +1182,9 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 
 	timer.start_time(sort_buckets::total);
 	tbb::parallel_sort(buckets.begin(),buckets.end());
+//	auto policy_c = device_policy<class SOrt> {cpu_selector{}};
+//	sort(par_unseq, buckets.begin(),buckets.end());
+
 	timer.end_time(sort_buckets::total);
 	std::cout<<"\nSorting buckets: "<<timer.get_step_time(sort_buckets::total)<<std::endl;
 
@@ -1247,7 +1250,6 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 
 	try{
 		candidates.erase(std::remove_if(oneapi::dpl::execution::par_unseq, candidates.begin(), candidates.end(),[](candidate_t e){return (e.len_diff>K_INPUT || (e.rep12_eq_bit & 0x1)!=0 || e.idx_str1==e.idx_str2);}), candidates.end());
-//		auto new_end=std::remove_if(make_device_policy(queues.front()), dpstd::begin(candidates_buffer), dpstd::end(candidates_buffer),[](auto e){return (e.len_diff>K_INPUT || (e.rep12_eq_bit & 0x1)!=0 || e.idx_str1==e.idx_str2);}));
 	}catch(std::exception &e){
 		std::cout<<"Error in remove function. Too many candidates for the parallel version."<<std::endl;
 		std::cout<<"The sequential version will be used."<<std::endl;
