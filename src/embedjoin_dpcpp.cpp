@@ -1,7 +1,7 @@
 #include "embedjoin.hpp"
 
 using namespace cl::sycl;
-using namespace oneapi::std;
+using namespace oneapi::dpl::execution;
 using namespace std;
 
 uint32_t samplingrange=0; // The maximum digit to embed, the range to sample
@@ -11,6 +11,7 @@ size_t test_batches=2;
 
 Time timer;
 
+int is_running_on=cpu;
 
 void setuplsh( vector<vector<int>> &hash_lsh, std::vector<int> &a, std::vector<int> &lshnumber, vector<tuple<int,int>> &rev_hash ){
 
@@ -379,11 +380,11 @@ void  create_buckets(queue &device_queue, char **embdata, buffer<buckets_t,1> &b
 				id_mod=id % M;
 				size_t output_position=index.get_linear_id();
 
-				get<0>(acc_buckets[output_position])=t;
-				get<1>(acc_buckets[output_position])=k;
-				get<2>(acc_buckets[output_position])=id_mod;
-				get<3>(acc_buckets[output_position])=i;
-				get<4>(acc_buckets[output_position])=q;
+				acc_buckets[output_position].idx_rand_str=t;
+				acc_buckets[output_position].idx_hash_func=k;
+				acc_buckets[output_position].hash_id=id_mod;
+				acc_buckets[output_position].idx_str=i;
+				acc_buckets[output_position].idx_rep=q;
 			});
 		});
 	}
@@ -403,6 +404,7 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 	 */
 	int number_of_testing_batches=2*num_dev;
 	vector<long> times;
+	list<size_t> offset(1,0);
 	{
 		vector<size_t> split_size;
 		uint8_t dictory[256]={0};
@@ -410,7 +412,6 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 		inititalize_dictory(dictory);
 
 		std::vector<vector<size_t>> size_per_dev(num_dev, vector<size_t>(test_batches,1));
-		list<size_t> offset(1,0);
 		size_t max_batch_size=batch_hdrs[0].size; //all values are equals, except for the last one
 
 		vector<sycl::buffer<buckets_t>> buffers_buckets;
@@ -449,7 +450,7 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 
 				cout<<"\n\tSet offset to: "<<offset.back()<<std::endl;
 
-				buffers_buckets.emplace_back(sycl::buffer<buckets_t,1>(static_cast<buckets_t*>(buckets.data()+offset.back()*NUM_REP*NUM_HASH*NUM_STR),range<1>{loc_split_size*NUM_STR*NUM_HASH*NUM_REP}, {sycl::property::buffer::use_host_ptr()}));
+				buffers_buckets.emplace_back(sycl::buffer<buckets_t,1>(static_cast<buckets_t*>(buckets.data()+offset.back()*NUM_REP*NUM_HASH*NUM_STR),range<1>{loc_split_size*NUM_STR*NUM_HASH*NUM_REP}));
 				buffers_a.emplace_back(buffer<uint32_t,1>((uint32_t*)a.data(),range<1>{a.size()}));
 				buffers_dict.emplace_back(buffer<uint8_t,1>(dictory,range<1>{256}));
 				buffers_batch_size.emplace_back(buffer<size_t,1>(&max_batch_size, range<1>{1}));
@@ -484,8 +485,55 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 				timer.start_time(buckets::compute); // Start actual computing
 			}
 		}
+
+
+		for(auto&q:queues){
+			q.wait();
+		}
+
+		timer.end_time(buckets::compute);
+
+		auto start=std::chrono::system_clock::now();
+		auto end=std::chrono::system_clock::now();
+		dev=0;
+		n=0;
+		while(dev<queues.size()){
+			size_per_dev[dev].insert(size_per_dev[dev].end(), test_batches, 1);
+			int iter=0;
+			while(iter<size_per_dev[dev].size()){
+				start=std::chrono::system_clock::now();
+				sort(make_device_policy(queues[dev]), oneapi::dpl::begin(buffers_buckets[n]), oneapi::dpl::end(buffers_buckets[n]));
+				end=std::chrono::system_clock::now();
+				cout<<"Sort "<<n<<": "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
+				iter++;
+				n++;
+			}
+			dev++;
+		}
+
+	}// Buffers are destroyed, data are moved in the buckets vector
+
+	// Merging all partitions
+	auto start=std::chrono::system_clock::now();
+
+	size_t middle=0;
+	size_t last=0;
+	offset.pop_front();
+	offset.pop_front();
+	while(!offset.empty()){
+		last=offset.front()*NUM_REP*NUM_HASH*NUM_STR;
+		std::cout<<"Middle: "<<middle<<" last: "<<last<<std::endl;
+		inplace_merge(buckets.begin(), buckets.begin()+middle, buckets.begin()+last);
+		middle=last;
+		offset.pop_front();
 	}
-	timer.end_time(buckets::compute);
+	last=buckets.size();
+	inplace_merge(buckets.begin(), buckets.begin()+middle, buckets.begin()+last);
+	std::cout<<"Middle: "<<middle<<" last: "<<last<<std::endl;
+
+	auto end=std::chrono::system_clock::now();
+	cout<<"Merge: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
+
 }
 
 
@@ -512,21 +560,21 @@ void generate_candidates(queue &device_queue, buffer<size_t,1> &buffer_len_orist
 
 			int sum=0;
 
-			size_t tmp_i=get<0>(acc_candidate[ij]);
-			size_t tmp_j=get<1>(acc_candidate[ij]);
+			size_t tmp_i=acc_candidate[ij].idx_str1;
+			size_t tmp_j=acc_candidate[ij].len_diff;
 			size_t buck_off=acc_buckets_offset[0];
 
-			size_t i=get<0>(acc_candidate[ij])-acc_buckets_offset[0];//begin+i_norm;
-			size_t j=get<1>(acc_candidate[ij])-acc_buckets_offset[0];//begin+i_norm;
+			size_t i=acc_candidate[ij].idx_str1-acc_buckets_offset[0];//begin+i_norm;
+			size_t j=acc_candidate[ij].len_diff-acc_buckets_offset[0];//begin+i_norm;
 
-			int t1=get<0>(acc_buckets[i]);
-			int k1=get<1>(acc_buckets[i]);
+			int t1=acc_buckets[i].idx_rand_str;
+			int k1=acc_buckets[i].idx_hash_func;
 
-			int i1=get<3>(acc_buckets[i]);
-			int q1=get<4>(acc_buckets[i]);
+			int i1=acc_buckets[i].idx_str;
+			int q1=acc_buckets[i].idx_rep;
 
-			int i2=get<3>(acc_buckets[j]);
-			int q2=get<4>(acc_buckets[j]);
+			int i2=acc_buckets[j].idx_str;
+			int q2=acc_buckets[j].idx_rep;
 
 			__int8_t c1;
 			__int8_t c2;
@@ -551,10 +599,10 @@ void generate_candidates(queue &device_queue, buffer<size_t,1> &buffer_len_orist
 			q12=q12<<1;
 			q12=q12+(sum>0?1:0);
 
-			get<0>(acc_candidate[index_output])=i1;
-			get<1>(acc_candidate[index_output])=abs_diff(acc_len[i1], acc_len[i2]);
-			get<2>(acc_candidate[index_output])=i2;
-			get<3>(acc_candidate[index_output])=q12;
+			acc_candidate[index_output].idx_str1=i1;
+			acc_candidate[index_output].len_diff=abs_diff(acc_len[i1], acc_len[i2]);
+			acc_candidate[index_output].idx_str2=i2;
+			acc_candidate[index_output].rep12_eq_bit=q12;
 		});
 	});
 }
@@ -609,8 +657,8 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 
 				cout<<"\n\tSize cand[dev]: "<<size_cand[dev][iter]<<std::endl;
 
-				size_t start_b=get<0>(candidate[offset_cand]);
-				size_t end_b=get<2>((candidate.data()+offset_cand)[size_cand[dev][iter]-1])-1;
+				size_t start_b=candidate[offset_cand].idx_str1;
+				size_t end_b=(candidate.data()+offset_cand)[size_cand[dev][iter]-1].idx_str2-1;
 				size_t size_buckets=end_b-start_b+1;
 
 				buckets_offset.emplace_back(start_b);
@@ -658,6 +706,7 @@ void generate_candidates_wrapper(vector<queue>& queues, vector<size_t> &len_oris
 				timer.start_time(cand::compute); // Start actual computing
 			}
 		}
+
 	}
 	timer.end_time(cand::compute);
 }
@@ -703,9 +752,9 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<buckets_t> &bucket
 	buckets_delimiter.emplace_back(make_tuple(0,0));
 	for(int i=0; i<buckets.size()-1; i++){
 		get<1>(buckets_delimiter[j])++;
-		if( (get<0>(buckets[i])!=get<0>(buckets[i+1]))
-						|| (get<0>(buckets[i])==get<0>(buckets[i+1]) && get<1>(buckets[i])!=get<1>(buckets[i+1]) )
-						|| (get<0>(buckets[i])==get<0>(buckets[i+1]) && get<1>(buckets[i])==get<1>(buckets[i+1]) && get<2>(buckets[i])!=get<2>(buckets[i+1])) ){
+		if( (buckets[i].idx_rand_str!=buckets[i+1].idx_rand_str)
+						|| (buckets[i].idx_rand_str==buckets[i+1].idx_rand_str && buckets[i].idx_hash_func!=buckets[i+1].idx_hash_func)
+						|| (buckets[i].idx_rand_str==buckets[i+1].idx_rand_str && buckets[i].idx_hash_func==buckets[i+1].idx_hash_func && buckets[i].hash_id!=buckets[i+1].hash_id) ){
 			j++;
 			buckets_delimiter.emplace_back(make_tuple(i+1,0));
 		}
@@ -753,9 +802,9 @@ void initialize_candidate_pairs(vector<queue>& queues, vector<buckets_t> &bucket
 
 			for(size_t i=start; i<end-1; i++){
 				for(size_t j=i+1; j<end; j++ ){
-					get<0>(candidates[c])=i;
-					get<1>(candidates[c])=j;
-					get<2>(candidates[c])=end;
+					candidates[c].idx_str1=i;
+					candidates[c].len_diff=j;
+					candidates[c].idx_str2=end;
 					c++;
 				}
 			}
@@ -916,6 +965,7 @@ void print_output( vector<string> &input_data, vector<idpair> &output_pairs, str
 		exit(-1);
 	}
 
+
 	tbb::parallel_sort(output_pairs.begin(), output_pairs.end());
 	output_pairs.erase(unique(output_pairs.begin(), output_pairs.end()), output_pairs.end());
 
@@ -946,6 +996,61 @@ std::string getReportFileName(vector<queue>&queues, int device, size_t batch_siz
 	return report_name;
 }
 
+void verify_pairs(vector<string> &input_data, vector<size_t> &len_oristrings, vector<idpair> &verifycan, vector<idpair> &output_pairs){
+	uint32_t num_threads = std::thread::hardware_concurrency();
+	cout<<"\nNumber of threads for edit distance: "<<num_threads<<std::endl;
+
+	std::vector<std::thread> workers;
+
+	std::atomic<size_t> verified(0);
+	size_t to_verify=verifycan.size();
+
+	output_pairs.resize(to_verify,{-1,-1});
+
+	std::cout<<"\n\tTo verify: "<<to_verify<<std::endl;
+
+	for(int t=0; t<num_threads; t++){
+		workers.push_back(std::thread([&](){
+
+			while(true){
+				int j=verified.fetch_add(1);
+				if(j<to_verify){
+
+					int first_str;
+					int second_str;
+
+					first_str=get<0>(verifycan[j]);
+					second_str=get<1>(verifycan[j]);
+
+					string tmp_str1=input_data[first_str];
+					string tmp_str2=input_data[second_str];
+
+					for(int k = 0;k < 8; k++){
+						tmp_str1.push_back(j>>(8*k));
+						tmp_str2.push_back(j>>(8*k));
+					}
+					int ed = edit_distance(tmp_str2.data(), len_oristrings[second_str], tmp_str1.data(), len_oristrings[first_str] /*tmp_oridata[first_str].size()*/, K_INPUT);
+
+					if(ed != -1) {
+						output_pairs[j]=make_tuple(first_str, second_str);
+					}
+				}
+				else{
+					break;
+				}
+			}
+		}));
+	}
+
+	for(auto &t:workers){
+		if(t.joinable()){
+			t.join();
+		}
+	}
+	auto new_end=remove_if(oneapi::dpl::execution::par, output_pairs.begin(),output_pairs.end(),[](std::tuple<int,int> e){return std::get<0>(e)==-1;});
+	output_pairs.erase( new_end, output_pairs.end());
+}
+
 
 vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &t, string dataset_name) {
 
@@ -953,6 +1058,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	countfilter=new_countfilter;
 	size_t len_output=NUM_HASH*NUM_BITS;
 	timer=t;
+	is_running_on=device;
 
 	timer.start_time(total_alg::total);
 
@@ -1095,6 +1201,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 		q.wait();
 	}
 
+	oristrings.clear();
 	timer.end_time(embed::total);
 
 	cout<<"Time: "<<timer.get_step_time(embed::total)<<"sec"<<std::endl;
@@ -1123,8 +1230,6 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	cout<<"Time buckets creation: "<<timer.get_step_time(buckets::total)<<"sec"<<std::endl;
 
 	timer.start_time(sort_buckets::total);
-
-	tbb::parallel_sort(buckets.begin(), buckets.end());
 
 	timer.end_time(sort_buckets::total);
 	std::cout<<"\nSorting buckets: "<<timer.get_step_time(sort_buckets::total)<<std::endl;
@@ -1185,19 +1290,71 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	std::cout<<"\n\nStarting candidate processing analysis..."<<std::endl;
 	std::cout<<"\n\t\tCandidates size: "<<candidates.size()<<std::endl;
 
+
 	timer.start_time(cand_proc::rem_cand);
 	vector<std::tuple<int,int>> verifycan;
+
+//	auto new_end=std::remove_if(make_device_policy(queues.front()), candidates.begin(), candidates.end(),[](auto e){return (e.len_diff>K_INPUT || (e.rep12_eq_bit & 0x1)!=0 || e.idx_str1==e.idx_str2);});
+	auto start = std::chrono::system_clock::now();
+	vector<candidate_t> chunk_1;
+	std::move(candidates.data(), candidates.data()+candidates.size()/2, std::back_inserter(chunk_1));
+	auto end = std::chrono::system_clock::now();
+	std::cout<<"Cost of moving: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<std::endl;
+	std::cout<<"Move chunk 1: "<<chunk_1.size()<<std::endl;
+	size_t size_first=0;
+	{
+	buffer<candidate_t> tmp_buffers(chunk_1.data(),chunk_1.size());
+
+	auto begin_itr=oneapi::dpl::begin(tmp_buffers);
+	auto end_itr=oneapi::dpl::end(tmp_buffers);
+
+	auto new_end_itr=std::remove_if(make_device_policy(queues.front()), begin_itr, end_itr,[](candidate_t e){return (e.len_diff>K_INPUT || (e.rep12_eq_bit & 0x1)!=0 || e.idx_str1==e.idx_str2);});
+
+	size_first=std::distance(begin_itr, new_end_itr);
+
+	sort(make_device_policy(queues.front()), begin_itr, begin_itr+size_first);
+
+	}
+
+	vector<candidate_t> chunk_2;
+	std::move(candidates.data()+candidates.size()/2,candidates.data()+candidates.size(), std::back_inserter(chunk_2));
+	std::cout<<"Move chunk 2: "<<chunk_2.size()<<std::endl;
+
+	size_t size_second=0;
+
+	{
+	buffer<candidate_t> tmp_buffers(chunk_2.data(),chunk_2.size());
+
+	auto begin_itr=oneapi::dpl::begin(tmp_buffers);
+	auto end_itr=oneapi::dpl::end(tmp_buffers);
+
+	auto new_end_itr=std::remove_if(make_device_policy(queues.front()), begin_itr, end_itr,[](candidate_t e){return (e.len_diff>K_INPUT || (e.rep12_eq_bit & 0x1)!=0 || e.idx_str1==e.idx_str2);});
+
+	size_second=distance(begin_itr,new_end_itr);
+
+	sort(make_device_policy(queues.front()), begin_itr, begin_itr+size_second);
+
+	}
+
+	candidates.clear();
+	std::cout<<"Size of cand before merge: "<<candidates.size()<<std::endl;
+	merge(chunk_1.begin(), chunk_1.begin()+size_first, chunk_2.begin(), chunk_2.begin()+size_second, std::back_inserter(candidates));
+	std::cout<<"Size of cand after merge: "<<candidates.size()<<std::endl;
+
+
 	try{
-		candidates.erase(std::remove_if(oneapi::dpl::execution::par_unseq, candidates.begin(), candidates.end(),[](candidate_t e){return (get<1>(e)>K_INPUT || (get<3>(e) & 0x1)!=0 || get<0>(e)==get<2>(e));}), candidates.end());
+//		candidates.erase(std::remove_if(oneapi::dpl::execution::par_unseq, candidates.begin(), candidates.end(),[](candidate_t e){return (e.len_diff>K_INPUT || (e.rep12_eq_bit & 0x1)!=0 || e.idx_str1==e.idx_str2);}), candidates.end());
+//		auto new_end=std::remove_if(make_device_policy(queues.front()), dpstd::begin(candidates_buffer), dpstd::end(candidates_buffer),[](auto e){return (e.len_diff>K_INPUT || (e.rep12_eq_bit & 0x1)!=0 || e.idx_str1==e.idx_str2);}));
 	}catch(std::exception &e){
 		std::cout<<"Error in remove function. Too many candidates for the parallel version."<<std::endl;
 		std::cout<<"The sequential version will be used."<<std::endl;
-		candidates.erase(std::remove_if(candidates.begin(), candidates.end(),[](candidate_t e){return (get<1>(e)>K_INPUT || (get<3>(e) & 0x1)!=0 || get<0>(e)==get<2>(e));}), candidates.end());
+		candidates.erase(std::remove_if(candidates.begin(), candidates.end(),[](candidate_t e){return (e.len_diff>K_INPUT || (e.rep12_eq_bit & 0x1)!=0 || e.idx_str1==e.idx_str2);}), candidates.end());
 	}
 	timer.end_time(cand_proc::rem_cand);
 
 	timer.start_time(cand_proc::sort_cand);
-	tbb::parallel_sort( candidates.begin(), candidates.end() );
+//	tbb::parallel_sort( candidates.begin(), candidates.end() );
+//	sort(make_device_policy(queues.front()),candidates.begin(), candidates.end());
 	timer.end_time(cand_proc::sort_cand);
 
 	/*
@@ -1229,7 +1386,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	timer.start_time(cand_proc::filter_low_freq);
 	for (int i = 0; i < candidates.size(); i++){
 		if (freq_uv[i] > countfilter ){
-			verifycan.emplace_back(get<0>(candidates[i]),get<2>(candidates[i]));
+			verifycan.emplace_back(candidates[i].idx_str1, candidates[i].idx_str2);
 		}
 	}
 	timer.end_time(cand_proc::filter_low_freq);
@@ -1249,64 +1406,15 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	 * EDIT DISTANCE
 	 * */
 	timer.start_time(edit_dist::total);
+	size_t num_outputs;
+	size_t num_candidates;
 
-	uint32_t num_threads = std::thread::hardware_concurrency();
-	cout<<"\nNumber of threads for edit distance: "<<num_threads<<std::endl;
+	verify_pairs(input_data, len_oristrings, verifycan, output_pairs);
 
-	std::vector<std::thread> workers;
-	tbb::concurrent_vector<idpair> tmp_output_pair;
-
-	std::atomic<size_t> verified(0);
-	std::atomic<size_t> atomic_num_outputs(0);
-	size_t to_verify=verifycan.size();
-	uint32_t num_candidates=to_verify;
-	output_pairs.resize(to_verify,{-1,-1});
-	std::cout<<"\n\tTo verify: "<<to_verify<<std::endl;
-
-	for(int t=0; t<num_threads; t++){
-		workers.push_back(std::thread([&](){
-
-			while(true){
-				int j=verified.fetch_add(1);
-				if(j<to_verify){
-
-					int first_str;
-					int second_str;
-
-					first_str=get<0>(verifycan[j]);
-					second_str=get<1>(verifycan[j]);
-
-					string tmp_str1=input_data[first_str];
-					string tmp_str2=input_data[second_str];
-
-					for(int k = 0;k < 8; k++){
-						tmp_str1.push_back(j>>(8*k));
-						tmp_str2.push_back(j>>(8*k));
-					}
-					int ed = edit_distance(tmp_str2.data(), len_oristrings[second_str], tmp_str1.data(), len_oristrings[first_str] /*tmp_oridata[first_str].size()*/, K_INPUT);
-
-					if(ed != -1) {
-						atomic_num_outputs++;
-						output_pairs[j]=make_tuple(first_str, second_str);
-					}
-				}
-				else{
-					break;
-				}
-			}
-		}));
-	}
-
-	for(auto &t:workers){
-		if(t.joinable()){
-			t.join();
-		}
-	}
-	auto new_end=remove_if(oneapi::dpl::execution::par, output_pairs.begin(),output_pairs.end(),[](std::tuple<int,int> e){return std::get<0>(e)==-1;});
-	output_pairs.erase( new_end, output_pairs.end());
 
 	cout<<"\n\tSize output pairs: "<<output_pairs.size()<<std::endl;
-	size_t num_outputs=atomic_num_outputs.load();
+	num_outputs=output_pairs.size();
+	num_candidates=verifycan.size();
 	timer.end_time(edit_dist::total);
 	cout<<"\n\t\tNum output: "<<num_outputs<<std::endl;
 

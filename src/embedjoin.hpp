@@ -34,9 +34,47 @@
 #include "Time.cpp"
 
 using namespace std;
-using buckets_t = std::tuple<int,int,int,int,int>;
-using candidate_t = std::tuple<uint32_t,uint32_t,uint32_t,uint8_t>;
 using idpair=std::tuple<int, int>;
+constexpr size_t max_buffer_size=0xFFFFFFFF;
+
+enum {cpu=0,gpu,both};
+
+struct candidate_t {
+	uint32_t idx_str1;
+	uint32_t len_diff;
+	uint32_t idx_str2;
+	uint8_t rep12_eq_bit;
+	candidate_t(): idx_str1(0), len_diff(0), idx_str2(0), rep12_eq_bit(0) {}
+	candidate_t(uint32_t idx_str1, uint32_t len_diff, uint32_t idx_str2, uint8_t rep12_eq_bit):
+		idx_str1(idx_str1), len_diff(len_diff), idx_str2(idx_str2), rep12_eq_bit(rep12_eq_bit) {}
+	bool operator<(const candidate_t& rhs) const {return ( (idx_str1 < rhs.idx_str1)
+			|| (idx_str1 == rhs.idx_str1 && idx_str2 < rhs.idx_str2)
+			|| (idx_str1 == rhs.idx_str1 && idx_str2 == rhs.idx_str2 && rep12_eq_bit < rhs.rep12_eq_bit)); }
+
+	bool operator!=(const candidate_t& rhs) const {
+		return !(idx_str1 == rhs.idx_str1 && idx_str2 == rhs.idx_str2 && len_diff == rhs.len_diff && rep12_eq_bit == rhs.rep12_eq_bit);
+	};
+	bool operator==(const candidate_t& rhs) const {
+			return (idx_str1 == rhs.idx_str1 && idx_str2 == rhs.idx_str2 && len_diff == rhs.len_diff && rep12_eq_bit == rhs.rep12_eq_bit);
+	};
+};
+
+struct buckets_t {
+	uint32_t idx_rand_str;
+	uint32_t idx_hash_func;
+	uint32_t hash_id;
+	uint32_t idx_str;
+	uint32_t idx_rep;
+	buckets_t():idx_rand_str(0), idx_hash_func(0), hash_id(0), idx_str(0), idx_rep(0){}
+	buckets_t(uint32_t id_rand_string, uint32_t id_hash_func, uint32_t hash_id, uint32_t id_string, uint32_t id_rep ):
+		idx_rand_str(id_rand_string), idx_hash_func(id_hash_func),
+		hash_id(hash_id), idx_str(id_string), idx_rep(id_string){}
+	bool operator<(const buckets_t& rhs) const {return ( (idx_rand_str < rhs.idx_rand_str)
+		|| (idx_rand_str == rhs.idx_rand_str && idx_hash_func < rhs.idx_hash_func)
+		|| (idx_rand_str == rhs.idx_rand_str && idx_hash_func == rhs.idx_hash_func && hash_id < rhs.hash_id)
+		|| (idx_rand_str == rhs.idx_rand_str && idx_hash_func == rhs.idx_hash_func && hash_id == rhs.hash_id && idx_str < rhs.idx_str)
+		|| (idx_rand_str == rhs.idx_rand_str && idx_hash_func == rhs.idx_hash_func && hash_id == rhs.hash_id && idx_str == rhs.idx_str && idx_rep < rhs.idx_rep) ); }
+};
 
 struct batch_hdr{
 	size_t size;
@@ -90,10 +128,6 @@ struct batch_hdr{
 
 int edit_distance(const char *x, const int x_len, const  char *y, const int y_len, int k);
 void read_dataset(vector<string> &input_data, string filename);
-void print_oristrings( char *oristrings, vector<int> len );
-void print_embedded( char **output, size_t len_output, vector<batch_hdr> &batch_hdrs, size_t num_strings, std::string filename );
-void print_buckets( vector<buckets_t> &buckets, std::string filename);
-void print_candidate_pairs( vector<candidate_t> &candidates, std::string filename );
 void print_configuration(int batch_size,int n_batches, size_t len_output, size_t num_input_strings, int countfilter, int samplingrange);
 vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &timer, string dataset_name="");
 
