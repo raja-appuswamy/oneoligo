@@ -1313,18 +1313,19 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	size_t num_outputs;
 	size_t num_candidates;
 
+	// Compute edit distance for each pair
 	verify_pairs(input_data, len_oristrings, verifycan, output_pairs);
 
-
-	cout<<"\n\tSize output pairs: "<<output_pairs.size()<<std::endl;
 	num_outputs=output_pairs.size();
 	num_candidates=verifycan.size();
+
 	timer.end_time(edit_dist::total);
-	cout<<"\n\t\tNum output: "<<num_outputs<<std::endl;
 
 	timer.end_time(total_join::total);
 	timer.end_time(total_alg::total);
 
+	cout<<"\n\tSize output pairs: "<<num_outputs<<std::endl;
+	cout<<"\n\t\tNum output: "<<num_outputs<<std::endl;
 
 	timer.print_summary(num_candidates,num_outputs);
 
