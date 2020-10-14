@@ -11,8 +11,6 @@ size_t test_batches=2;
 
 Time timer;
 
-int is_running_on=cpu;
-
 void setuplsh( vector<vector<int>> &hash_lsh, std::vector<int> &a, std::vector<int> &lshnumber, vector<tuple<int,int>> &rev_hash ){
 
 	timer.start_time(init::init_lsh);
@@ -404,7 +402,7 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 	 */
 	int number_of_testing_batches=2*num_dev;
 	vector<long> times;
-	list<size_t> offset(1,0);
+	list<size_t> offset;
 	{
 		vector<size_t> split_size;
 		uint8_t dictory[256]={0};
@@ -445,7 +443,8 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 				auto start=std::chrono::system_clock::now();
 				size_t batches_to_process=size_per_dev[dev][iter];
 				split_size.emplace_back(batch_hdrs[displacement+batches_to_process-1].offset+batch_hdrs[displacement+batches_to_process-1].size-batch_hdrs[displacement].offset);
-				offset.emplace_back(offset.back()+(n==0?0:split_size[n-1]));
+				size_t last_offset=(offset.empty()?0:offset.back());
+				offset.emplace_back(last_offset+(n==0?0:split_size[n-1]));
 				size_t loc_split_size=split_size[n];
 
 				cout<<"\n\tSet offset to: "<<offset.back()<<std::endl;
@@ -1012,7 +1011,6 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	countfilter=new_countfilter;
 	size_t len_output=NUM_HASH*NUM_BITS;
 	timer=t;
-	is_running_on=device;
 
 	timer.start_time(total_alg::total);
 
@@ -1103,15 +1101,14 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	}
 	try{
 		oristrings.resize(tot_input_size);
-
 	}catch(std::bad_alloc& e){
 		std::cerr<<"It is not possible allocate the requested size."<<std::endl;
 		exit(-1);
 	}
-	if(device==0 || device==2){ // Selected CPU or both
+	if(device==cpu || device==both){ // Selected CPU or both
 		queues.push_back(queue(cpu_selector{}, asyncHandler, property::queue::in_order()));
 	}
-	if(device==1 || device==2){ // Selected GPU or both
+	if(device==gpu || device==both){ // Selected GPU or both
 		try{
 			queue tmp_queue(gpu_selector{}, asyncHandler, property::queue::in_order());
 			queues.push_back(std::move(tmp_queue));
