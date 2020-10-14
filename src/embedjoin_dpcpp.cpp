@@ -486,53 +486,7 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 			}
 		}
 
-
-		for(auto&q:queues){
-			q.wait();
-		}
-
-		timer.end_time(buckets::compute);
-
-		auto start=std::chrono::system_clock::now();
-		auto end=std::chrono::system_clock::now();
-		dev=0;
-		n=0;
-		while(dev<queues.size()){
-			size_per_dev[dev].insert(size_per_dev[dev].end(), test_batches, 1);
-			int iter=0;
-			while(iter<size_per_dev[dev].size()){
-				start=std::chrono::system_clock::now();
-				sort(make_device_policy(queues[dev]), oneapi::dpl::begin(buffers_buckets[n]), oneapi::dpl::end(buffers_buckets[n]));
-				end=std::chrono::system_clock::now();
-				cout<<"Sort "<<n<<": "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
-				iter++;
-				n++;
-			}
-			dev++;
-		}
-
 	}// Buffers are destroyed, data are moved in the buckets vector
-
-	// Merging all partitions
-	auto start=std::chrono::system_clock::now();
-
-	size_t middle=0;
-	size_t last=0;
-	offset.pop_front();
-	offset.pop_front();
-	while(!offset.empty()){
-		last=offset.front()*NUM_REP*NUM_HASH*NUM_STR;
-		std::cout<<"Middle: "<<middle<<" last: "<<last<<std::endl;
-		inplace_merge(buckets.begin(), buckets.begin()+middle, buckets.begin()+last);
-		middle=last;
-		offset.pop_front();
-	}
-	last=buckets.size();
-	inplace_merge(buckets.begin(), buckets.begin()+middle, buckets.begin()+last);
-	std::cout<<"Middle: "<<middle<<" last: "<<last<<std::endl;
-
-	auto end=std::chrono::system_clock::now();
-	cout<<"Merge: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
 
 }
 
@@ -1230,7 +1184,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	cout<<"Time buckets creation: "<<timer.get_step_time(buckets::total)<<"sec"<<std::endl;
 
 	timer.start_time(sort_buckets::total);
-
+	tbb::parallel_sort(buckets.begin(),buckets.end());
 	timer.end_time(sort_buckets::total);
 	std::cout<<"\nSorting buckets: "<<timer.get_step_time(sort_buckets::total)<<std::endl;
 
@@ -1294,56 +1248,8 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	timer.start_time(cand_proc::rem_cand);
 	vector<std::tuple<int,int>> verifycan;
 
-//	auto new_end=std::remove_if(make_device_policy(queues.front()), candidates.begin(), candidates.end(),[](auto e){return (e.len_diff>K_INPUT || (e.rep12_eq_bit & 0x1)!=0 || e.idx_str1==e.idx_str2);});
-	auto start = std::chrono::system_clock::now();
-	vector<candidate_t> chunk_1;
-	std::move(candidates.data(), candidates.data()+candidates.size()/2, std::back_inserter(chunk_1));
-	auto end = std::chrono::system_clock::now();
-	std::cout<<"Cost of moving: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<std::endl;
-	std::cout<<"Move chunk 1: "<<chunk_1.size()<<std::endl;
-	size_t size_first=0;
-	{
-	buffer<candidate_t> tmp_buffers(chunk_1.data(),chunk_1.size());
-
-	auto begin_itr=oneapi::dpl::begin(tmp_buffers);
-	auto end_itr=oneapi::dpl::end(tmp_buffers);
-
-	auto new_end_itr=std::remove_if(make_device_policy(queues.front()), begin_itr, end_itr,[](candidate_t e){return (e.len_diff>K_INPUT || (e.rep12_eq_bit & 0x1)!=0 || e.idx_str1==e.idx_str2);});
-
-	size_first=std::distance(begin_itr, new_end_itr);
-
-	sort(make_device_policy(queues.front()), begin_itr, begin_itr+size_first);
-
-	}
-
-	vector<candidate_t> chunk_2;
-	std::move(candidates.data()+candidates.size()/2,candidates.data()+candidates.size(), std::back_inserter(chunk_2));
-	std::cout<<"Move chunk 2: "<<chunk_2.size()<<std::endl;
-
-	size_t size_second=0;
-
-	{
-	buffer<candidate_t> tmp_buffers(chunk_2.data(),chunk_2.size());
-
-	auto begin_itr=oneapi::dpl::begin(tmp_buffers);
-	auto end_itr=oneapi::dpl::end(tmp_buffers);
-
-	auto new_end_itr=std::remove_if(make_device_policy(queues.front()), begin_itr, end_itr,[](candidate_t e){return (e.len_diff>K_INPUT || (e.rep12_eq_bit & 0x1)!=0 || e.idx_str1==e.idx_str2);});
-
-	size_second=distance(begin_itr,new_end_itr);
-
-	sort(make_device_policy(queues.front()), begin_itr, begin_itr+size_second);
-
-	}
-
-	candidates.clear();
-	std::cout<<"Size of cand before merge: "<<candidates.size()<<std::endl;
-	merge(chunk_1.begin(), chunk_1.begin()+size_first, chunk_2.begin(), chunk_2.begin()+size_second, std::back_inserter(candidates));
-	std::cout<<"Size of cand after merge: "<<candidates.size()<<std::endl;
-
-
 	try{
-//		candidates.erase(std::remove_if(oneapi::dpl::execution::par_unseq, candidates.begin(), candidates.end(),[](candidate_t e){return (e.len_diff>K_INPUT || (e.rep12_eq_bit & 0x1)!=0 || e.idx_str1==e.idx_str2);}), candidates.end());
+		candidates.erase(std::remove_if(oneapi::dpl::execution::par_unseq, candidates.begin(), candidates.end(),[](candidate_t e){return (e.len_diff>K_INPUT || (e.rep12_eq_bit & 0x1)!=0 || e.idx_str1==e.idx_str2);}), candidates.end());
 //		auto new_end=std::remove_if(make_device_policy(queues.front()), dpstd::begin(candidates_buffer), dpstd::end(candidates_buffer),[](auto e){return (e.len_diff>K_INPUT || (e.rep12_eq_bit & 0x1)!=0 || e.idx_str1==e.idx_str2);}));
 	}catch(std::exception &e){
 		std::cout<<"Error in remove function. Too many candidates for the parallel version."<<std::endl;
@@ -1353,8 +1259,9 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	timer.end_time(cand_proc::rem_cand);
 
 	timer.start_time(cand_proc::sort_cand);
-//	tbb::parallel_sort( candidates.begin(), candidates.end() );
-//	sort(make_device_policy(queues.front()),candidates.begin(), candidates.end());
+
+	tbb::parallel_sort( candidates.begin(), candidates.end() );
+
 	timer.end_time(cand_proc::sort_cand);
 
 	/*
