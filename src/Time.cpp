@@ -15,10 +15,7 @@ namespace embed {
     enum { total=init::end+1, alloc, rand_str, measure, compute, end };
 }
 namespace buckets {
-    enum { total=embed::end+1, measure, compute, end };
-}
-namespace sort_buckets {
-    enum { total = buckets::end+1, end };
+    enum { total=embed::end+1, measure, compute, sort, merge, end };
 }
 namespace cand_init {
     enum { total=sort_buckets::end+1, comp_buck_delim, filter_buck_delim, resize, scan_cand, end };
@@ -27,7 +24,7 @@ namespace cand {
     enum { total=cand_init::end+1, measure, compute, end };
 }
 namespace cand_proc {
-    enum { total=cand::end+1, rem_cand, sort_cand, count_freq, rem_dup, sort_cand_to_verify, filter_low_freq, make_uniq, end };
+    enum { total=cand::end+1, rem_cand, sort_cand, merge_cand, count_freq, rem_dup, sort_cand_to_verify, filter_low_freq, make_uniq, end };
 }
 namespace edit_dist {
     enum{ total=cand_proc::end+1, end };
@@ -97,8 +94,11 @@ public:
 		t=get_time(timing[buckets::compute]);
 		out_file<<"\t,Computing,"<<t<<std::endl;
 
-		t=get_time(timing[sort_buckets::total]);
-		out_file<<"Sort Buckets,\t,"<< t <<std::endl;
+		t=get_time(timing[buckets::sort]);
+		out_file<<"\t,Sort Buckets,"<< t <<std::endl;
+
+		t=get_time(timing[buckets::merge]);
+		out_file<<"\t,Merge Buckets,"<< t <<std::endl;
 
 		t=get_time(timing[cand_init::total]);
 		out_file<<"Candidate Initialization,\t,"<<t<<std::endl;
@@ -185,9 +185,6 @@ public:
 
 		t=get_time(timing[cand_proc::total]);
 		std::cout<<"Time candidates processing:\t"<< t<<"sec"<<std::endl;
-
-		t=get_time(timing[cand_proc::sort_cand]);
-		std::cout<<"Time candidates sorting (within cand-processing):\t"<< t<<"sec"<<std::endl;
 
 		t=get_time(timing[edit_dist::total]);
 		std::cout<<"Time compute edit distance:\t"<<t <<"sec"<<std::endl;

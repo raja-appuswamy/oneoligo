@@ -493,6 +493,7 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 
 		timer.end_time(buckets::compute);
 
+		timer.start_time(buckets::sort);
 		auto start=std::chrono::system_clock::now();
 		auto end=std::chrono::system_clock::now();
 		dev=0;
@@ -511,8 +512,10 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 			dev++;
 		}
 
+		timer.end_time(buckets::sort);
 	}// Buffers are destroyed, data are moved in the buckets vector
 
+	timer.start_time(buckets::merge);
 	// Merging all partitions
 	auto start=std::chrono::system_clock::now();
 
@@ -533,6 +536,7 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 
 	auto end=std::chrono::system_clock::now();
 	cout<<"Merge: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<"sec"<<std::endl;
+	timer.end_time(buckets::merge);
 
 }
 
@@ -1294,68 +1298,74 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	timer.start_time(cand_proc::rem_cand);
 	vector<std::tuple<int,int>> verifycan;
 
-//	auto new_end=std::remove_if(make_device_policy(queues.front()), candidates.begin(), candidates.end(),[](auto e){return (e.len_diff>K_INPUT || (e.rep12_eq_bit & 0x1)!=0 || e.idx_str1==e.idx_str2);});
 	auto start = std::chrono::system_clock::now();
-	vector<candidate_t> chunk_1;
-	std::move(candidates.data(), candidates.data()+candidates.size()/2, std::back_inserter(chunk_1));
+
 	auto end = std::chrono::system_clock::now();
-	std::cout<<"Cost of moving: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<std::endl;
-	std::cout<<"Move chunk 1: "<<chunk_1.size()<<std::endl;
-	size_t size_first=0;
-	{
-	buffer<candidate_t> tmp_buffers(chunk_1.data(),chunk_1.size());
 
-	auto begin_itr=oneapi::dpl::begin(tmp_buffers);
-	auto end_itr=oneapi::dpl::end(tmp_buffers);
 
-	auto new_end_itr=std::remove_if(make_device_policy(queues.front()), begin_itr, end_itr,[](candidate_t e){return (e.len_diff>K_INPUT || (e.rep12_eq_bit & 0x1)!=0 || e.idx_str1==e.idx_str2);});
+	size_t actual_size=0;
+	size_t number_of_splits=2;
 
-	size_first=std::distance(begin_itr, new_end_itr);
-
-	sort(make_device_policy(queues.front()), begin_itr, begin_itr+size_first);
-
-	}
-
-	vector<candidate_t> chunk_2;
-	std::move(candidates.data()+candidates.size()/2,candidates.data()+candidates.size(), std::back_inserter(chunk_2));
-	std::cout<<"Move chunk 2: "<<chunk_2.size()<<std::endl;
-
-	size_t size_second=0;
+	vector<vector<candidate_t>> chunks(number_of_splits);
 
 	{
-	buffer<candidate_t> tmp_buffers(chunk_2.data(),chunk_2.size());
 
-	auto begin_itr=oneapi::dpl::begin(tmp_buffers);
-	auto end_itr=oneapi::dpl::end(tmp_buffers);
+		vector<buffer<candidate_t>> tmp_buffers;
+		size_t offset=candidates.size()/number_of_splits;
 
-	auto new_end_itr=std::remove_if(make_device_policy(queues.front()), begin_itr, end_itr,[](candidate_t e){return (e.len_diff>K_INPUT || (e.rep12_eq_bit & 0x1)!=0 || e.idx_str1==e.idx_str2);});
+		for(int i=0; i<number_of_splits; i++){
+			size_t size=candidates.size()/number_of_splits+(i==number_of_splits-1?(candidates.size()%number_of_splits):0);
+			std::move(candidates.data()+i*offset, candidates.data()+i*offset+size, std::back_inserter(chunks[i]));
+			tmp_buffers.emplace_back(buffer<candidate_t>(chunks[i].data(),chunks[i].size()));
+		}
 
-	size_second=distance(begin_itr,new_end_itr);
 
-	sort(make_device_policy(queues.front()), begin_itr, begin_itr+size_second);
+		vector<size_t> sizes;
 
+
+		int dev=0;
+		for(int i=0; i<number_of_splits; i++){
+			dev++;
+			dev=dev%queues.size();
+			auto begin_itr=oneapi::dpl::begin(tmp_buffers[i]);
+			auto end_itr=oneapi::dpl::end(tmp_buffers[i]);
+			auto new_end_itr=std::remove_if(make_device_policy(queues[dev]), begin_itr, end_itr,[](candidate_t e){return (e.len_diff>K_INPUT || (e.rep12_eq_bit & 0x1)!=0 || e.idx_str1==e.idx_str2);});
+			actual_size=std::distance(begin_itr, new_end_itr);
+			sizes.emplace_back(actual_size);
+		}
+
+		timer.end_time(cand_proc::rem_cand);
+
+		timer.start_time(cand_proc::sort_cand);
+		dev=0;
+		for(int i=0; i<number_of_splits; i++){
+			auto begin_itr=oneapi::dpl::begin(tmp_buffers[i]);
+			auto end_itr=oneapi::dpl::end(tmp_buffers[i]);
+			dev++;
+			dev=dev%queues.size();
+			sort(make_device_policy(queues[dev]), begin_itr, begin_itr+sizes[i]);
+		}
+		timer.end_time(cand_proc::sort_cand);
 	}
 
+	timer.start_time(cand_proc::merge_cand);
 	candidates.clear();
 	std::cout<<"Size of cand before merge: "<<candidates.size()<<std::endl;
-	merge(chunk_1.begin(), chunk_1.begin()+size_first, chunk_2.begin(), chunk_2.begin()+size_second, std::back_inserter(candidates));
+	int i=0;
+	candidates.insert(candidates.end(), chunks[i].begin(), chunks[i].end());
+	for(i=1; i<number_of_splits; i++){
+		size_t middle=candidates.size();
+		candidates.insert(candidates.end(), chunks[i].begin(), chunks[i].end());
+		inplace_merge(candidates.begin(), candidates.begin()+middle, candidates.end());
+	}
 	std::cout<<"Size of cand after merge: "<<candidates.size()<<std::endl;
 
+	timer.end_time(cand_proc::merge_cand);
 
-	try{
-//		candidates.erase(std::remove_if(oneapi::dpl::execution::par_unseq, candidates.begin(), candidates.end(),[](candidate_t e){return (e.len_diff>K_INPUT || (e.rep12_eq_bit & 0x1)!=0 || e.idx_str1==e.idx_str2);}), candidates.end());
-//		auto new_end=std::remove_if(make_device_policy(queues.front()), dpstd::begin(candidates_buffer), dpstd::end(candidates_buffer),[](auto e){return (e.len_diff>K_INPUT || (e.rep12_eq_bit & 0x1)!=0 || e.idx_str1==e.idx_str2);}));
-	}catch(std::exception &e){
-		std::cout<<"Error in remove function. Too many candidates for the parallel version."<<std::endl;
-		std::cout<<"The sequential version will be used."<<std::endl;
-		candidates.erase(std::remove_if(candidates.begin(), candidates.end(),[](candidate_t e){return (e.len_diff>K_INPUT || (e.rep12_eq_bit & 0x1)!=0 || e.idx_str1==e.idx_str2);}), candidates.end());
-	}
-	timer.end_time(cand_proc::rem_cand);
 
-	timer.start_time(cand_proc::sort_cand);
-//	tbb::parallel_sort( candidates.begin(), candidates.end() );
-//	sort(make_device_policy(queues.front()),candidates.begin(), candidates.end());
-	timer.end_time(cand_proc::sort_cand);
+
+
+
 
 	/*
 	 * COUNTING FREQUENCIES
