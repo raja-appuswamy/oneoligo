@@ -5,7 +5,7 @@ LDFLAGS= -lsycl -ltbb -lpthread -lboost_program_options
 DPCPP_EXE_NAME=onejoin
 
 build:
-	$(CXX) $(CXXFLAGS) src/main.cpp src/embedjoin_dpcpp.cpp src/verification.cpp src/Time.cpp src/utils.cpp $(LDFLAGS) -o embedjoin
+	$(CXX) $(CXXFLAGS) src/main.cpp src/embedjoin_dpcpp.cpp src/verification.cpp src/Time.cpp src/utils.cpp $(LDFLAGS) -o $(DPCPP_EXE_NAME)
 
 
 
