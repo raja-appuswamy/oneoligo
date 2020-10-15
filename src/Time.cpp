@@ -18,7 +18,7 @@ namespace buckets {
     enum { total=embed::end+1, measure, compute, sort, merge, end };
 }
 namespace cand_init {
-    enum { total=sort_buckets::end+1, comp_buck_delim, filter_buck_delim, resize, scan_cand, end };
+    enum { total=buckets::end+1, comp_buck_delim, filter_buck_delim, resize, scan_cand, end };
 }
 namespace cand {
     enum { total=cand_init::end+1, measure, compute, end };
@@ -133,6 +133,9 @@ public:
 		t=get_time(timing[cand_proc::sort_cand]);
 		out_file<<"\t,Sort candidates,"<<t<<std::endl;
 
+		t=get_time(timing[cand_proc::merge_cand]);
+		out_file<<"\t,Merge candidates,"<<t<<std::endl;
+
 		t=get_time(timing[cand_proc::count_freq]);
 		out_file<<"\t,Counting frequencies,"<<t<<std::endl;
 
@@ -173,9 +176,6 @@ public:
 
 		t=get_time(timing[buckets::total]);
 		std::cout<<"Time PARALLEL buckets generation:\t"<< t<<"sec"<<std::endl;
-
-		t=get_time(timing[sort_buckets::total]);
-		std::cout<<"Time buckets sorting:\t"<< t <<"sec"<<std::endl;
 
 		t=get_time(timing[cand_init::total]);
 		std::cout<<"Time candidate initialization:\t"<< t<<"sec"<<std::endl;

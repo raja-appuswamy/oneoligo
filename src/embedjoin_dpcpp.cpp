@@ -1233,11 +1233,6 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	timer.end_time(buckets::total);
 	cout<<"Time buckets creation: "<<timer.get_step_time(buckets::total)<<"sec"<<std::endl;
 
-	timer.start_time(sort_buckets::total);
-
-	timer.end_time(sort_buckets::total);
-	std::cout<<"\nSorting buckets: "<<timer.get_step_time(sort_buckets::total)<<std::endl;
-
 
 	 /**
 	  * INITIALIZATION FOR CANDIDATE GENERATION
@@ -1307,7 +1302,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	size_t number_of_splits=2;
 
 	vector<vector<candidate_t>> chunks(number_of_splits);
-
+	vector<size_t> sizes;
 	{
 
 		vector<buffer<candidate_t>> tmp_buffers;
@@ -1319,10 +1314,6 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 			tmp_buffers.emplace_back(buffer<candidate_t>(chunks[i].data(),chunks[i].size()));
 		}
 
-
-		vector<size_t> sizes;
-
-
 		int dev=0;
 		for(int i=0; i<number_of_splits; i++){
 			dev++;
@@ -1331,40 +1322,57 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 			auto end_itr=oneapi::dpl::end(tmp_buffers[i]);
 			auto new_end_itr=std::remove_if(make_device_policy(queues[dev]), begin_itr, end_itr,[](candidate_t e){return (e.len_diff>K_INPUT || (e.rep12_eq_bit & 0x1)!=0 || e.idx_str1==e.idx_str2);});
 			actual_size=std::distance(begin_itr, new_end_itr);
+			std::cout<<"Actual size: "<<actual_size<<std::endl;
 			sizes.emplace_back(actual_size);
 		}
+	}
 
-		timer.end_time(cand_proc::rem_cand);
+	int i=0;
+	for(auto& c:chunks){
+		c.resize(sizes[i]);
+		i++;
+	}
+
+
+	timer.end_time(cand_proc::rem_cand);
+
+	{
+		vector<buffer<candidate_t>> tmp_buffers;
+
+		for(int i=0; i<number_of_splits; i++){
+			tmp_buffers.emplace_back(buffer<candidate_t>(chunks[i].data(),chunks[i].size()));
+		}
+
 
 		timer.start_time(cand_proc::sort_cand);
-		dev=0;
+		int dev=0;
 		for(int i=0; i<number_of_splits; i++){
 			auto begin_itr=oneapi::dpl::begin(tmp_buffers[i]);
 			auto end_itr=oneapi::dpl::end(tmp_buffers[i]);
 			dev++;
 			dev=dev%queues.size();
-			sort(make_device_policy(queues[dev]), begin_itr, begin_itr+sizes[i]);
+			std::cout<<"Actual size: "<<sizes[i]<<std::endl;
+			sort(make_device_policy(queues[dev]), begin_itr, end_itr);
 		}
-		timer.end_time(cand_proc::sort_cand);
+
 	}
+	timer.end_time(cand_proc::sort_cand);
+
 
 	timer.start_time(cand_proc::merge_cand);
 	candidates.clear();
 	std::cout<<"Size of cand before merge: "<<candidates.size()<<std::endl;
-	int i=0;
-	candidates.insert(candidates.end(), chunks[i].begin(), chunks[i].end());
+
+	i=0;
+	candidates.insert(candidates.end(), chunks[i].begin(), chunks[i].begin()+sizes[i]);
 	for(i=1; i<number_of_splits; i++){
 		size_t middle=candidates.size();
-		candidates.insert(candidates.end(), chunks[i].begin(), chunks[i].end());
+		candidates.insert(candidates.end(), chunks[i].begin(), chunks[i].begin()+sizes[i]);
 		inplace_merge(candidates.begin(), candidates.begin()+middle, candidates.end());
 	}
 	std::cout<<"Size of cand after merge: "<<candidates.size()<<std::endl;
 
 	timer.end_time(cand_proc::merge_cand);
-
-
-
-
 
 
 	/*
@@ -1393,6 +1401,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	candidates.erase(unique( candidates.begin(), candidates.end() ), candidates.end());
 	timer.end_time(cand_proc::rem_dup);
 
+	std::cout<<"Count filter: "<<countfilter<<std::endl;
 	timer.start_time(cand_proc::filter_low_freq);
 	for (int i = 0; i < candidates.size(); i++){
 		if (freq_uv[i] > countfilter ){
