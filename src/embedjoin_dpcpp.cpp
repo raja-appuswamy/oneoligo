@@ -11,7 +11,6 @@ size_t test_batches=2;
 
 Time timer;
 
-int is_running_on=cpu;
 
 void setuplsh( vector<vector<int>> &hash_lsh, std::vector<int> &a, std::vector<int> &lshnumber, vector<tuple<int,int>> &rev_hash ){
 
@@ -1062,7 +1061,6 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	countfilter=new_countfilter;
 	size_t len_output=NUM_HASH*NUM_BITS;
 	timer=t;
-	is_running_on=device;
 
 	timer.start_time(total_alg::total);
 
