@@ -2,34 +2,54 @@
 
 int main(int argc, char **argv){
 
+	namespace po = boost::program_options;
+	bool help{};
+	po::options_description description("onejoin [options]");
+	description.add_options()
+		("help,h", po::bool_switch(&help), "Display help")
+		("read,r", po::value<string>(), "File containing input strings")
+		("device,d", po::value<int>(), "Device: 0-CPU; 1-GPU; 2-both devices")
+		("samplingrange,s", po::value<uint32_t>(), "Max char to embed")
+		("countfilter,c", po::value<uint32_t>(), "Min number of occurrencies for a pair to be considered a candidate")
+		("batch_size,b", po::value<size_t>(), "Size of input strings batches");
+
+	po::command_line_parser parser{argc, argv};
+	parser.options(description);
+	auto parsed_result = parser.run();
+	po::variables_map vm;
+	po::store(parsed_result, vm);
+	po::notify(vm);
+
 	Time timer;
 	int device=0;
 	size_t batch_size=0;
-	size_t n_batches=0;
 	string filename="";
 	uint32_t samplingrange=0; // The maximum digit to embed, the range to sample
 	uint32_t countfilter=0;   // Number of required matches (>T) for a pair of substrings to be considered as candidate
-	uint32_t min_pts=10;
 
-	if (argc==6){
-		filename = argv[1];
-		device=atoi(argv[2]);
-		samplingrange=atoi(argv[3]);
-		countfilter=atoi(argv[4]);
-		batch_size=atoi(argv[5]);
+	if (help) {
+		cerr << description << endl;
+		return 0;
+	}
+
+	if (vm.count("read") && vm.count("device") && vm.count("samplingrange") && vm.count("countfilter") && vm.count("batch_size")){
+
+		filename = vm["read"].as<string>();
+		device=vm["device"].as<int>();
+		samplingrange=vm["samplingrange"].as<uint32_t>();
+		countfilter=vm["countfilter"].as<uint32_t>();
+		batch_size=vm["batch_size"].as<size_t>();
 	}
 	else{
-		std::cerr<<"usage: ./embedjoin input_data 0/1/2(cpu/gpu/both) samplingrange count_filter batch_size\n"<<std::endl;
-		exit(-1);
+		std::cerr<<description<<std::endl;
+		return 1;
 	}
 
 	vector<string> input_data;
-	timer.start_time(init::read_dataset);
 	read_dataset(input_data, filename);
-	timer.end_time(init::read_dataset);
 	OutputValues output_val;
 
-	onejoin(input_data,batch_size,n_batches,device,samplingrange,countfilter,timer,output_val,"GEN320ks");
+	onejoin(input_data,batch_size,device,samplingrange,countfilter,timer,output_val,"GEN320ks");
 
 	string report_name=getReportFileName(device, batch_size);
 

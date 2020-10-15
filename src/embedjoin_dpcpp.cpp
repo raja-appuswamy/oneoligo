@@ -22,7 +22,7 @@ void setuplsh( vector<vector<int>> &hash_lsh, std::vector<int> &a, std::vector<i
 	}
 
 	for (int i = 0; i < NUM_BITS; i++){
-		a.push_back(rand() % (M - 1));
+		a.push_back(rand() % (HASH_SZ - 1));
 	}
 
 	for (int i = 0; i < NUM_HASH; i++){
@@ -373,7 +373,7 @@ void  create_buckets(queue &device_queue, char **embdata, buffer<buckets_t,1> &b
 					id += (acc_dict[dict_index]) * acc_a[j];
 				}
 
-				id_mod=id % M;
+				id_mod=id % HASH_SZ;
 				size_t output_position=index.get_linear_id();
 
 				acc_buckets[output_position].idx_rand_str=t;
@@ -989,7 +989,7 @@ void verify_pairs(vector<string> &input_data, vector<size_t> &len_oristrings, ve
 }
 
 
-vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &t, OutputValues &output_vals, string dataset_name) {
+vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &t, OutputValues &output_vals, string dataset_name) {
 
 	timer.start_time(total_alg::total);
 	samplingrange=new_samplingrange;
@@ -1001,7 +1001,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 		tot_input_size+=s.size();
 	}
 	size_t num_strings=input_data.size();
-	n_batches=num_strings/max_batch_size;
+	size_t n_batches=num_strings/max_batch_size;
 
 	print_configuration(max_batch_size, n_batches, len_output, num_strings, countfilter, samplingrange);
 

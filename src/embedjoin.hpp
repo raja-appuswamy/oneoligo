@@ -32,6 +32,7 @@
 #include <exception>
 #include <optional>
 #include "Time.cpp"
+#include <boost/program_options.hpp>
 
 using namespace std;
 using idpair=std::tuple<int, int>;
@@ -121,8 +122,8 @@ struct OutputValues{
 	#define SHIFT 50
 #endif
 
-#ifndef M
-	#define M 1000003 //size of hash table;
+#ifndef HASH_SZ
+	#define HASH_SZ 1000003 //size of hash table;
 #endif
 
 #ifndef K_INPUT
@@ -137,6 +138,6 @@ int edit_distance(const char *x, const int x_len, const  char *y, const int y_le
 void read_dataset(vector<string> &input_data, string filename);
 void print_configuration(int batch_size,int n_batches, size_t len_output, size_t num_input_strings, int countfilter, int samplingrange);
 std::string getReportFileName(int device, size_t batch_size);
-vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &timer, OutputValues &output_val, string dataset_name="");
+vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &timer, OutputValues &output_val, string dataset_name="");
 
 #endif

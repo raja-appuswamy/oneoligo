@@ -9,7 +9,7 @@ using timepoint_t = std::chrono::system_clock::time_point;
 using timeinterval_t = std::pair<timepoint_t,timepoint_t>;
 
 namespace init {
-    enum { total, read_dataset, init_data, init_lsh, rev_lsh, end };
+    enum { total, init_data, init_lsh, rev_lsh, end };
 }
 namespace embed {
     enum { total=init::end+1, alloc, rand_str, measure, compute, end };
