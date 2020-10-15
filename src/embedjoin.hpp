@@ -82,6 +82,13 @@ struct batch_hdr{
 	batch_hdr(size_t size, size_t offset): size(size), offset(offset){}
 };
 
+struct OutputValues{
+	string dev;
+	size_t num_candidates;
+	size_t num_outputs;
+	OutputValues():dev(""), num_candidates(0),num_outputs(0){}
+};
+
 #define PRINT_EACH_STEP 0
 #define NUMREPCHARS(len_output) (len_output * NUM_REP)
 #define NUMSTRCHARS(len_output) (NUMREPCHARS(len_output) * NUM_STR)
@@ -129,6 +136,7 @@ struct batch_hdr{
 int edit_distance(const char *x, const int x_len, const  char *y, const int y_len, int k);
 void read_dataset(vector<string> &input_data, string filename);
 void print_configuration(int batch_size,int n_batches, size_t len_output, size_t num_input_strings, int countfilter, int samplingrange);
-vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &timer, string dataset_name="");
+std::string getReportFileName(int device, size_t batch_size);
+vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &timer, OutputValues &output_val, string dataset_name="");
 
 #endif

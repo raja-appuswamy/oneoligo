@@ -931,22 +931,7 @@ void print_output( vector<string> &input_data, vector<idpair> &output_pairs, str
 }
 
 
-std::string getReportFileName(vector<queue>&queues, int device, size_t batch_size){
 
-	std::string report_name="";
-	if(device==0){
-		report_name+="-CPU-";
-	}else if(device==1){
-		report_name+="-GPU-";
-	}else if(device==2){
-		report_name+="-BOTH-";
-	}
-	else{
-		report_name+="-ERROR";
-	}
-	report_name+=std::to_string(batch_size);
-	return report_name;
-}
 
 void verify_pairs(vector<string> &input_data, vector<size_t> &len_oristrings, vector<idpair> &verifycan, vector<idpair> &output_pairs){
 	uint32_t num_threads = std::thread::hardware_concurrency();
@@ -1004,8 +989,8 @@ void verify_pairs(vector<string> &input_data, vector<size_t> &len_oristrings, ve
 }
 
 
-vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &t, string dataset_name) {
-	timer=t;
+vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &t, OutputValues &output_vals, string dataset_name) {
+
 	timer.start_time(total_alg::total);
 	samplingrange=new_samplingrange;
 	countfilter=new_countfilter;
@@ -1325,27 +1310,24 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 
 	timer.print_summary(num_candidates,num_outputs);
 
-	string report_name=getReportFileName(queues, device, max_batch_size);
-	{
-		ofstream out_file;
-		out_file.open("report-"+dataset_name+report_name+".csv", ios::out | ios::trunc);
-		std::string dev="";
-
-		if(device==2){
-			int count_dev=0;
-			for(auto &q : queues){
-				dev+=q.get_device().get_info<info::device::name>();
-				dev+=count_dev==(queues.size()-1)?"": " && ";
-				count_dev++;
-			}
-		}else{
-			dev=queues.back().get_device().get_info<info::device::name>();
+	string dev="";
+	if(device==2){
+		int count_dev=0;
+		for(auto &q : queues){
+			dev+=q.get_device().get_info<info::device::name>();
+			dev+=count_dev==(queues.size()-1)?"": " && ";
+			count_dev++;
 		}
-
-		if (out_file.is_open()) {
-			timer.print_report(dev, num_candidates, num_outputs, out_file);
-		}
+	}else{
+		dev=queues.back().get_device().get_info<info::device::name>();
 	}
+
+	t=timer;
+	output_vals.dev=dev;
+	output_vals.num_candidates=num_candidates;
+	output_vals.num_outputs=num_outputs;
+
+
 	print_output(input_data, output_pairs, "join_output_parallel.txt");
 
 

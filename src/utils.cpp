@@ -18,3 +18,20 @@ void print_configuration(int batch_size,int n_batches, size_t len_output, size_t
 	std::cout<<std::endl;
 	std::cout<<std::endl;
 };
+
+std::string getReportFileName(int device, size_t batch_size){
+
+	std::string report_name="";
+	if(device==0){
+		report_name+="-CPU-";
+	}else if(device==1){
+		report_name+="-GPU-";
+	}else if(device==2){
+		report_name+="-BOTH-";
+	}
+	else{
+		report_name+="-ERROR";
+	}
+	report_name+=std::to_string(batch_size);
+	return report_name;
+}

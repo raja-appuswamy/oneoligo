@@ -27,8 +27,20 @@ int main(int argc, char **argv){
 	timer.start_time(init::read_dataset);
 	read_dataset(input_data, filename);
 	timer.end_time(init::read_dataset);
+	OutputValues output_val;
 
-	onejoin(input_data,batch_size,n_batches,device,samplingrange,countfilter,timer,"GEN320ks");
+	onejoin(input_data,batch_size,n_batches,device,samplingrange,countfilter,timer,output_val,"GEN320ks");
+
+	string report_name=getReportFileName(device, batch_size);
+
+	{
+		ofstream out_file;
+		out_file.open("report-GEN320ks"+report_name+".csv", ios::out | ios::trunc);
+
+		if (out_file.is_open()) {
+			timer.print_report(output_val.dev, output_val.num_candidates, output_val.num_outputs, out_file);
+		}
+	}
 
 	return 0;
 }
