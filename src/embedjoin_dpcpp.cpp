@@ -95,8 +95,6 @@ void initialize_input_data(vector<string> &input_data, vector<size_t> &len_orist
 	size_t offset=0;
 	for(int i=0; i<input_data.size(); i++){
 		idx_oristrings.emplace_back(offset);
-//		memset(oristrings,0,LEN_INPUT);
-//		strncpy(oristrings[i],input_data[i].c_str(),std::min(static_cast<int>(input_data[i].size()),LEN_INPUT));
 		strncpy(oristrings.data()+offset,input_data[i].c_str(),input_data[i].size());
 		len_oristrings.emplace_back(input_data[i].size());
 		offset+=input_data[i].size();
@@ -487,6 +485,7 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata, vector<bucket
 
 	}// Buffers are destroyed, data are moved in the buckets vector
 
+	timer.end_time(buckets::compute); // Start actual computing
 }
 
 
@@ -1006,13 +1005,11 @@ void verify_pairs(vector<string> &input_data, vector<size_t> &len_oristrings, ve
 
 
 vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &t, string dataset_name) {
-
+	timer=t;
+	timer.start_time(total_alg::total);
 	samplingrange=new_samplingrange;
 	countfilter=new_countfilter;
 	size_t len_output=NUM_HASH*NUM_BITS;
-	timer=t;
-
-	timer.start_time(total_alg::total);
 
 	size_t tot_input_size=0;
 	for(auto &s:input_data){
@@ -1053,7 +1050,6 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	 * len_oristrings: actual len of each input string
 	 * */
 
-	//char *oristrings;
 	vector<char> oristrings;
 	vector<size_t> len_oristrings;
 	vector<size_t> idx_oristrings;
@@ -1105,6 +1101,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 		std::cerr<<"It is not possible allocate the requested size."<<std::endl;
 		exit(-1);
 	}
+
 	if(device==cpu || device==both){ // Selected CPU or both
 		queues.push_back(queue(cpu_selector{}, asyncHandler, property::queue::in_order()));
 	}
@@ -1129,7 +1126,6 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	timer.start_time(init::total);
 	srand(11110);
 	initialization(input_data, len_oristrings, idx_oristrings, oristrings, hash_lsh, a, lshnumber, rev_hash);
-
 	timer.end_time(init::total);
 	std::cerr << "Start parallel algorithm..." << std::endl<<std::endl;
 
@@ -1157,12 +1153,14 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 
 	cout<<"Time: "<<timer.get_step_time(embed::total)<<"sec"<<std::endl;
 
+	timer.start_time(lsh::total);
 
-	timer.start_time(total_join::total);
 	/**
 	 * CREATE BUCKETS STEP
 	 ***/
 	timer.start_time(buckets::total);
+
+	timer.start_time(buckets::allocation);
 
 	try{
 		buckets.resize(num_strings*NUM_STR*NUM_HASH*NUM_REP);
@@ -1170,6 +1168,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 		std::cerr<<"It is not possible allocate the requested size."<<std::endl;
 		exit(-1);
 	}
+	timer.end_time(buckets::allocation);
 
 	create_buckets_wrapper(queues, (char**)set_embdata_dev, buckets, n_batches, batch_hdrs, a, lshnumber, len_output);
 
@@ -1177,17 +1176,13 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 		q.wait();
 	}
 
+	timer.start_time(buckets::sort);
+	tbb::parallel_sort(buckets.begin(),buckets.end());
+	timer.end_time(buckets::sort);
+	std::cout<<"\nSorting buckets: "<<timer.get_step_time(buckets::sort)<<std::endl;
+
 	timer.end_time(buckets::total);
 	cout<<"Time buckets creation: "<<timer.get_step_time(buckets::total)<<"sec"<<std::endl;
-
-	timer.start_time(sort_buckets::total);
-	tbb::parallel_sort(buckets.begin(),buckets.end());
-//	auto policy_c = device_policy<class SOrt> {cpu_selector{}};
-//	sort(par_unseq, buckets.begin(),buckets.end());
-
-	timer.end_time(sort_buckets::total);
-	std::cout<<"\nSorting buckets: "<<timer.get_step_time(sort_buckets::total)<<std::endl;
-
 
 	 /**
 	  * INITIALIZATION FOR CANDIDATE GENERATION
@@ -1209,11 +1204,11 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 
 	 generate_candidates_wrapper(queues, len_oristrings, oristrings, (char**)set_embdata_dev, buckets, batch_hdrs, candidates, lshnumber, len_output);
 
-	 timer.end_time(cand::total);
-
 	 for(auto &q:queues){
 		 q.wait();
 	 }
+
+	 timer.end_time(cand::total);
 
 	 /**
 	  * Since buckets and embed strings are not used anymore,
@@ -1243,7 +1238,6 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	timer.start_time(cand_proc::total);
 	std::cout<<"\n\nStarting candidate processing analysis..."<<std::endl;
 	std::cout<<"\n\t\tCandidates size: "<<candidates.size()<<std::endl;
-
 
 	timer.start_time(cand_proc::rem_cand);
 	vector<std::tuple<int,int>> verifycan;
@@ -1312,6 +1306,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	 * EDIT DISTANCE
 	 * */
 	timer.start_time(edit_dist::total);
+
 	size_t num_outputs;
 	size_t num_candidates;
 
@@ -1321,20 +1316,19 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	num_outputs=output_pairs.size();
 	num_candidates=verifycan.size();
 
-	timer.end_time(edit_dist::total);
-
-	timer.end_time(total_join::total);
-	timer.end_time(total_alg::total);
-
 	cout<<"\n\tSize output pairs: "<<num_outputs<<std::endl;
 	cout<<"\n\t\tNum output: "<<num_outputs<<std::endl;
+
+	timer.end_time(edit_dist::total);
+	timer.end_time(lsh::total);
+	timer.end_time(total_alg::total);
 
 	timer.print_summary(num_candidates,num_outputs);
 
 	string report_name=getReportFileName(queues, device, max_batch_size);
 	{
 		ofstream out_file;
-		out_file.open("report-"+dataset_name+report_name, ios::out | ios::trunc);
+		out_file.open("report-"+dataset_name+report_name+".csv", ios::out | ios::trunc);
 		std::string dev="";
 
 		if(device==2){
@@ -1353,5 +1347,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 		}
 	}
 	print_output(input_data, output_pairs, "join_output_parallel.txt");
+
+
 	return output_pairs;
 }
