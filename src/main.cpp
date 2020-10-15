@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
                               // substrings to be considered as candidate
 
   if (help) {
-    cerr << description << endl;
+    std::cerr << description << std::endl;
     return 0;
   }
 
