@@ -2,84 +2,101 @@
 
 using namespace std;
 
-#define K  (20000)
+#define K (20000)
 
 typedef int64_t int64;
 typedef int32_t int32;
 
 // Computes slide of x and y - returns the index of the first disagreement
-// x and y should be zero terminted plus there should be 7 characters afterwards that are different for x and y
-// the procedure assumes little-endian memory layout for integers (intel x86 type). 
-// For big-endian one would need to modify the computation using __builtin_ctz to something using __builtin_clz
+// x and y should be zero terminted plus there should be 7 characters afterwards
+// that are different for x and y the procedure assumes little-endian memory
+// layout for integers (intel x86 type). For big-endian one would need to modify
+// the computation using __builtin_ctz to something using __builtin_clz
 
-int slide(const char *x, const char *y){
+int slide(const char *x, const char *y) {
 
-	int i=0;
+  int i = 0;
 
-	while(*((int64*)x)==*((int64*)y)){
-		x+=8;
-		y+=8;
-		i+=8;
-	}// find the first 8-bytes that differ
+  while (*((int64 *)x) == *((int64 *)y)) {
+    x += 8;
+    y += 8;
+    i += 8;
+  } // find the first 8-bytes that differ
 
-	i+= (__builtin_ctzll(*((int64*)x)-*((int64*)y)) >> 3);	// calculates the first byte of the 8 that differs
-	
-	return i;
+  i += (__builtin_ctzll(*((int64 *)x) - *((int64 *)y)) >>
+        3); // calculates the first byte of the 8 that differs
+
+  return i;
 }
 
-
 // Computes slide of x and y - returns the index of the first disagreement
-// x and y should be zero terminted plus there should be 7 characters afterwards that are different for x and y
-// the procedure assumes little-endian memory layout for integers (intel x86 type). 
-// For big-endian one would need to modify the computation using __builtin_ctz to something using __builtin_clz
-int slide32(const char *x, const char *y){
+// x and y should be zero terminted plus there should be 7 characters afterwards
+// that are different for x and y the procedure assumes little-endian memory
+// layout for integers (intel x86 type). For big-endian one would need to modify
+// the computation using __builtin_ctz to something using __builtin_clz
+int slide32(const char *x, const char *y) {
 
-	int i=0;
+  int i = 0;
 
-	while(*((int32*)x)==*((int32*)y)){
-		x+=4;
-		y+=4;
-		i+=4;
-	}		// find the first 8-bytes that differ
+  while (*((int32 *)x) == *((int32 *)y)) {
+    x += 4;
+    y += 4;
+    i += 4;
+  } // find the first 8-bytes that differ
 
-	i+= (__builtin_ctz(*((int32*)x)-*((int32*)y)) >> 3);	// calculates the first byte of the 8 that differs
-	
-	return i;
+  i += (__builtin_ctz(*((int32 *)x) - *((int32 *)y)) >>
+        3); // calculates the first byte of the 8 that differs
+
+  return i;
 }
 
 // Computes the edit distance of x and y
-// x and y should be zero terminated plus there should be 7 characters afterwards that are different for x and y
-// (we don't really need zero termination but we need 8 characters after x and y that differ)
+// x and y should be zero terminated plus there should be 7 characters
+// afterwards that are different for x and y (we don't really need zero
+// termination but we need 8 characters after x and y that differ)
 
-int edit_distance(const char *x, const int x_len, const  char *y, const int y_len, int k){
+int edit_distance(const char *x, const int x_len, const char *y,
+                  const int y_len, int k) {
 
-	if(k >= K)return -1;			// error - too large k
+  if (k >= K)
+    return -1; // error - too large k
 
-	if(x_len > y_len)return edit_distance(y,y_len,x,x_len,k);
+  if (x_len > y_len)
+    return edit_distance(y, y_len, x, x_len, k);
 
-	int fc_buf[2*K+1],fp_buf[2*K+1];        // must be at least 2k+3
-	int *fc,*fp;				// current F(d,h) and previous F(d,h-1)
-	int h,dl,du,d;
+  int fc_buf[2 * K + 1], fp_buf[2 * K + 1]; // must be at least 2k+3
+  int *fc, *fp; // current F(d,h) and previous F(d,h-1)
+  int h, dl, du, d;
 
-	fc_buf[K]=fp_buf[K]=-1;
-	
-	for(h=0;h <= k; h++){
+  fc_buf[K] = fp_buf[K] = -1;
 
-		if( (h&1)==0 ){ fc=fc_buf+K; fp=fp_buf+K; }else{ fc=fp_buf+K; fp=fc_buf+K; }
+  for (h = 0; h <= k; h++) {
 
-		dl = - min( 1+((k-(y_len-x_len))/2), h);	// compute the range of relevant diagonals
-		du =   min( 1+k/2+(y_len-x_len), h);
+    if ((h & 1) == 0) {
+      fc = fc_buf + K;
+      fp = fp_buf + K;
+    } else {
+      fc = fp_buf + K;
+      fp = fc_buf + K;
+    }
 
-		fp[dl-1]=fp[dl]=fp[du]=fp[du+1]=-1;
+    dl = -min(1 + ((k - (y_len - x_len)) / 2),
+              h); // compute the range of relevant diagonals
+    du = min(1 + k / 2 + (y_len - x_len), h);
 
-		for(d= dl;d <= du; d++){
-			int r=max(max(fp[d-1],fp[d]+1),fp[d+1]+1);
+    fp[dl - 1] = fp[dl] = fp[du] = fp[du + 1] = -1;
 
-			if((r >= x_len) || (r+d >= y_len))fc[d]=r;
-			else fc[d]=r+slide(x+r,y+r+d);
+    for (d = dl; d <= du; d++) {
+      int r = max(max(fp[d - 1], fp[d] + 1), fp[d + 1] + 1);
 
-			if((d== y_len-x_len)&&(fc[d]>=x_len))return h;
-		}
-	}
-	return -1;
+      if ((r >= x_len) || (r + d >= y_len))
+        fc[d] = r;
+      else
+        fc[d] = r + slide(x + r, y + r + d);
+
+      if ((d == y_len - x_len) && (fc[d] >= x_len))
+        return h;
+    }
+  }
+  return -1;
 }
