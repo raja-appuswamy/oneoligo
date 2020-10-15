@@ -1211,11 +1211,13 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	cout<<"Time: "<<timer.get_step_time(embed::total)<<"sec"<<std::endl;
 
 
-	timer.start_time(total_join::total);
+	timer.start_time(lsh::total);
 	/**
 	 * CREATE BUCKETS STEP
 	 ***/
 	timer.start_time(buckets::total);
+
+	timer.start_time(buckets::allocation);
 
 	try{
 		buckets.resize(num_strings*NUM_STR*NUM_HASH*NUM_REP);
@@ -1223,6 +1225,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 		std::cerr<<"It is not possible allocate the requested size."<<std::endl;
 		exit(-1);
 	}
+	timer.end_time(buckets::allocation);
 
 	create_buckets_wrapper(queues, (char**)set_embdata_dev, buckets, n_batches, batch_hdrs, a, lshnumber, len_output);
 
@@ -1437,7 +1440,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	timer.end_time(edit_dist::total);
 	cout<<"\n\t\tNum output: "<<num_outputs<<std::endl;
 
-	timer.end_time(total_join::total);
+	timer.end_time(lsh::total);
 	timer.end_time(total_alg::total);
 
 
@@ -1446,7 +1449,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 	string report_name=getReportFileName(queues, device, max_batch_size);
 	{
 		ofstream out_file;
-		out_file.open("report-"+dataset_name+report_name, ios::out | ios::trunc);
+		out_file.open("report-"+dataset_name+report_name+".csv", ios::out | ios::trunc);
 		std::string dev="";
 
 		if(device==2){
