@@ -1,6 +1,21 @@
 #include "embedjoin.hpp"
-
+namespace logging = boost::log;
+namespace keywords = boost::log::keywords;
 using namespace std;
+
+void init_logging()
+{
+    logging::register_simple_formatter_factory<logging::trivial::severity_level, char>("Severity");
+
+    logging::add_console_log( std::cout, keywords::format = "[%TimeStamp%] [%Severity%] %Message%" );
+
+    logging::core::get()->set_filter
+    (
+        logging::trivial::severity >= logging::trivial::trace
+    );
+
+    logging::add_common_attributes();
+};
 
 void print_configuration(int batch_size, int n_batches, size_t len_output,
                          size_t num_input_strings, int countfilter,

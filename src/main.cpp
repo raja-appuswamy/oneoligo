@@ -2,6 +2,7 @@
 
 int main(int argc, char **argv) {
 
+	init_logging();
   namespace po = boost::program_options;
   bool help{};
   po::options_description description("onejoin [options]");
