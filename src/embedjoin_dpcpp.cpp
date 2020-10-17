@@ -360,7 +360,7 @@ void parallel_embedding(
   });
 }
 
-void create_buckets(queue &device_queue, char **embdata,
+void create_buckets(queue &device_queue, buffer<char,1> &buffer_embdata,
                     buffer<buckets_t, 1> &buffer_buckets,
                     buffer<size_t, 1> &buffer_batch_size, size_t split_size,
                     buffer<size_t, 1> &buffer_split_offset,
@@ -392,6 +392,8 @@ void create_buckets(queue &device_queue, char **embdata,
       auto acc_split_offset =
           buffer_split_offset.get_access<access::mode::read>(cgh);
 
+      auto acc_embdata = buffer_embdata.get_access<access::mode::read>(cgh);
+
       // Executing kernel
       cgh.parallel_for<class CreateBuckets>(
           range<2>(glob_range), [=](item<2> index) {
@@ -410,8 +412,7 @@ void create_buckets(queue &device_queue, char **embdata,
 
             for (int j = 0; j < NUM_BITS; j++) {
               digit = k * NUM_BITS + j;
-              dict_index = embdata[(int)(i / acc_batch_size[0])]
-                                  [ABSPOS((int)(i % acc_batch_size[0]), t, q,
+              dict_index = acc_embdata[ABSPOS(i % acc_batch_size[0], t, q,
                                           digit, acc_len_output[0])];
               id += (acc_dict[dict_index]) * acc_a[j];
             }
@@ -453,7 +454,7 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata,
     inititalize_dictory(dictory);
 
     std::vector<vector<size_t>> size_per_dev(num_dev,
-                                             vector<size_t>(test_batches, 1));
+                                             vector<size_t>(1,test_batches));
     size_t max_batch_size =
         batch_hdrs[0].size; // all values are equals, except for the last one
 
@@ -465,6 +466,7 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata,
     vector<sycl::buffer<uint32_t, 1>> buffers_lshnumber;
     vector<sycl::buffer<size_t, 1>> buffers_len_output;
     vector<sycl::buffer<uint8_t, 1>> buffers_dict;
+    vector<sycl::buffer<char, 1>> buffers_embdata; 
 
     timer.start_time(buckets::measure);
 
@@ -480,29 +482,21 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata,
     bool is_profiling = true;
     while (dev < queues.size()) {
       int iter = 0;
-      while (iter < size_per_dev[dev].size() && size_per_dev[dev][iter] > 0) {
+      while (iter < size_per_dev[dev].back()) {
 
         // Two kernel are chosen, since the first one
         // includes kernel compiling time
 
         auto start = std::chrono::system_clock::now();
-        size_t batches_to_process = size_per_dev[dev][iter];
-        split_size.emplace_back(
-            batch_hdrs[displacement + batches_to_process - 1].offset +
-            batch_hdrs[displacement + batches_to_process - 1].size -
-            batch_hdrs[displacement].offset);
-        size_t last_offset = (offset.empty() ? 0 : offset.back());
-        offset.emplace_back(last_offset + (n == 0 ? 0 : split_size[n - 1]));
-        size_t loc_split_size = split_size[n];
-
+        size_t loc_split_size = batch_hdrs[n].size;
+        offset.emplace_back(batch_hdrs[n].offset);
         cout << "\n\tSet offset to: " << offset.back() << std::endl;
 
         buffers_buckets.emplace_back(sycl::buffer<buckets_t, 1>(
-            static_cast<buckets_t *>(buckets.data() + offset.back() * NUM_REP *
-                                                          NUM_HASH * NUM_STR),
-            range<1>{loc_split_size * NUM_STR * NUM_HASH * NUM_REP}));
-        buffers_a.emplace_back(
-            buffer<uint32_t, 1>((uint32_t *)a.data(), range<1>{a.size()}));
+            static_cast<buckets_t *>(buckets.data() + offset.back() * NUM_REP * NUM_HASH * NUM_STR),range<1>{loc_split_size * NUM_STR * NUM_HASH * NUM_REP}));
+
+        buffers_a.emplace_back(buffer<uint32_t, 1>((uint32_t *)a.data(), range<1>{a.size()}));
+
         buffers_dict.emplace_back(buffer<uint8_t, 1>(dictory, range<1>{256}));
         buffers_batch_size.emplace_back(
             buffer<size_t, 1>(&max_batch_size, range<1>{1}));
@@ -511,7 +505,11 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata,
         buffers_split_offset.emplace_back(
             buffer<size_t, 1>(&offset.back(), range<1>{1}));
 
-        create_buckets(queues[dev], embdata, buffers_buckets[n],
+        size_t emb_size=static_cast<size_t>(loc_split_size * NUM_STR * NUM_REP * len_output);
+        buffers_embdata.emplace_back(
+            buffer<char, 1>(reinterpret_cast<char *>(embdata[n]), range<1>{emb_size}));
+
+        create_buckets(queues[dev], buffers_embdata[n], buffers_buckets[n],
                        buffers_batch_size[n], loc_split_size,
                        buffers_split_offset[n], buffers_a[n],
                        buffers_len_output[n], buffers_dict[n]);
@@ -530,7 +528,6 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata,
         }
         n++;
         iter++;
-        displacement += batches_to_process;
       }
       dev++;
       if (dev == queues.size() && is_profiling) {
@@ -553,7 +550,7 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata,
 
 void generate_candidates(queue &device_queue,
                          buffer<size_t, 1> &buffer_len_oristrings,
-                         char **embdata, buffer<buckets_t, 1> &buffer_buckets,
+                         buffer<char,2> &buffer_embdata, buffer<buckets_t, 1> &buffer_buckets,
                          buffer<size_t, 1> &buffer_buckets_offset,
                          buffer<size_t, 1> &buffer_batch_size,
                          buffer<candidate_t, 1> &buffer_candidates,
@@ -573,6 +570,7 @@ void generate_candidates(queue &device_queue,
     auto acc_len_output = buffer_len_output.get_access<access::mode::read>(cgh);
     auto acc_buckets_offset =
         buffer_buckets_offset.get_access<access::mode::read>(cgh);
+    auto acc_embdata=buffer_embdata.get_access<access::mode::read>(cgh);
 
     std::cout << "\t\t\tCandidate size: " << candidate_size << std::endl;
 
@@ -606,9 +604,9 @@ void generate_candidates(queue &device_queue,
 
           for (int j = k1 * NUM_BITS; j < k1 * NUM_BITS + NUM_BITS; j++) {
 
-            c1 = embdata[i1 / acc_batch_size[0]][ABSPOS(
+            c1 = acc_embdata[i1 / acc_batch_size[0]][ABSPOS(
                 i1 % acc_batch_size[0], t1, q1, j, acc_len_output[0])];
-            c2 = embdata[i2 / acc_batch_size[0]][ABSPOS(
+            c2 = acc_embdata[i2 / acc_batch_size[0]][ABSPOS(
                 i2 % acc_batch_size[0], t1, q2, j, acc_len_output[0])];
 
             if (c1 != 0 && c2 != 0) {
@@ -646,6 +644,16 @@ void generate_candidates_wrapper(vector<queue> &queues,
   cout << "\nGenerate candidates" << std::endl;
   cout << "\n\tLen output: " << len_output << std::endl;
 
+  size_t max_batch_size = batch_hdrs[0].size;
+
+  vector<char> tmp_embed(batch_hdrs.size()*max_batch_size*NUM_REP*NUM_STR*len_output,0);
+
+  size_t offset=0;
+	for(int k=0; k<batch_hdrs.size(); k++){
+		strncpy(tmp_embed.data()+offset, embdata[k], batch_hdrs[k].size*NUM_REP*NUM_STR*len_output);
+    offset+=batch_hdrs[k].size*NUM_REP*NUM_STR*len_output;
+  }
+
   {
     int num_dev = queues.size();
 
@@ -658,7 +666,6 @@ void generate_candidates_wrapper(vector<queue> &queues,
         num_dev, vector<size_t>(test_batches, size_for_test));
     vector<uint32_t> number_of_iter(num_dev);
     list<size_t> buckets_offset;
-    size_t max_batch_size = batch_hdrs[0].size;
 
     vector<buffer<buckets_t>> buffers_buckets;
     vector<buffer<candidate_t>> buffers_candidates;
@@ -666,6 +673,8 @@ void generate_candidates_wrapper(vector<queue> &queues,
     vector<buffer<size_t, 1>> buffers_batch_size;
     vector<buffer<size_t, 1>> buffers_len_output;
     vector<buffer<size_t, 1>> buffers_buckets_offset;
+    
+    buffer<char,2> buffer_embdata(tmp_embed.data(),range<2>{batch_hdrs.size(),max_batch_size*NUM_REP*NUM_STR*len_output});
 
     vector<long> times;
     cout << "\nSize (num candidates) for profiling: " << size_for_test
@@ -724,7 +733,8 @@ void generate_candidates_wrapper(vector<queue> &queues,
         buffers_buckets_offset.emplace_back(
             buffer<size_t, 1>(&buckets_offset.back(), range<1>{1}));
 
-        generate_candidates(queues[dev], buffers_len[n], embdata,
+        
+        generate_candidates(queues[dev], buffers_len[n], buffer_embdata,
                             buffers_buckets[n], buffers_buckets_offset[n],
                             buffers_batch_size[n], buffers_candidates[n],
                             size_cand[dev][iter], buffers_len_output[n]);
@@ -1288,10 +1298,10 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
 
   timer.start_time(embed::alloc);
   char **set_embdata_dev =
-      (char **)malloc_shared<char *>(n_batches, queues.back());
+      (char **)malloc(n_batches*sizeof(char*));
   for (int n = 0; n < n_batches; n++) {
-    set_embdata_dev[n] = malloc_shared<char>(
-        batch_hdrs[n].size * NUM_STR * NUM_REP * len_output, queues.back());
+    set_embdata_dev[n] = (char*)malloc(
+        batch_hdrs[n].size * NUM_STR * NUM_REP * len_output);
     memset(set_embdata_dev[n], 0,
            batch_hdrs[n].size * NUM_STR * NUM_REP * len_output);
   }
@@ -1327,7 +1337,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
   }
   timer.end_time(buckets::allocation);
 
-  create_buckets_wrapper(queues, (char **)set_embdata_dev, buckets, n_batches,
+  create_buckets_wrapper(queues, set_embdata_dev, buckets, n_batches,
                          batch_hdrs, a, lshnumber, len_output);
 
   for (auto &q : queues) {
@@ -1363,7 +1373,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
   timer.start_time(cand::total);
 
   generate_candidates_wrapper(queues, len_oristrings, oristrings,
-                              (char **)set_embdata_dev, buckets, batch_hdrs,
+                              set_embdata_dev, buckets, batch_hdrs,
                               candidates, lshnumber, len_output);
 
   for (auto &q : queues) {
@@ -1381,14 +1391,14 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
     if (set_embdata_dev[i] == nullptr) {
       cout << "ERROR: Null pointer!" << std::endl;
     } else {
-      free(set_embdata_dev[i], queues.back());
+      free(set_embdata_dev[i]);
       set_embdata_dev[i] = nullptr;
     }
   }
   if (set_embdata_dev == nullptr) {
     cout << "ERROR: Null pointer!" << std::endl;
   } else {
-    free(set_embdata_dev, queues.back());
+    free(set_embdata_dev);
     set_embdata_dev = nullptr;
   }
   cout << "Clear buckets" << std::endl;
