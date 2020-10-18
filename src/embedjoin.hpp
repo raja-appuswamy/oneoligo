@@ -148,7 +148,7 @@ struct OutputValues{
 
 
 
-void init_logging();
+void init_logging(bool debug=false);
 int edit_distance(const char *x, const int x_len, const  char *y, const int y_len, int k);
 void read_dataset(vector<string> &input_data, string filename);
 void print_configuration(int batch_size,int n_batches, size_t len_output, size_t num_input_strings, int countfilter, int samplingrange);
