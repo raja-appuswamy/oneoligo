@@ -75,7 +75,7 @@ void setuplsh(vector<vector<int>> &hash_lsh, std::vector<int> &a,
 
 void read_dataset(vector<string> &input_data, string filename) {
 
-  BOOST_LOG_TRIVIAL(info) << "Reading dataset...";
+  BOOST_LOG_TRIVIAL(info) << "Reading dataset..."<<std::endl;
   ifstream data(filename);
   if (!data.is_open()) {
 	  BOOST_LOG_TRIVIAL(error) << "Error opening input file" << std::endl;
@@ -165,7 +165,7 @@ void allocate_work(vector<long> times, int num_dev, size_t units_to_allocate,
   size_t n_slow = 0; // Number of batches to allocate to the slowest device
 
   for (auto t : times) {
-    cout << "\tTimes kernel: " << (float)t / 1000 << "sec" << std::endl;
+	  BOOST_LOG_TRIVIAL(debug) << "\tTimes kernel: " << (float)t / 1000 << "sec";
   }
 
   if (num_dev > 1) {
@@ -224,18 +224,18 @@ void allocate_work(vector<long> times, int num_dev, size_t units_to_allocate,
     n_fast = units_to_allocate;
     size_per_dev[idx_fastest].emplace_back(n_fast);
   }
-  cout << "\n\tn_fast: " << n_fast << std::endl;
-  cout << "\tn_slow: " << n_slow << std::endl;
+  BOOST_LOG_TRIVIAL(debug) << "\tn_fast: " << n_fast;
+  BOOST_LOG_TRIVIAL(debug) << "\tn_slow: " << n_slow;
 
-  cout << "\tid_fastest: " << idx_fastest << std::endl;
-  cout << "\tid_slowest: " << idx_slowest << std::endl << std::endl;
+  BOOST_LOG_TRIVIAL(debug) << "\tid_fastest: " << idx_fastest;
+  BOOST_LOG_TRIVIAL(debug) << "\tid_slowest: " << idx_slowest << std::endl;
 
   int n = 0;
   for (auto d : size_per_dev) {
-    cout << "\tDev " << n << ":" << std::endl;
+	  BOOST_LOG_TRIVIAL(debug) << "\tDev " << n << ":";
     int i = 0;
     for (auto s : d) {
-      cout << "\t\t" << i << ". " << s << std::endl;
+    	BOOST_LOG_TRIVIAL(debug) << "\t\t" << i << ". " << s << std::endl;
       i++;
     }
   }
@@ -250,7 +250,7 @@ void split_buffers(vector<vector<size_t>> &size_per_dev, size_t size_element,
   if (num_dev > 0) {
     for (int d = 0; d < num_dev; d++) {
       if (size_per_dev[d].size() != 1) {
-        std::cout
+    	  BOOST_LOG_TRIVIAL(error)
             << "ERROR: only one element should be in the vector at this point"
             << std::endl;
         exit(-1);
@@ -261,8 +261,8 @@ void split_buffers(vector<vector<size_t>> &size_per_dev, size_t size_element,
         num_part++;
       }
       num_part++;
-      std::cout << "\n\tSplit buffer in " << num_part << " parts of "
-                << size / num_part << " as dim." << std::endl;
+      BOOST_LOG_TRIVIAL(debug) << "\tSplit buffer in " << num_part << " parts of "
+                << size / num_part << " as dim.";
       size_per_dev[d].clear();
       for (int j = 0; j < num_part; j++) {
         if (j == num_part - 1) {
@@ -358,7 +358,7 @@ void create_buckets(queue &device_queue, char **embdata,
                     buffer<size_t, 1> &buffer_len_output,
                     buffer<uint8_t, 1> &buffer_dict) {
 
-	BOOST_LOG_TRIVIAL(info) << "\n\tTask: Buckets Generation\tDevice: "
+	BOOST_LOG_TRIVIAL(info) << "\tTask: Buckets Generation\tDevice: "
             << device_queue.get_device().get_info<info::device::name>();
   BOOST_LOG_TRIVIAL(debug) << "\t\tSplit size: " << split_size;
 
@@ -422,8 +422,8 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata,
                             vector<batch_hdr> &batch_hdrs, vector<int> &a,
                             vector<int> &lshnumber, size_t len_output) {
 
-  std::cout << "\nCreate buckets" << std::endl;
-  std::cout << "\n\tLen output: " << len_output << std::endl;
+  BOOST_LOG_TRIVIAL(info) << "Create buckets" << std::endl;
+  BOOST_LOG_TRIVIAL(debug) << "\tLen output: " << len_output;
 
   int num_dev = queues.size();
 
@@ -459,7 +459,7 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata,
     int n = 0;   // Global number of iteration
     int dev = 0; // Device index
     int displacement = 0;
-    cout << "\n\tStart profiling on devices..." << std::endl;
+    BOOST_LOG_TRIVIAL(info) << "\tStart profiling on devices..." << std::endl;
     /**
      * Profiling kernel on devices by using the test batches;
      * Allocate work based on performances
@@ -483,7 +483,7 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata,
         offset.emplace_back(last_offset + (n == 0 ? 0 : split_size[n - 1]));
         size_t loc_split_size = split_size[n];
 
-        cout << "\n\tSet offset to: " << offset.back() << std::endl;
+        BOOST_LOG_TRIVIAL(debug) << "\tOffset: " << offset.back();
 
         buffers_buckets.emplace_back(sycl::buffer<buckets_t, 1>(
             static_cast<buckets_t *>(buckets.data() + offset.back() * NUM_REP *
@@ -560,7 +560,7 @@ void generate_candidates(queue &device_queue,
     auto acc_buckets_offset =
         buffer_buckets_offset.get_access<access::mode::read>(cgh);
 
-    BOOST_LOG_TRIVIAL(debug) << "\t\t\tCandidate size: " << candidate_size;
+    BOOST_LOG_TRIVIAL(debug) << "\t\t\tCandidate size: " << candidate_size<<std::endl;
 
     cgh.parallel_for<class GenerateCandidates>(
         range<1>(candidate_size), [=](item<1> index) {
@@ -676,7 +676,7 @@ void generate_candidates_wrapper(vector<queue> &queues,
       while (iter < size_cand[dev].size() && size_cand[dev][iter] > 0) {
         auto start = std::chrono::system_clock::now();
 
-        BOOST_LOG_TRIVIAL(debug) << "\tSize cand[dev]: " << size_cand[dev][iter] << std::endl;
+        BOOST_LOG_TRIVIAL(debug) << "\tSize cand[dev]: " << size_cand[dev][iter];
 
         size_t start_b = candidate[offset_cand].idx_str1;
         size_t end_b =
@@ -687,12 +687,12 @@ void generate_candidates_wrapper(vector<queue> &queues,
 
         buckets_offset.emplace_back(start_b);
 
-        BOOST_LOG_TRIVIAL(debug) << "\tIter " << dev << ". Start buckets at " << offset_cand
+        BOOST_LOG_TRIVIAL(debug) << "\tStart buckets at " << offset_cand
              << ": " << start_b;
-        BOOST_LOG_TRIVIAL(debug) << "\tIter " << dev << ". End buckets at "
+        BOOST_LOG_TRIVIAL(debug) << "\tEnd buckets at "
              << offset_cand + size_cand[dev][iter] - 1 << ": " << end_b
              << std::endl;
-        BOOST_LOG_TRIVIAL(debug) << "\tBuckets size: " << size_buckets << std::endl;
+        BOOST_LOG_TRIVIAL(debug) << "\tBuckets size: " << size_buckets;
         BOOST_LOG_TRIVIAL(debug) << "\tBuckets offset: " << buckets_offset.back();
         BOOST_LOG_TRIVIAL(debug) << "\tCand size: " << size_cand[dev][iter];
         BOOST_LOG_TRIVIAL(debug) << "\tOffset: " << offset_cand << std::endl;
@@ -836,7 +836,7 @@ void initialize_candidate_pairs(vector<queue> &queues,
     size_t n = get<1>(buckets_delimiter[b]);
     size += ((n * (n - 1)) / 2);
   }
-  BOOST_LOG_TRIVIAL(debug) << "\tSize to allocate: " << size << std::endl;
+  BOOST_LOG_TRIVIAL(debug) << "\tSize to allocate: " << size;
   try {
     timer.start_time(cand_init::resize);
     candidates.resize(size);
@@ -971,7 +971,7 @@ void parallel_embedding_wrapper(std::vector<queue> &queues,
         size_t size_emb = static_cast<size_t>(batch_hdrs[n].size * NUM_STR *
                                               NUM_REP * len_output);
 
-        BOOST_LOG_TRIVIAL(debug) << "\tOffset: " << idx_oristrings[batch_hdrs[n].offset];
+        BOOST_LOG_TRIVIAL(debug) << "\tOffset input strings: " << idx_oristrings[batch_hdrs[n].offset];
         size_t next_offset =
             (n == (n_batches - 1) ? (idx_oristrings[idx_oristrings.size() - 1] +
                                      len_oristrings[len_oristrings.size() - 1])
@@ -1239,7 +1239,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
       queues.push_back(std::move(tmp_queue));
     } catch (
         std::exception &e) { // No GPU available, use CPU if not selected yet
-    	BOOST_LOG_TRIVIAL(error)
+    	BOOST_LOG_TRIVIAL(warning)
           << "Attention: no GPU device detected. The program will run on CPU.";
       if (queues.size() == 0) {
         queues.push_back(
@@ -1285,6 +1285,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
     q.wait();
   }
 
+  BOOST_LOG_TRIVIAL(info)<<"Clear oristrings"<<std::endl;
   oristrings.clear();
   timer.end_time(embed::total);
 
@@ -1371,7 +1372,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
     free(set_embdata_dev, queues.back());
     set_embdata_dev = nullptr;
   }
-  BOOST_LOG_TRIVIAL(info) << "Clear buckets" << std::endl;
+  BOOST_LOG_TRIVIAL(info) << "Clear buckets";
   BOOST_LOG_TRIVIAL(info) << "Delete embdata" << std::endl;
 
   /**
