@@ -38,11 +38,11 @@ void print_configuration(int batch_size, int n_batches, size_t len_output,
 std::string getReportFileName(int device, size_t batch_size) {
 
   std::string report_name = "";
-  if (device == 0) {
+  if (device == cpu) {
     report_name += "-CPU-";
-  } else if (device == 1) {
+  } else if (device == gpu) {
     report_name += "-GPU-";
-  } else if (device == 2) {
+  } else if (device == both) {
     report_name += "-BOTH-";
   } else {
     report_name += "-ERROR";

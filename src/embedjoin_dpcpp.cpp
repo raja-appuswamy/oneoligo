@@ -285,7 +285,7 @@ void parallel_embedding(
     buffer<std::tuple<int, int>> &buffer_rev_hash) {
 
     BOOST_LOG_TRIVIAL(info) << "\t\tTask: Embedding Data\tDevice: "
-            << device_queue.get_device().get_info<info::device::name>();
+            << device_queue.get_device().get_info<info::device::name>()<<std::endl;
 
   device_queue.submit([&](handler &cgh) {
     auto acc_offset = buffer_offset.get_access<access::mode::read>(cgh);
@@ -358,8 +358,8 @@ void create_buckets(queue &device_queue, char **embdata,
                     buffer<size_t, 1> &buffer_len_output,
                     buffer<uint8_t, 1> &buffer_dict) {
 
-	BOOST_LOG_TRIVIAL(info) << "\tTask: Buckets Generation\tDevice: "
-            << device_queue.get_device().get_info<info::device::name>();
+	BOOST_LOG_TRIVIAL(info) << "\t\tTask: Buckets Generation\tDevice: "
+            << device_queue.get_device().get_info<info::device::name>()<<std::endl;
   BOOST_LOG_TRIVIAL(debug) << "\t\tSplit size: " << split_size;
 
   range<2> glob_range(split_size * NUM_STR * NUM_REP, NUM_HASH);
@@ -530,6 +530,8 @@ void create_buckets_wrapper(vector<queue> &queues, char **embdata,
         }
         allocate_work(times, num_dev, n_batches - number_of_testing_batches,
                       size_per_dev);
+        
+        BOOST_LOG_TRIVIAL(info) << "\tStart computing on devices..." << std::endl;
         timer.start_time(buckets::compute); // Start actual computing
       }
     }
@@ -549,7 +551,7 @@ void generate_candidates(queue &device_queue,
                          buffer<size_t, 1> &buffer_len_output) {
 
 	BOOST_LOG_TRIVIAL(info) << "\t\tTask: Candidate Pairs Generation\tDevice: "
-            << device_queue.get_device().get_info<info::device::name>();
+            << device_queue.get_device().get_info<info::device::name>()<<std::endl;
 
   device_queue.submit([&](handler &cgh) {
     auto acc_buckets = buffer_buckets.get_access<access::mode::read>(cgh);
@@ -629,7 +631,7 @@ void generate_candidates_wrapper(vector<queue> &queues,
                                  vector<candidate_t> &candidate,
                                  vector<int> &lshnumber, size_t len_output) {
 
-	BOOST_LOG_TRIVIAL(info) << "\nGenerate candidates" << std::endl;
+	BOOST_LOG_TRIVIAL(info) << "Generate candidates" << std::endl;
 	BOOST_LOG_TRIVIAL(debug) << "\tLen output: " << len_output << std::endl;
 
   {
@@ -654,7 +656,7 @@ void generate_candidates_wrapper(vector<queue> &queues,
     vector<buffer<size_t, 1>> buffers_buckets_offset;
 
     vector<long> times;
-    BOOST_LOG_TRIVIAL(info) << "Size (num candidates) for profiling: " << size_for_test
+    BOOST_LOG_TRIVIAL(debug) << "Size (num candidates) for profiling: " << size_for_test
          << std::endl;
 
     timer.start_time(cand::measure);
@@ -740,8 +742,9 @@ void generate_candidates_wrapper(vector<queue> &queues,
         size_t remaining_size =
             candidate.size() - size_for_test * test_batches * num_dev;
         allocate_work(times, num_dev, remaining_size, size_cand);
-        BOOST_LOG_TRIVIAL(info) << "\tRemaining size: " << remaining_size << std::endl;
+        BOOST_LOG_TRIVIAL(debug) << "\tRemaining size: " << remaining_size << std::endl;
         split_buffers(size_cand, sizeof(candidate[0]));
+        BOOST_LOG_TRIVIAL(info) << "\tStart computing on devices..." << std::endl;
         timer.start_time(cand::compute); // Start actual computing
       }
     }
@@ -802,9 +805,6 @@ void initialize_candidate_pairs(vector<queue> &queues,
     }
   }
   timer.end_time(cand_init::comp_buck_delim);
-  std::cout << "\tTime cand-init: count element: "
-            << (float)timer.get_step_time(cand_init::comp_buck_delim) << "sec"
-            << std::endl;
 
   timer.start_time(cand_init::filter_buck_delim);
   /**
@@ -820,9 +820,6 @@ void initialize_candidate_pairs(vector<queue> &queues,
             << std::endl;
 
   timer.end_time(cand_init::filter_buck_delim);
-  std::cout << "\tTime cand-init: remove element: "
-            << (float)timer.get_step_time(cand_init::filter_buck_delim) << "sec"
-            << std::endl;
 
   /**
    * Since each buckets has a variable number of possible candidates,
@@ -841,9 +838,6 @@ void initialize_candidate_pairs(vector<queue> &queues,
     timer.start_time(cand_init::resize);
     candidates.resize(size);
     timer.end_time(cand_init::resize);
-    std::cout << "\tTime cand-init: resize vector: "
-              << (float)timer.get_step_time(cand_init::resize) << "sec"
-              << std::endl;
 
     timer.start_time(cand_init::scan_cand);
 
@@ -868,15 +862,13 @@ void initialize_candidate_pairs(vector<queue> &queues,
       BOOST_LOG_TRIVIAL(error) << "Exiting" << std::endl;
       exit(-1);
     }
-    cout << c << " == " << size << std::endl;
+    BOOST_LOG_TRIVIAL(info)<<"\tAllocation of " << c << " elements" << std::endl;
   } catch (std::exception &e) {
 	  BOOST_LOG_TRIVIAL(error) << "Too many candidates. Reduce the number of input strings\n"
         << "or find the parameter to spread better strings accros hash buckets";
     exit(-1);
   }
-  std::cout << "\tTime cand-init: assign i and j to candidates: "
-            << (float)timer.get_step_time(cand_init::scan_cand) << "sec"
-            << std::endl;
+
 }
 
 void parallel_embedding_wrapper(std::vector<queue> &queues,
@@ -1032,6 +1024,7 @@ void parallel_embedding_wrapper(std::vector<queue> &queues,
         dev = 0;
         allocate_work(times, num_dev, n_batches - number_of_testing_batches,
                       size_per_dev);
+        
         BOOST_LOG_TRIVIAL(info) << "\tStart computing on devices..." << std::endl;
         timer.start_time(embed::compute); // Start actual computing
       }
@@ -1070,7 +1063,8 @@ void print_output(vector<string> &input_data, vector<idpair> &output_pairs,
 void verify_pairs(vector<string> &input_data, vector<size_t> &len_oristrings,
                   vector<idpair> &verifycan, vector<idpair> &output_pairs) {
   uint32_t num_threads = std::thread::hardware_concurrency();
-  BOOST_LOG_TRIVIAL(debug) << "Number of threads for edit distance: " << num_threads << std::endl;
+  BOOST_LOG_TRIVIAL(info) << "Verification"<<std::endl;
+  BOOST_LOG_TRIVIAL(debug) << "\tNumber of threads for edit distance: " << num_threads << std::endl;
 
   std::vector<std::thread> workers;
 
@@ -1285,11 +1279,9 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
     q.wait();
   }
 
-  BOOST_LOG_TRIVIAL(info)<<"Clear oristrings"<<std::endl;
+  BOOST_LOG_TRIVIAL(info)<<"\tClear oristrings"<<std::endl;
   oristrings.clear();
   timer.end_time(embed::total);
-
-  cout << "Time: " << timer.get_step_time(embed::total) << "sec" << std::endl;
 
   timer.start_time(lsh::total);
 
@@ -1318,12 +1310,8 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
   timer.start_time(buckets::sort);
   tbb::parallel_sort(buckets.begin(), buckets.end());
   timer.end_time(buckets::sort);
-  std::cout << "\nSorting buckets: " << timer.get_step_time(buckets::sort)
-            << std::endl;
 
   timer.end_time(buckets::total);
-  cout << "Time buckets creation: " << timer.get_step_time(buckets::total)
-       << "sec" << std::endl;
 
   /**
    * INITIALIZATION FOR CANDIDATE GENERATION
@@ -1335,7 +1323,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
 
   timer.end_time(cand_init::total);
 
-  std::cout << timer.get_step_time(cand_init::total) << std::endl;
+  BOOST_LOG_TRIVIAL(info) <<"Time initialize cnadidate pairs: "<< timer.get_step_time(cand_init::total) << std::endl;
 
   /**
    * GENERATE CANDIDATE PAIRS STEP
@@ -1379,8 +1367,8 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
    * CANDIDATES PROCESSING
    * */
   timer.start_time(cand_proc::total);
-  BOOST_LOG_TRIVIAL(info) << "Starting candidate processing analysis..." << std::endl;
-  BOOST_LOG_TRIVIAL(info) << "\t\tCandidates size: " << candidates.size() << std::endl;
+  BOOST_LOG_TRIVIAL(info) << "Starting candidate processing analysis" << std::endl;
+  BOOST_LOG_TRIVIAL(debug) << "\tCandidates size: " << candidates.size() << std::endl;
 
   timer.start_time(cand_proc::rem_cand);
   vector<std::tuple<int, int>> verifycan;
@@ -1454,7 +1442,6 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
   verifycan.erase(unique(verifycan.begin(), verifycan.end()), verifycan.end());
   timer.end_time(cand_proc::make_uniq);
 
-  BOOST_LOG_TRIVIAL(info) << "End candidates processing" << std::endl;
   timer.end_time(cand_proc::total);
 
   /**
