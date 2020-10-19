@@ -11,7 +11,8 @@ int main(int argc, char **argv) {
       "samplingrange,s", po::value<uint32_t>(), "Max char to embed")(
       "countfilter,c", po::value<uint32_t>(),
       "Min number of occurrencies for a pair to be considered a candidate")(
-      "batch_size,b", po::value<size_t>(), "Size of input strings batches");
+      "batch_size,b", po::value<size_t>(),
+      "Size of input strings batches")("verbose,v", "Print debug information");
 
   po::command_line_parser parser{argc, argv};
   parser.options(description);
@@ -45,6 +46,13 @@ int main(int argc, char **argv) {
     std::cerr << description << std::endl;
     return 1;
   }
+
+  bool debug = false;
+  if (vm.count("verbose")) {
+    debug = true;
+  }
+
+  init_logging(debug);
 
   vector<string> input_data;
   read_dataset(input_data, filename);
