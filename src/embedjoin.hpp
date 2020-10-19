@@ -90,11 +90,7 @@ struct OutputValues{
 	OutputValues():dev(""), num_candidates(0),num_outputs(0){}
 };
 
-#define PRINT_EACH_STEP 0
-#define NUMREPCHARS(len_output) (len_output * NUM_REP)
-#define NUMSTRCHARS(len_output) (NUMREPCHARS(len_output) * NUM_STR)
-#define ABSPOS(i,j,k,m,len_output) static_cast<unsigned int>(i * NUMSTRCHARS(len_output) + j * NUMREPCHARS(len_output) + k * len_output + m)
-#define ABSPOS_P(j,t,d,len) static_cast<unsigned int>(j*NUM_CHAR*len +t*len+d)
+
 
 // Default parameters for GEN DATASET: 150 7 16 12 4 5000 0 50 1
 
@@ -130,7 +126,12 @@ struct OutputValues{
 	#define K_INPUT 150 // edit distance threshold
 #endif
 
-#define NUM_REP 3// edit distance threshold
+#define NUM_REP static_cast<int>(K_INPUT/SHIFT)// edit distance threshold
+
+#define NUMREPCHARS(len_output) (len_output * NUM_REP)
+#define NUMSTRCHARS(len_output) (NUMREPCHARS(len_output) * NUM_STR)
+#define ABSPOS(i,j,k,m,len_output) static_cast<unsigned int>(i * NUMSTRCHARS(len_output) + j * NUMREPCHARS(len_output) + k * len_output + m)
+#define ABSPOS_P(j,t,d,len) static_cast<unsigned int>(j*NUM_CHAR*len +t*len+d)
 
 
 int edit_distance(const char *x, const int x_len, const  char *y, const int y_len, int k);
