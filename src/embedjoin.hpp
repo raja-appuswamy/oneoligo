@@ -130,9 +130,8 @@ struct OutputValues{
 	#define K_INPUT 150 // edit distance threshold
 #endif
 
-#ifndef NUM_REP
-	#define NUM_REP 3 // edit distance threshold
-#endif
+#define NUM_REP K_INPUT/SHIFT // edit distance threshold
+
 
 int edit_distance(const char *x, const int x_len, const  char *y, const int y_len, int k);
 void read_dataset(vector<string> &input_data, string filename);

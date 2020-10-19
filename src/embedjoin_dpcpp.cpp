@@ -1476,6 +1476,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
 
   cout << "\nEnd candidates processing" << std::endl;
   timer.end_time(cand_proc::total);
+  timer.end_time(lsh::total);
 
   /**
    * EDIT DISTANCE
@@ -1495,7 +1496,6 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
   cout << "\n\t\tNum output: " << num_outputs << std::endl;
 
   timer.end_time(edit_dist::total);
-  timer.end_time(lsh::total);
   timer.end_time(total_alg::total);
 
   timer.print_summary(num_candidates, num_outputs);
