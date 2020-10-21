@@ -1,5 +1,5 @@
 CXX=dpcpp
-PARAMS=-DNUM_STR=7 -DNUM_HASH=16 -DNUM_BITS=12 -DNUM_CHAR=4 -DK_INPUT=150 -DNUM_REP=3
+PARAMS=-DNUM_STR=7 -DNUM_HASH=16 -DNUM_BITS=12 -DNUM_CHAR=4 -DK_INPUT=150 -DSHIFT=50
 CXXFLAGS= -O3 -std=c++17 -fsycl -fsycl-unnamed-lambda $(PARAMS) 
 LDFLAGS= -lsycl -ltbb -lpthread -lboost_program_options -lboost_thread -lboost_system -lboost_log -lboost_log_setup
 DPCPP_EXE_NAME=onejoin
