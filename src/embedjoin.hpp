@@ -137,7 +137,7 @@ struct OutputValues{
 	#define K_INPUT 150 // edit distance threshold
 #endif
 
-#define NUM_REP static_cast<int>(K_INPUT/SHIFT)// edit distance threshold
+#define NUM_REP static_cast<size_t>((K_INPUT+SHIFT-1)/SHIFT)// (round up) number of substrings
 
 #define NUMREPCHARS(len_output) (len_output * NUM_REP)
 #define NUMSTRCHARS(len_output) (NUMREPCHARS(len_output) * NUM_STR)
