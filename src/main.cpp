@@ -12,7 +12,8 @@ int main(int argc, char **argv) {
       "countfilter,c", po::value<uint32_t>(),
       "Min number of occurrencies for a pair to be considered a candidate")(
       "batch_size,b", po::value<size_t>(),
-      "Size of input strings batches")("verbose,v", "Print debug information");
+      "Size of input strings batches")("verbose,v", "[optional] Print debug information")(
+      "dataset_name,n", po::value<string>(), "[optional] Name of dataset to use in the report name");
 
   po::command_line_parser parser{argc, argv};
   parser.options(description);
@@ -47,6 +48,11 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  string dataset_name="";
+  if (vm.count("dataset_name")) {
+    dataset_name=vm["batch_size"].as<string>();
+  }
+
   bool debug = false;
   if (vm.count("verbose")) {
     debug = true;
@@ -59,13 +65,13 @@ int main(int argc, char **argv) {
   OutputValues output_val;
 
   onejoin(input_data, batch_size, device, samplingrange, countfilter, timer,
-          output_val, "GEN320ks");
+          output_val);
 
   string report_name = getReportFileName(device, batch_size);
 
   {
     ofstream out_file;
-    out_file.open("report-GEN320ks" + report_name + ".csv",
+    out_file.open("report-" + dataset_name + report_name + ".csv",
                   ios::out | ios::trunc);
 
     if (out_file.is_open()) {
