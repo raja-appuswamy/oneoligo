@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
 
   string dataset_name="";
   if (vm.count("dataset_name")) {
-    dataset_name=vm["batch_size"].as<string>();
+    dataset_name=vm["dataset_name"].as<string>();
   }
 
   bool debug = false;
