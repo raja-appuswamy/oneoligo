@@ -80,34 +80,34 @@ public:
     out_file << "MainStep,Step,SubStep,Time(sec),Device" << std::endl;
 
     double t = get_time(timing[init::total]);
-    out_file << "Initialization,\t,\t," << t << std::endl;
+    out_file << "Initialization,\t,\t," << t << ","<< std::endl;
 
     t = get_time(timing[init::init_data]);
-    out_file << "\t,Init Dataset,\t," << t << std::endl;
+    out_file << "\t,Init Dataset,\t," << t << "," << std::endl;
 
     t = get_time(timing[init::init_lsh]);
-    out_file << "\t,Init LSH bits,\t," << t << std::endl;
+    out_file << "\t,Init LSH bits,\t," << t << ","<< std::endl;
 
     t = get_time(timing[init::rev_lsh]);
-    out_file << "\t,Init Rev LSH array,\t," << t << std::endl;
+    out_file << "\t,Init Rev LSH array,\t," << t << ","<< std::endl;
 
     t = get_time(timing[embed::total]);
     out_file << "Embedding,\t,\t," << t << "," << dev << std::endl;
 
     t = get_time(timing[embed::alloc]);
-    out_file << "\t,USM allocation,\t," << t << std::endl;
+    out_file << "\t,USM allocation,\t," << t << ","<< std::endl;
 
     t = get_time(timing[embed::rand_str]);
-    out_file << "\t,Random string generation,\t," << t << std::endl;
+    out_file << "\t,Random string generation,\t," << t << ","<< std::endl;
 
     t = get_time(timing[embed::measure]);
-    out_file << "\t,Measurement,\t," << t << std::endl;
+    out_file << "\t,Measurement,\t," << t << ","<< std::endl;
 
     t = get_time(timing[embed::compute]);
-    out_file << "\t,Computing,\t," << t << std::endl;
+    out_file << "\t,Computing,\t," << t << ","<< std::endl;
 
     t = get_time(timing[lsh::total]);
-    out_file << "LSH time,\t,\t," << t << std::endl;
+    out_file << "LSH time,\t,\t," << t << ","<< std::endl;
 
     t = get_time(timing[buckets::total]);
     out_file << "\t,Create Buckets,\t," << t << "," << dev << std::endl;
@@ -116,70 +116,70 @@ public:
     out_file << "\t,\t,Buckets Allocation," << t << "," << dev << std::endl;
 
     t = get_time(timing[buckets::measure]);
-    out_file << "\t,\t,Measurement," << t << std::endl;
+    out_file << "\t,\t,Measurement," << t << ","<< std::endl;
 
     t = get_time(timing[buckets::compute]);
-    out_file << "\t,\t,Computing," << t << std::endl;
+    out_file << "\t,\t,Computing," << t << ","<< std::endl;
 
     t = get_time(timing[buckets::sort]);
-    out_file << "\t,\t,Sort Buckets," << t << std::endl;
+    out_file << "\t,\t,Sort Buckets," << t << ","<< std::endl;
 
     t = get_time(timing[cand_init::total]);
-    out_file << "\t,Candidate Initialization,\t," << t << std::endl;
+    out_file << "\t,Candidate Initialization,\t," << t << ","<< std::endl;
 
     t = get_time(timing[cand_init::comp_buck_delim]);
-    out_file << "\t,\t,Compute buckets delimiter," << t << std::endl;
+    out_file << "\t,\t,Compute buckets delimiter," << t << ","<< std::endl;
 
     t = get_time(timing[cand_init::filter_buck_delim]);
-    out_file << "\t,\t,Filter one element buckets," << t << std::endl;
+    out_file << "\t,\t,Filter one element buckets," << t << ","<< std::endl;
 
     t = get_time(timing[cand_init::resize]);
-    out_file << "\t,\t,Allocate candidate vector," << t << std::endl;
+    out_file << "\t,\t,Allocate candidate vector," << t << ","<< std::endl;
 
     t = get_time(timing[cand_init::scan_cand]);
-    out_file << "\t,\t,Scan cand vector (write i and j)," << t << std::endl;
+    out_file << "\t,\t,Scan cand vector (write i and j)," << t << ","<< std::endl;
 
     t = get_time(timing[cand::total]);
     out_file << "\t,Generate Candidate,\t," << t << "," << dev << std::endl;
 
     t = get_time(timing[cand::measure]);
-    out_file << "\t,\t,Measurement," << t << std::endl;
+    out_file << "\t,\t,Measurement," << t << ","<< std::endl;
 
     t = get_time(timing[cand::compute]);
-    out_file << "\t,\t,Computing," << t << std::endl;
+    out_file << "\t,\t,Computing," << t << ","<< std::endl;
 
     t = get_time(timing[cand_proc::total]);
-    out_file << "\t,Candidates processing,\t," << t << std::endl;
+    out_file << "\t,Candidates processing,\t," << t << ","<< std::endl;
 
     t = get_time(timing[cand_proc::rem_cand]);
-    out_file << "\t,\t,Remove candidates," << t << std::endl;
+    out_file << "\t,\t,Remove candidates," << t << ","<< std::endl;
 
     t = get_time(timing[cand_proc::sort_cand]);
-    out_file << "\t,\t,Sort candidates," << t << std::endl;
+    out_file << "\t,\t,Sort candidates," << t << ","<< std::endl;
 
     t = get_time(timing[cand_proc::count_freq]);
-    out_file << "\t,\t,Counting frequencies," << t << std::endl;
+    out_file << "\t,\t,Counting frequencies," << t << ","<< std::endl;
 
     t = get_time(timing[cand_proc::rem_dup]);
-    out_file << "\t,\t,Remove duplicates," << t << std::endl;
+    out_file << "\t,\t,Remove duplicates," << t << ","<< std::endl;
 
     t = get_time(timing[cand_proc::sort_cand_to_verify]);
-    out_file << "\t,\t,Sorting candidates to verify," << t << std::endl;
+    out_file << "\t,\t,Sorting candidates to verify," << t << ","<< std::endl;
 
     t = get_time(timing[cand_proc::filter_low_freq]);
-    out_file << "\t,\t,Remove low frequencies candidates," << t << std::endl;
+    out_file << "\t,\t,Remove low frequencies candidates," << t << ","<< std::endl;
 
     t = get_time(timing[cand_proc::make_uniq]);
-    out_file << "\t,\t,Removing duplicates," << t << std::endl;
+    out_file << "\t,\t,Removing duplicates," << t << ","<< std::endl;
 
     t = get_time(timing[edit_dist::total]);
-    out_file << "Edit Distance,\t,\t," << t << std::endl;
+    out_file << "Edit Distance,\t,\t," << t << ","<< std::endl;
 
     t = get_time(timing[total_alg::total]);
-    out_file << "Total Alg time,\t,\t," << t << std::endl;
+    out_file << "Total Alg time,\t,\t," << t << ","<< std::endl;
 
-    out_file << "Number candidates,\t" << num_candidates << std::endl;
-    out_file << "Number output,\t" << num_outputs << std::endl;
+    out_file << "Number candidates,\t" << num_candidates << ",\t,\t,"<< std::endl;
+    out_file << "Number output,\t" << num_outputs << ",\t,\t,"<< std::endl;
   }
 
   void print_summary(uint32_t num_candidates, uint32_t num_outputs) {
