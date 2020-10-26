@@ -13,7 +13,9 @@ int main(int argc, char **argv) {
       "Min number of occurrencies for a pair to be considered a candidate")(
       "batch_size,b", po::value<size_t>(),
       "Size of input strings batches")("verbose,v", "[optional] Print debug information")(
-      "dataset_name,n", po::value<string>(), "[optional] Name of dataset to use in the report name");
+      "dataset_name,n", po::value<string>(), "[optional] Name of dataset to use in the report name")(
+      "num_thread_ed_dist,t", po::value<int>(),"[optional] Number of thread to use for edit distance. Default 0 (hardware cuncurrency)"
+      );
 
   po::command_line_parser parser{argc, argv};
   parser.options(description);
@@ -58,6 +60,11 @@ int main(int argc, char **argv) {
     debug = true;
   }
 
+  int num_thread=0;
+  if( vm.count("num_thread_ed_dist") ){
+    num_thread=vm["num_thread_ed_dist"].as<int>();
+  }
+
   init_logging(debug);
 
   vector<string> input_data;
@@ -65,7 +72,7 @@ int main(int argc, char **argv) {
   OutputValues output_val;
 
   onejoin(input_data, batch_size, device, samplingrange, countfilter, timer,
-          output_val);
+          output_val, num_thread);
 
   string report_name = getReportFileName(device, batch_size);
 

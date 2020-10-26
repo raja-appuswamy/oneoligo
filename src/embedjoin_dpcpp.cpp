@@ -9,6 +9,7 @@ uint32_t countfilter = 1;   // Number of required matches (>T) for a pair of
                             // substrings to be considered as candidate
 
 size_t test_batches = 2;
+int num_thr = 0;
 
 Time timer;
 
@@ -1077,7 +1078,13 @@ void print_output(vector<string> &input_data, vector<idpair> &output_pairs,
 
 void verify_pairs(vector<string> &input_data, vector<size_t> &len_oristrings,
                   vector<idpair> &verifycan, vector<idpair> &output_pairs) {
-  uint32_t num_threads = std::thread::hardware_concurrency();
+
+  uint32_t num_threads=std::thread::hardware_concurrency();
+
+  if(num_thr!=0){
+     num_threads = static_cast<uint32_t>(num_thr);
+  }
+
   BOOST_LOG_TRIVIAL(info) << "Verification" << std::endl;
   BOOST_LOG_TRIVIAL(debug) << "\tNumber of threads for edit distance: "
                            << num_threads << std::endl;
@@ -1139,10 +1146,11 @@ void verify_pairs(vector<string> &input_data, vector<size_t> &len_oristrings,
 vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
                        int device, uint32_t new_samplingrange,
                        uint32_t new_countfilter, Time &t,
-                       OutputValues &output_vals, string dataset_name) {
+                       OutputValues &output_vals, int num_thr_val, string dataset_name) {
 
   timer.start_time(total_alg::total);
   samplingrange = new_samplingrange;
+  num_thr=num_thr_val;
   countfilter = new_countfilter;
   size_t len_output = NUM_HASH * NUM_BITS;
 
