@@ -55,7 +55,7 @@ struct candidate_t {
 	uint32_t idx_str1;
 	uint32_t len_diff;
 	uint32_t idx_str2;
-	uint8_t rep12_eq_bit;
+	uint16_t rep12_eq_bit;
 	candidate_t(): idx_str1(0), len_diff(0), idx_str2(0), rep12_eq_bit(0) {}
 	candidate_t(uint32_t idx_str1, uint32_t len_diff, uint32_t idx_str2, uint8_t rep12_eq_bit):
 		idx_str1(idx_str1), len_diff(len_diff), idx_str2(idx_str2), rep12_eq_bit(rep12_eq_bit) {}

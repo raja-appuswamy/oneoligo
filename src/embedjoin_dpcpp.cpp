@@ -614,8 +614,8 @@ void generate_candidates(queue &device_queue,
            * q12 is made (b7)( b6, b5, b4 )( b3, b2, b1)(b0)
            * 			(unused) (q1) (q2) (compare result)
            */
-          uint8_t q12 = (uint8_t)q1;
-          q12 = q12 << 3;
+          uint16_t q12 = (uint16_t)q1;
+          q12 = q12 << 7;
           q12 = q12 + q2;
           q12 = q12 << 1;
           q12 = q12 + (sum > 0 ? 1 : 0);
