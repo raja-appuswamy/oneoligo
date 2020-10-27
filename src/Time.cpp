@@ -60,11 +60,7 @@ public:
   void print_report(std::string dev, uint32_t num_candidates,
                     uint32_t num_outputs, std::ostream &out_file = std::cout) {
 
-    out_file << "MainStep,Step,SubStep,Time(sec),Device" << std::endl;
-
-    double t = get_time(timing[init::total]);
-    out_file << "Initialization,\t,\t," << t << ","<< std::endl;
-
+    
 		out_file<<"MainStep,Step,SubStep,Time(sec),Device"<<std::endl;
 		
 		double t=get_time(timing[init::total]);
