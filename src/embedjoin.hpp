@@ -7,6 +7,7 @@
 #include <list>
 #include <iostream>
 #include <sstream>
+#include <iomanip>
 #include <fstream>
 #include <string.h>
 #include <algorithm>
@@ -32,6 +33,17 @@
 #include <exception>
 #include <optional>
 #include "Time.cpp"
+#include <boost/program_options.hpp>
+#define BOOST_LOG_DYN_LINK 1
+#define BOOST_ALL_DYN_LINK 1
+#include <boost/log/trivial.hpp>
+#include <boost/log/core.hpp>
+#include <boost/log/trivial.hpp>
+#include <boost/log/expressions.hpp>
+#include <boost/log/utility/setup/file.hpp>
+#include <boost/log/utility/setup/console.hpp>
+#include <boost/log/utility/setup/common_attributes.hpp>
+
 
 using namespace std;
 using idpair=std::tuple<int, int>;
@@ -43,7 +55,7 @@ struct candidate_t {
 	uint32_t idx_str1;
 	uint32_t len_diff;
 	uint32_t idx_str2;
-	uint8_t rep12_eq_bit;
+	uint16_t rep12_eq_bit;
 	candidate_t(): idx_str1(0), len_diff(0), idx_str2(0), rep12_eq_bit(0) {}
 	candidate_t(uint32_t idx_str1, uint32_t len_diff, uint32_t idx_str2, uint8_t rep12_eq_bit):
 		idx_str1(idx_str1), len_diff(len_diff), idx_str2(idx_str2), rep12_eq_bit(rep12_eq_bit) {}
@@ -82,11 +94,14 @@ struct batch_hdr{
 	batch_hdr(size_t size, size_t offset): size(size), offset(offset){}
 };
 
-#define PRINT_EACH_STEP 0
-#define NUMREPCHARS(len_output) (len_output * NUM_REP)
-#define NUMSTRCHARS(len_output) (NUMREPCHARS(len_output) * NUM_STR)
-#define ABSPOS(i,j,k,m,len_output) static_cast<unsigned int>(i * NUMSTRCHARS(len_output) + j * NUMREPCHARS(len_output) + k * len_output + m)
-#define ABSPOS_P(j,t,d,len) static_cast<unsigned int>(j*NUM_CHAR*len +t*len+d)
+struct OutputValues{
+	string dev;
+	size_t num_candidates;
+	size_t num_outputs;
+	OutputValues():dev(""), num_candidates(0),num_outputs(0){}
+};
+
+
 
 // Default parameters for GEN DATASET: 150 7 16 12 4 5000 0 50 1
 
@@ -114,21 +129,32 @@ struct batch_hdr{
 	#define SHIFT 50
 #endif
 
-#ifndef M
-	#define M 1000003 //size of hash table;
+#ifndef HASH_SZ
+	#define HASH_SZ 1000003 //size of hash table;
 #endif
 
 #ifndef K_INPUT
 	#define K_INPUT 150 // edit distance threshold
 #endif
 
-#ifndef NUM_REP
-	#define NUM_REP 3 // edit distance threshold
-#endif
+#define NUM_REP static_cast<size_t>((K_INPUT+SHIFT-1)/SHIFT)// (round up) number of substrings
 
+#define NUMREPCHARS(len_output) (len_output * NUM_REP)
+#define NUMSTRCHARS(len_output) (NUMREPCHARS(len_output) * NUM_STR)
+#define ABSPOS(i,j,k,m,len_output) static_cast<unsigned int>(i * NUMSTRCHARS(len_output) + j * NUMREPCHARS(len_output) + k * len_output + m)
+#define ABSPOS_P(j,t,d,len) static_cast<unsigned int>(j*NUM_CHAR*len +t*len+d)
+
+
+
+
+
+void init_logging(bool debug=false);
 int edit_distance(const char *x, const int x_len, const  char *y, const int y_len, int k);
 void read_dataset(vector<string> &input_data, string filename);
 void print_configuration(int batch_size,int n_batches, size_t len_output, size_t num_input_strings, int countfilter, int samplingrange);
-vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &timer, string dataset_name="");
+std::string getReportFileName(int device, size_t batch_size);
+vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &timer, OutputValues &output_val, int num_thr_val=0, string dataset_name="");
+
+
 
 #endif
