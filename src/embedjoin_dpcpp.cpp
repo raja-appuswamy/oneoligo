@@ -1535,49 +1535,45 @@ vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, int device
 	cout<<"\nEnd candidates processing"<<std::endl;
 	timer.end_time(cand_proc::total);
 
-	/**
-	 * EDIT DISTANCE
-	 * */
-	timer.start_time(edit_dist::total);
-	size_t num_outputs;
-	size_t num_candidates;
+  /**
+   * EDIT DISTANCE
+   * */
+  timer.start_time(edit_dist::total);
 
-	verify_pairs(input_data, len_oristrings, verifycan, output_pairs);
+  size_t num_outputs;
+  size_t num_candidates;
 
+  // Compute edit distance for each pair
+  verify_pairs(input_data, len_oristrings, verifycan, output_pairs);
 
-	cout<<"\n\tSize output pairs: "<<output_pairs.size()<<std::endl;
-	num_outputs=output_pairs.size();
-	num_candidates=verifycan.size();
-	timer.end_time(edit_dist::total);
-	cout<<"\n\t\tNum output: "<<num_outputs<<std::endl;
+  num_outputs = output_pairs.size();
+  num_candidates = verifycan.size();
 
-	timer.end_time(lsh::total);
-	timer.end_time(total_alg::total);
+  BOOST_LOG_TRIVIAL(info) << "\tNum output: " << num_outputs;
 
+  timer.end_time(edit_dist::total);
+  timer.end_time(total_alg::total);
 
-	timer.print_summary(num_candidates,num_outputs);
+  timer.print_summary(num_candidates, num_outputs);
 
-	string report_name=getReportFileName(device, batch_size);
-	{
-		ofstream out_file;
-		out_file.open("report-"+dataset_name+report_name+".csv", ios::out | ios::trunc);
-		std::string dev="";
+  string dev = "";
+  if (device == 2) {
+    int count_dev = 0;
+    for (auto &q : queues) {
+      dev += q.get_device().get_info<info::device::name>();
+      dev += count_dev == (queues.size() - 1) ? "" : " && ";
+      count_dev++;
+    }
+  } else {
+    dev = queues.back().get_device().get_info<info::device::name>();
+  }
 
-		if(device==2){
-			int count_dev=0;
-			for(auto &q : queues){
-				dev+=q.get_device().get_info<info::device::name>();
-				dev+=count_dev==(queues.size()-1)?"": " && ";
-				count_dev++;
-			}
-		}else{
-			dev=queues.back().get_device().get_info<info::device::name>();
-		}
+  t = timer;
+  output_vals.dev = dev;
+  output_vals.num_candidates = num_candidates;
+  output_vals.num_outputs = num_outputs;
 
-		if (out_file.is_open()) {
-			timer.print_report(dev, num_candidates, num_outputs, out_file);
-		}
-	}
-	print_output(input_data, output_pairs, "join_output_parallel.txt");
-	return output_pairs;
+  print_output(input_data, output_pairs, "join_output_parallel.txt");
+
+  return output_pairs;
 }
