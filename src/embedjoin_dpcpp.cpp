@@ -1182,9 +1182,9 @@ vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, int device
 		tot_input_size+=s.size();
 	}
 	size_t num_strings=input_data.size();
-	n_batches=num_strings/max_batch_size;
+	n_batches=num_strings/batch_size;
 
-	print_configuration(max_batch_size, n_batches, len_output, num_strings, countfilter, samplingrange);
+	print_configuration(batch_size, n_batches, len_output, num_strings, countfilter, samplingrange);
 
 	auto asyncHandler = [&](cl::sycl::exception_list eL) {
 		for (auto& e : eL) {
@@ -1251,11 +1251,11 @@ vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, int device
 	vector<buckets_t> buckets;
 	vector<candidate_t> candidates;
 	vector<queue> queues;
-	vector<batch_hdr> batch_hdrs(n_batches,{max_batch_size,0});
+	vector<batch_hdr> batch_hdrs(n_batches,{batch_size,0});
 
-	if( (num_strings%max_batch_size) !=0){
-		std::cout<<"Size last batch: "<<num_strings%max_batch_size<<std::endl;
-		batch_hdrs.emplace_back(batch_hdr(num_strings%max_batch_size,0));
+	if( (num_strings%batch_size) !=0){
+		std::cout<<"Size last batch: "<<num_strings%batch_size<<std::endl;
+		batch_hdrs.emplace_back(batch_hdr(num_strings%batch_size,0));
 		n_batches++;
 		std::cout<<"Updated n_batches: "<<n_batches<<std::endl;
 	}
@@ -1557,7 +1557,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, int device
 
 	timer.print_summary(num_candidates,num_outputs);
 
-	string report_name=getReportFileName(device, max_batch_size);
+	string report_name=getReportFileName(device, batch_size);
 	{
 		ofstream out_file;
 		out_file.open("report-"+dataset_name+report_name+".csv", ios::out | ios::trunc);
