@@ -1534,7 +1534,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, int device
 
 	cout<<"\nEnd candidates processing"<<std::endl;
 	timer.end_time(cand_proc::total);
-
+  timer.end_time(lsh::total);
   /**
    * EDIT DISTANCE
    * */

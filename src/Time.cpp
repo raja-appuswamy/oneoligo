@@ -162,9 +162,6 @@ public:
 		t=get_time(timing[total_alg::total]);
 		out_file<<"Total Alg time,\t,\t,"<<t<<std::endl;
 
-    t = get_time(timing[total_alg::total]);
-    out_file << "Total Alg time,\t,\t," << t << ","<< std::endl;
-
     out_file << "Number candidates,\t" << num_candidates << ",\t,\t,"<< std::endl;
     out_file << "Number output,\t" << num_outputs << ",\t,\t,"<< std::endl;
   }
