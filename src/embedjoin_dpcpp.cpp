@@ -1167,7 +1167,7 @@ void verify_pairs(vector<string> &input_data, vector<size_t> &len_oristrings,
 }
 
 
-vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &t, int num_thr_val=0, string dataset_name) {
+vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t n_batches, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &t, int num_thr_val, string dataset_name) {
 
 	samplingrange=new_samplingrange;
 	countfilter=new_countfilter;
