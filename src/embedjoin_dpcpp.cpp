@@ -25,7 +25,7 @@ void setuplsh( vector<vector<int>> &hash_lsh, std::vector<int> &a, std::vector<i
 	}
 
 	for (int i = 0; i < NUM_BITS; i++){
-		a.push_back(rand() % (M - 1));
+		a.push_back(rand() % (HASH_SZ - 1));
 	}
 
 	for (int i = 0; i < NUM_HASH; i++){
@@ -1557,7 +1557,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size, size_t
 
 	timer.print_summary(num_candidates,num_outputs);
 
-	string report_name=getReportFileName(queues, device, max_batch_size);
+	string report_name=getReportFileName(device, max_batch_size);
 	{
 		ofstream out_file;
 		out_file.open("report-"+dataset_name+report_name+".csv", ios::out | ios::trunc);
