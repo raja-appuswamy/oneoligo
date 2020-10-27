@@ -108,6 +108,9 @@ public:
 		t=get_time(timing[buckets::sort]);
 		out_file<<"\t,\t,Sort Buckets,"<< t <<std::endl;
 
+		t=get_time(timing[buckets::merge]);
+		out_file<<"\t,\t,Merge Buckets,"<< t <<std::endl;
+
 		t=get_time(timing[cand_init::total]);
 		out_file<<"\t,Candidate Initialization,\t,"<<t<<std::endl;
 
@@ -140,6 +143,9 @@ public:
 
 		t=get_time(timing[cand_proc::sort_cand]);
 		out_file<<"\t,\t,Sort candidates,"<<t<<std::endl;
+		
+		t=get_time(timing[cand_proc::merge_cand]);
+		out_file<<"\t,\t,Merge candidates,"<<t<<std::endl;
 
 		t=get_time(timing[cand_proc::count_freq]);
 		out_file<<"\t,\t,Counting frequencies,"<<t<<std::endl;
