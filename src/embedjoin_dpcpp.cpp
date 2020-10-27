@@ -1413,7 +1413,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, int device
 
 
 	size_t actual_size=0;
-	size_t number_of_splits=2;
+	size_t number_of_splits=4;
 
 	vector<vector<candidate_t>> chunks(number_of_splits);
 	vector<size_t> sizes;
