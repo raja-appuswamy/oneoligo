@@ -789,9 +789,9 @@ void generate_random_string(int *p, int len_p) {
   }
 }
 
-void initialize_candidate_pairs(vector<queue> &queues,
+size_t initialize_candidate_pairs(vector<queue> &queues,
                                 vector<buckets_t> &buckets,
-                                vector<candidate_t> &candidates) {
+                                vector<candidate_t> &candidates, vector<tuple<int, int>> &buckets_delimiter) {
 
   BOOST_LOG_TRIVIAL(info) << "Initialize candidate vector" << std::endl;
 
@@ -801,7 +801,6 @@ void initialize_candidate_pairs(vector<queue> &queues,
    * */
   timer.start_time(cand_init::comp_buck_delim);
 
-  vector<tuple<int, int>> buckets_delimiter;
   int j = 0;
   buckets_delimiter.emplace_back(make_tuple(0, 0));
   for (int i = 0; i < buckets.size() - 1; i++) {
@@ -846,7 +845,10 @@ void initialize_candidate_pairs(vector<queue> &queues,
     size_t n = get<1>(buckets_delimiter[b]);
     size += ((n * (n - 1)) / 2);
   }
+
   BOOST_LOG_TRIVIAL(debug) << "\tSize to allocate: " << size;
+  return size;
+/*
   try {
     timer.start_time(cand_init::resize);
     candidates.resize(size);
@@ -882,7 +884,7 @@ void initialize_candidate_pairs(vector<queue> &queues,
         << "Too many candidates. Reduce the number of input strings\n"
         << "or find the parameter to spread better strings accros hash buckets";
     exit(-1);
-  }
+  }*/
 }
 
 void parallel_embedding_wrapper(std::vector<queue> &queues,
@@ -1346,8 +1348,8 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
    * **/
 
   timer.start_time(cand_init::total);
-
-  initialize_candidate_pairs(queues, buckets, candidates);
+  vector<tuple<int, int>> buckets_delimiter;
+  size_t size=initialize_candidate_pairs(queues, buckets, candidates, buckets_delimiter);
 
   timer.end_time(cand_init::total);
 
@@ -1357,23 +1359,203 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
   /**
    * GENERATE CANDIDATE PAIRS STEP
    * **/
+  vector<std::tuple<int, int>> verifycan;
 
-  timer.start_time(cand::total);
+  size_t last_buckets=0;
+  size_t last_i=0;
+  size_t last_j=0;
+  bool saved_i=false;
+  bool saved_j=false;
 
-  generate_candidates_wrapper(queues, len_oristrings, oristrings,
-                              (char **)set_embdata_dev, buckets, batch_hdrs,
-                              candidates, lshnumber, len_output);
 
-  for (auto &q : queues) {
-    q.wait();
+  BOOST_LOG_TRIVIAL(debug) <<"max_cand_chunk: "<<max_cand_chunk << "; size: "<<size;
+
+  size_t to_alloc=std::min(max_cand_chunk,size);
+
+  BOOST_LOG_TRIVIAL(debug) <<"to_alloc: "<<to_alloc;
+
+
+  while(to_alloc>0){
+    
+    
+    //TODO
+    timer.start_time(cand_init::resize);
+    vector<candidate_t> tmp_candidates;
+    timer.end_time(cand_init::resize);
+
+    timer.start_time(cand_init::scan_cand);
+    size_t c = 0;
+    
+    for (int b=last_buckets; b<buckets_delimiter.size(); b++) {
+      size_t start = get<0>(buckets_delimiter[b]);
+      size_t size = get<1>(buckets_delimiter[b]);
+      size_t end = start + size;
+      size_t i=0;
+      size_t j=0;
+      size_t start_i = start;
+      size_t start_j = start_i + 1;
+    
+      if(saved_i){
+        saved_i=false;
+        start_i=last_i;
+        // start_j=last_j+1;
+
+        // if(last_j==end){
+        //   start_i++;
+        // }
+      }
+
+      for ( i = start_i; i < end - 1; i++) {
+        
+        start_j = i + 1;
+
+        if(saved_j){
+          saved_j=false;
+          start_j=last_j+1;
+        }
+        
+
+        for ( j = start_j; j < end; j++) {
+          tmp_candidates.emplace_back();
+          tmp_candidates[c].idx_str1 = i;
+          tmp_candidates[c].len_diff = j;
+          tmp_candidates[c].idx_str2 = end;
+          c++;
+          if(c==to_alloc){
+             last_i=i;
+             last_j=j;
+             last_buckets=b;
+             saved_i=true;
+             saved_j=true;
+             break;
+           }
+        }
+        if(c==to_alloc){
+          break;
+        }
+      }
+      // if(c==to_alloc){
+      //   break;
+      // }
+      if(c>=to_alloc){
+        // last_buckets=b;
+        // to_alloc=c;
+        break;
+      }
+    }
+    timer.end_time(cand_init::scan_cand);
+
+    BOOST_LOG_TRIVIAL(info)
+        << "\tAllocation of " << c << " elements" << std::endl;
+ 
+
+    timer.start_time(cand::total);
+
+    generate_candidates_wrapper(queues, len_oristrings, oristrings,
+                                (char **)set_embdata_dev, buckets, batch_hdrs,
+                                tmp_candidates, lshnumber, len_output);
+
+    for (auto &q : queues) {
+      q.wait();
+    }
+
+    timer.end_time(cand::total);
+
+    /**
+     * Since buckets and embed strings are not used anymore,
+     * their memory is released before continuing
+     * */
+  
+
+    /**
+     * CANDIDATES PROCESSING
+     * */
+    timer.start_time(cand_proc::total);
+    BOOST_LOG_TRIVIAL(info) << "Starting candidate processing analysis"
+                            << std::endl;
+    BOOST_LOG_TRIVIAL(debug) << "\tCandidates size: " << tmp_candidates.size()
+                            << std::endl;
+
+    timer.start_time(cand_proc::rem_cand);
+
+    try {
+      tmp_candidates.erase(std::remove_if(oneapi::dpl::execution::par_unseq,
+                                      tmp_candidates.begin(), tmp_candidates.end(),
+                                      [](candidate_t e) {
+                                        return (e.len_diff > K_INPUT ||
+                                                (e.rep12_eq_bit & 0x1) != 0 ||
+                                                e.idx_str1 == e.idx_str2);
+                                      }),
+                      tmp_candidates.end());
+    } catch (std::exception &e) {
+      BOOST_LOG_TRIVIAL(warning) << "Too many candidates for the "
+                                    "parallel version of remove function.";
+      BOOST_LOG_TRIVIAL(warning) << "The sequential version will be used.";
+      tmp_candidates.erase(std::remove_if(tmp_candidates.begin(), tmp_candidates.end(),
+                                      [](candidate_t e) {
+                                        return (e.len_diff > K_INPUT ||
+                                                (e.rep12_eq_bit & 0x1) != 0 ||
+                                                e.idx_str1 == e.idx_str2);
+                                      }),
+                      tmp_candidates.end());
+    }
+    timer.end_time(cand_proc::rem_cand);
+
+    timer.start_time(cand_proc::sort_cand);
+    BOOST_LOG_TRIVIAL(debug) << "Parallel sort..." 
+                            << std::endl;
+    tbb::parallel_sort(tmp_candidates.begin(), tmp_candidates.end());
+
+    timer.end_time(cand_proc::sort_cand);
+
+    /*
+    * COUNTING FREQUENCIES
+    * **/
+    BOOST_LOG_TRIVIAL(debug) << "Counting freq..." 
+                            << std::endl;
+    timer.start_time(cand_proc::count_freq);
+    std::vector<int> freq_uv;
+
+    if (!tmp_candidates.empty()) {
+      freq_uv.push_back(0);
+      auto prev = tmp_candidates[0];
+      for (auto const &x : tmp_candidates) {
+        if (prev != x) {
+          freq_uv.push_back(0);
+          prev = x;
+        }
+        ++freq_uv.back();
+      }
+    }
+    timer.end_time(cand_proc::count_freq);
+
+    BOOST_LOG_TRIVIAL(debug) << "Make uniq..." 
+                            << std::endl;
+    timer.start_time(cand_proc::rem_dup);
+    tmp_candidates.erase(unique(tmp_candidates.begin(), tmp_candidates.end()),
+                    tmp_candidates.end());
+    timer.end_time(cand_proc::rem_dup);
+    
+    size_t idx=0;
+    for(auto &c:tmp_candidates){
+      c.len_diff=freq_uv[idx];
+      idx++;
+    }
+
+    BOOST_LOG_TRIVIAL(debug) << "Insert..." 
+                            << std::endl;
+    candidates.insert(candidates.end(),tmp_candidates.begin(),tmp_candidates.end());
+    size-=to_alloc;
+    to_alloc=std::min(max_cand_chunk,size);
+
+    BOOST_LOG_TRIVIAL(warning) << "Candidate size: " << candidates.size() <<std::endl;
   }
 
-  timer.end_time(cand::total);
+/**
+ * End loop
+*/
 
-  /**
-   * Since buckets and embed strings are not used anymore,
-   * their memory is released before continuing
-   * */
+
   buckets.clear();
   for (int i = 0; i < n_batches; i++) {
     if (set_embdata_dev[i] == nullptr) {
@@ -1392,70 +1574,25 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
   BOOST_LOG_TRIVIAL(info) << "Clear buckets";
   BOOST_LOG_TRIVIAL(info) << "Delete embdata" << std::endl;
 
-  /**
-   * CANDIDATES PROCESSING
-   * */
-  timer.start_time(cand_proc::total);
-  BOOST_LOG_TRIVIAL(info) << "Starting candidate processing analysis"
-                          << std::endl;
-  BOOST_LOG_TRIVIAL(debug) << "\tCandidates size: " << candidates.size()
-                           << std::endl;
-
-  timer.start_time(cand_proc::rem_cand);
-  vector<std::tuple<int, int>> verifycan;
-
-  try {
-    candidates.erase(std::remove_if(oneapi::dpl::execution::par_unseq,
-                                    candidates.begin(), candidates.end(),
-                                    [](candidate_t e) {
-                                      return (e.len_diff > K_INPUT ||
-                                              (e.rep12_eq_bit & 0x1) != 0 ||
-                                              e.idx_str1 == e.idx_str2);
-                                    }),
-                     candidates.end());
-  } catch (std::exception &e) {
-    BOOST_LOG_TRIVIAL(warning) << "Too many candidates for the "
-                                  "parallel version of remove function.";
-    BOOST_LOG_TRIVIAL(warning) << "The sequential version will be used.";
-    candidates.erase(std::remove_if(candidates.begin(), candidates.end(),
-                                    [](candidate_t e) {
-                                      return (e.len_diff > K_INPUT ||
-                                              (e.rep12_eq_bit & 0x1) != 0 ||
-                                              e.idx_str1 == e.idx_str2);
-                                    }),
-                     candidates.end());
-  }
-  timer.end_time(cand_proc::rem_cand);
-
-  timer.start_time(cand_proc::sort_cand);
 
   tbb::parallel_sort(candidates.begin(), candidates.end());
+  vector<int> freq_uv;
 
-  timer.end_time(cand_proc::sort_cand);
-
-  /*
-   * COUNTING FREQUENCIES
-   * **/
-
-  timer.start_time(cand_proc::count_freq);
-  std::vector<int> freq_uv;
   if (!candidates.empty()) {
     freq_uv.push_back(0);
+    // freq_uv.back()+=candidates.len_diff;
+
     auto prev = candidates[0];
     for (auto const &x : candidates) {
       if (prev != x) {
         freq_uv.push_back(0);
         prev = x;
       }
-      ++freq_uv.back();
+      freq_uv.back()+=x.len_diff;
     }
   }
-  timer.end_time(cand_proc::count_freq);
-
-  timer.start_time(cand_proc::rem_dup);
   candidates.erase(unique(candidates.begin(), candidates.end()),
                    candidates.end());
-  timer.end_time(cand_proc::rem_dup);
 
   timer.start_time(cand_proc::filter_low_freq);
   for (int i = 0; i < candidates.size(); i++) {

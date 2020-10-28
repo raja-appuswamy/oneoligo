@@ -48,6 +48,7 @@
 using namespace std;
 using idpair=std::tuple<int, int>;
 constexpr size_t max_buffer_size=0xFFFFFFFF;
+constexpr size_t max_cand_chunk=1000000000;
 
 enum {cpu=0,gpu,both};
 
@@ -64,10 +65,10 @@ struct candidate_t {
 			|| (idx_str1 == rhs.idx_str1 && idx_str2 == rhs.idx_str2 && rep12_eq_bit < rhs.rep12_eq_bit)); }
 
 	bool operator!=(const candidate_t& rhs) const {
-		return !(idx_str1 == rhs.idx_str1 && idx_str2 == rhs.idx_str2 && len_diff == rhs.len_diff && rep12_eq_bit == rhs.rep12_eq_bit);
+		return !(idx_str1 == rhs.idx_str1 && idx_str2 == rhs.idx_str2 && /*len_diff == rhs.len_diff &&*/ rep12_eq_bit == rhs.rep12_eq_bit);
 	};
 	bool operator==(const candidate_t& rhs) const {
-			return (idx_str1 == rhs.idx_str1 && idx_str2 == rhs.idx_str2 && len_diff == rhs.len_diff && rep12_eq_bit == rhs.rep12_eq_bit);
+			return (idx_str1 == rhs.idx_str1 && idx_str2 == rhs.idx_str2 && /*len_diff == rhs.len_diff &&*/ rep12_eq_bit == rhs.rep12_eq_bit);
 	};
 };
 

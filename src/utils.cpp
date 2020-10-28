@@ -51,6 +51,18 @@ void print_configuration(int batch_size, int n_batches, size_t len_output,
                           << "\tBatch size:" << batch_size;
   BOOST_LOG_TRIVIAL(info) << std::left << std::setw(50)
                           << "\tNumber of batches:" << n_batches << std::endl
+                          
+
+  BOOST_LOG_TRIVIAL(info) << std::left << std::setw(50)
+                          << "Memory requirements: "; 
+  BOOST_LOG_TRIVIAL(info) << std::left << std::setw(50)
+                          << "\tEmbedded dataset: " << (float) num_input_strings*NUM_STR*NUM_REP*len_output/pow(2,30) << "GB"; 
+  BOOST_LOG_TRIVIAL(info) << std::left << std::setw(50)
+                          << "\tBuckets dataset: " << (float) num_input_strings*NUM_HASH*NUM_STR*NUM_REP*sizeof(buckets_t)/pow(2,30) << "GB"; 
+  BOOST_LOG_TRIVIAL(info) << std::left << std::setw(50)
+                          << "\tTmp candidates dataset: " << (float) max_cand_chunk*sizeof(candidate_t)/pow(2,30) << "GB"; 
+  BOOST_LOG_TRIVIAL(info) << std::left << std::setw(50)
+                          << "\tInput dataset and final candidates size are variable." << std::endl 
                           << std::endl;
 };
 
