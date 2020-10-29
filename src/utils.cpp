@@ -1,84 +1,83 @@
 #include "embedjoin.hpp"
-
+namespace logging = boost::log;
+namespace keywords = boost::log::keywords;
 using namespace std;
 
-void print_oristrings( vector<string> &oristrings, vector<int> len )
-{
-	string filename_output="oristrings.txt";
-	ofstream outFile;
+void init_logging(bool debug) {
+  logging::register_simple_formatter_factory<logging::trivial::severity_level,
+                                             char>("Severity");
 
-	outFile.open(filename_output, ios::out | ios::trunc);
+  logging::add_console_log(
+      std::cout, keywords::format = "[%TimeStamp%] [%Severity%] %Message%");
 
-	if (outFile.is_open()) {
-		for(auto &s:oristrings){
-			outFile<<std::endl;
-		}
-	}
+  if (debug) {
+    logging::core::get()->set_filter(logging::trivial::severity >=
+                                     logging::trivial::debug);
+  } else {
+    logging::core::get()->set_filter(logging::trivial::severity >=
+                                     logging::trivial::info);
+  }
+
+  logging::add_common_attributes();
 };
 
+void print_configuration(int batch_size, int n_batches, size_t len_output,
+                         size_t num_input_strings, int countfilter,
+                         int samplingrange) {
 
-void print_embedded( char **output, size_t len_output, vector<batch_hdr> &batch_hdrs, size_t num_strings, std::string filename ){
+  BOOST_LOG_TRIVIAL(info) << std::left << std::setw(50)
+                          << "Parameter selected:";
+  BOOST_LOG_TRIVIAL(info) << std::left << std::setw(50)
+                          << "\tNum of strings:" << num_input_strings;
+  BOOST_LOG_TRIVIAL(info) << std::left << std::setw(50)
+                          << "\tLen output:" << len_output;
+  BOOST_LOG_TRIVIAL(info) << std::left << std::setw(50)
+                          << "\tSamplingrange:" << samplingrange;
+  BOOST_LOG_TRIVIAL(info) << std::left << std::setw(50)
+                          << "\tNumber of Hash Function:" << NUM_HASH;
+  BOOST_LOG_TRIVIAL(info) << std::left << std::setw(50)
+                          << "\tNumber of Bits per hash function:" << NUM_BITS;
+  BOOST_LOG_TRIVIAL(info) << std::left << std::setw(50)
+                          << "\tNumber of Random Strings per input string:"
+                          << NUM_STR;
+  BOOST_LOG_TRIVIAL(info) << std::left << std::setw(50)
+                          << "\tNumber of Replication per input string:"
+                          << NUM_REP;
+  BOOST_LOG_TRIVIAL(info) << std::left << std::setw(50)
+                          << "\tK distance:" << K_INPUT;
+  BOOST_LOG_TRIVIAL(info) << std::left << std::setw(50)
+                          << "\tCount filter:" << countfilter;
+  BOOST_LOG_TRIVIAL(info) << std::left << std::setw(50)
+                          << "\tBatch size:" << batch_size;
+  BOOST_LOG_TRIVIAL(info) << std::left << std::setw(50)
+                          << "\tNumber of batches:" << n_batches << std::endl
+                          
 
-	ofstream outFile;
-	outFile.open(filename, ios::out | ios::trunc);
-	size_t max_batch_size=batch_hdrs[0].size;
-	if (outFile.is_open()) {
-		for(int i=0; i<num_strings; i++){
-			for(int j=0; j<NUM_STR; j++ ){
-				for(int k=0; k<NUM_REP; k++){
-					for(int t=0; t<len_output; t++){
-						if(output[(int)(i/max_batch_size)][ABSPOS((int)(i%max_batch_size),j,k,t,len_output)]==0){
-							break;
-						}
-						outFile<<output[(int)(i/max_batch_size)][ABSPOS((int)(i%max_batch_size),j,k,t,len_output)];
-					}
-					outFile<<std::endl;
-				}
-			}
-		}
-	}
+  BOOST_LOG_TRIVIAL(info) << std::left << std::setw(50)
+                          << "Memory requirements: "; 
+  BOOST_LOG_TRIVIAL(info) << std::left << std::setw(50)
+                          << "\tEmbedded dataset: " << (float) num_input_strings*NUM_STR*NUM_REP*len_output/pow(2,30) << "GB"; 
+  BOOST_LOG_TRIVIAL(info) << std::left << std::setw(50)
+                          << "\tBuckets dataset: " << (float) num_input_strings*NUM_HASH*NUM_STR*NUM_REP*sizeof(buckets_t)/pow(2,30) << "GB"; 
+  BOOST_LOG_TRIVIAL(info) << std::left << std::setw(50)
+                          << "\tTmp candidates dataset: " << (float) max_cand_chunk*sizeof(candidate_t)/pow(2,30) << "GB"; 
+  BOOST_LOG_TRIVIAL(info) << std::left << std::setw(50)
+                          << "\tInput dataset and final candidates size are variable." << std::endl 
+                          << std::endl;
 };
 
+std::string getReportFileName(int device, size_t batch_size) {
 
-void print_buckets( vector<buckets_t> &buckets, std::string filename){
-
-	ofstream outFile;
-	outFile.open(filename, ios::out | ios::trunc);
-
-	if (outFile.is_open()) {
-		
-		for(int i=0; i<buckets.size(); i++){
-			outFile<<get<0>(buckets[i])<<", "<<get<1>(buckets[i])<<", "<<get<2>(buckets[i])<<", "<<get<3>(buckets[i])<<", "<<get<4>(buckets[i])<<std::endl;
-		}
-	}
-};
-
-void print_candidate_pairs( vector<candidate_t> &candidates, std::string filename ){
-
-	ofstream outFile;
-	outFile.open(filename, ios::out | ios::trunc);
-
-	if (outFile.is_open()) {
-		for(int i=0; i<candidates.size(); i++){
-			outFile<<get<0>(candidates[i])<<", "<<get<1>(candidates[i])<<", "<<get<2>(candidates[i])<<", "<<get<3>(candidates[i])<<std::endl;
-		}
-	}
-};
-
-
-void print_configuration(int batch_size,int n_batches, size_t len_output, size_t num_input_strings, int countfilter, int samplingrange){
-	std::cout<<"\nParameter selected:"<<std::endl;
-	std::cout<<"\tNum of strings:\t\t\t\t\t"<<num_input_strings<<std::endl;
-	std::cout<<"\tLen output:\t\t\t\t\t"<<len_output<<std::endl;
-	std::cout<<"\tSamplingrange:\t\t\t\t\t"<<samplingrange<<std::endl;
-	std::cout<<"\tNumber of Hash Function:\t\t\t"<<NUM_HASH<<std::endl;
-	std::cout<<"\tNumber of Bits per hash function:\t\t"<<NUM_BITS<<std::endl;
-	std::cout<<"\tNumber of Random Strings per input string:\t"<<NUM_STR<<std::endl;
-	std::cout<<"\tNumber of Replication per input string:\t\t"<<NUM_REP<<std::endl;
-	std::cout<<"\tK distance:\t\t\t\t\t"<<K_INPUT<<std::endl;
-	std::cout<<"\tCount filter:\t\t\t\t\t"<<countfilter<<std::endl;
-	std::cout<<"\tBatch size:\t\t\t\t\t"<<batch_size<<std::endl;
-	std::cout<<"\tNumber of batches:\t\t\t\t"<<n_batches<<std::endl;
-	std::cout<<std::endl;
-	std::cout<<std::endl;
-};
+  std::string report_name = "";
+  if (device == cpu) {
+    report_name += "-CPU-";
+  } else if (device == gpu) {
+    report_name += "-GPU-";
+  } else if (device == both) {
+    report_name += "-BOTH-";
+  } else {
+    report_name += "-ERROR";
+  }
+  report_name += std::to_string(batch_size);
+  return report_name;
+}
