@@ -1,15 +1,19 @@
 CXX=dpcpp
 PARAMS=-DNUM_STR=7 -DNUM_HASH=16 -DNUM_BITS=12 -DNUM_CHAR=4 -DK_INPUT=150 -DSHIFT=50
-CXXFLAGS= -O3 -std=c++17 -fsycl -fsycl-unnamed-lambda $(PARAMS) 
+CXXFLAGS= -O3 -std=c++17 -fsycl 
 LDFLAGS= -lsycl -ltbb -lpthread -lboost_program_options -lboost_thread -lboost_system -lboost_log -lboost_log_setup
 DPCPP_EXE_NAME=onejoin
 SRC=src
 BUILD=build
 
-build: $(BUILD)/main.o $(BUILD)/embedjoin_dpcpp.o $(BUILD)/verification.o $(BUILD)/Time.o $(BUILD)/utils.o $(BUILD)/DBSCAN.o $(BUILD)/constants.o 
+build: $(BUILD)/main.o $(BUILD)/embedjoin_dpcpp.o $(BUILD)/verification.o $(BUILD)/Time.o $(BUILD)/utils.o $(BUILD)/DBSCAN.o $(BUILD)/constants
 	$(CXX) $(CXXFLAGS) $(BUILD)/main.o $(BUILD)/embedjoin_dpcpp.o $(BUILD)/verification.o $(BUILD)/Time.o $(BUILD)/utils.o $(BUILD)/DBSCAN.o $(BUILD)/constants.o $(LDFLAGS) -o $(DPCPP_EXE_NAME)
 
 
+update:
+	rm $(BUILD)/constants.o
+	$(CXX) $(CXXFLAGS) $(PARAMS) constants.cpp -c -o constants.cpp
+	make
 
 $(BUILD)/%.o: $(SRC)/%.cpp
 	$(CXX) $(CXXFLAGS)  $< -c -o $@
