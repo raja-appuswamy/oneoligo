@@ -15,7 +15,7 @@ update:
 	make
 
 $(BUILD)/constants.o: $(SRC)/constants.cpp
-	$(CXX) $(CXXFLAGS) $(PARAMS) constants.cpp -c -o constants.cpp
+	$(CXX) $(CXXFLAGS) $(PARAMS) $< -c -o $@
 
 $(BUILD)/%.o: $(SRC)/%.cpp
 	$(CXX) $(CXXFLAGS)  $< -c -o $@
