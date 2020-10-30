@@ -8,7 +8,6 @@ using namespace std;
 
 constexpr int UNDEFINED=-2;
 constexpr int NOISE=-1;
-constexpr size_t chunk_size=1000000;
 
 void get_consensus(vector<string> &input_dataset, vector<int> &label, int max_string_len, vector<string> &output_dataset){
 
@@ -133,7 +132,7 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 
 		random_shuffle(input_data.begin(),input_data.end());
 
-		size_t range=std::min(chunk_size,input_data.size());
+		size_t range=std::min(clustering_chunk_size,input_data.size());
 
 		std::cout<<range<<std::endl;
 

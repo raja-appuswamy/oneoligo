@@ -14,6 +14,8 @@ namespace constants {
     extern const size_t HASH_SZ;
     extern const size_t K_INPUT;
     extern const size_t NUM_REP;
+
+    extern const size_t clustering_chunk_size;
 };
 
 #endif //CONSTANTS_HPP

@@ -34,6 +34,10 @@
         #define DEF_K_INPUT 150 // edit distance threshold
     #endif
 
+    #ifndef DEF_CLU_CHUNK_SIZE
+        #define DEF_CLU_CHUNK_SIZE 100000U // edit distance threshold
+    #endif
+
 namespace constants{
     const size_t NUM_STR=DEF_NUM_STR;
     const size_t NUM_HASH=DEF_NUM_HASH;
@@ -46,4 +50,5 @@ namespace constants{
 
     const size_t NUM_REP = static_cast<size_t>((K_INPUT+SHIFT-1)/SHIFT);
 
+    const size_t clustering_chunk_size=DEF_CLU_CHUNK_SIZE;
 }
