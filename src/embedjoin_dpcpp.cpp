@@ -300,7 +300,7 @@ void parallel_embedding(
 
     // Executing kernel
     cgh.parallel_for<class EmbedString>(
-        range<3>{batch_size, NUM_STR, NUM_REP}, [=](id<3> index) {
+        range<3>{batch_size, NUM_STR, NUM_REP}, [=, NUM_REP=NUM_REP, NUM_CHAR=NUM_CHAR, SHIFT=SHIFT, NUM_STR=NUM_STR](id<3> index) {
           int id = index[0];
           int l = index[1];
           int k = index[2];
@@ -371,7 +371,7 @@ void create_buckets(queue &device_queue, char **embdata,
 
       // Executing kernel
       cgh.parallel_for<class CreateBuckets>(
-          range<2>(glob_range), [=](item<2> index) {
+          range<2>(glob_range), [=, NUM_REP=NUM_REP, NUM_CHAR=NUM_CHAR, NUM_BITS=NUM_BITS, NUM_STR=NUM_STR, HASH_SZ=HASH_SZ](item<2> index) {
             int itq = index[0];
             int i = itq / (NUM_STR * NUM_REP) + acc_split_offset[0];
             int tq = itq % (NUM_STR * NUM_REP);
@@ -557,7 +557,7 @@ void generate_candidates(queue &device_queue,
         << "\t\t\tCandidate size: " << candidate_size << std::endl;
 
     cgh.parallel_for<class GenerateCandidates>(
-        range<1>(candidate_size), [=](item<1> index) {
+        range<1>(candidate_size), [=, NUM_REP=NUM_REP, NUM_CHAR=NUM_CHAR, NUM_BITS=NUM_BITS, NUM_STR=NUM_STR, HASH_SZ=HASH_SZ](item<1> index) {
           int ij = index[0];
           int index_output = ij;
 

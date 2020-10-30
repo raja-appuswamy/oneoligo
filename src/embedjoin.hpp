@@ -43,8 +43,9 @@
 #include <boost/log/utility/setup/file.hpp>
 #include <boost/log/utility/setup/console.hpp>
 #include <boost/log/utility/setup/common_attributes.hpp>
+#include "constants.hpp"
 
-
+using namespace constants;
 using namespace std;
 using idpair=std::tuple<int, int>;
 constexpr size_t max_buffer_size=0xFFFFFFFF;
@@ -106,39 +107,39 @@ struct OutputValues{
 
 // Default parameters for GEN DATASET: 150 7 16 12 4 5000 0 50 1
 
-#ifndef NUM_STR
-	#define NUM_STR 7 // r: number of CGK-embedding for each input string
-#endif
+// #ifndef NUM_STR
+// 	#define NUM_STR 7 // r: number of CGK-embedding for each input string
+// #endif
 
-#ifndef NUM_HASH
-	#define NUM_HASH 16  //z: number of hash functions for each embedded string
-#endif
+// #ifndef NUM_HASH
+// 	#define NUM_HASH 16  //z: number of hash functions for each embedded string
+// #endif
 
-#ifndef NUM_BITS
-	#define NUM_BITS 12// m: number of bits in each hash function
-#endif
+// #ifndef NUM_BITS
+// 	#define NUM_BITS 12// m: number of bits in each hash function
+// #endif
 
-#ifndef NUM_CHAR
-	#define NUM_CHAR 4 //dictsize: alpha beta size of input strings, could be 4 for DNA dataset (ACGT); 26 for UNIREF dataset (A~Z); 37 for TREC dataset (A~Z,0~9,' ')
-#endif
+// #ifndef NUM_CHAR
+// 	#define NUM_CHAR 4 //dictsize: alpha beta size of input strings, could be 4 for DNA dataset (ACGT); 26 for UNIREF dataset (A~Z); 37 for TREC dataset (A~Z,0~9,' ')
+// #endif
 
-#ifndef ALLOUTPUTRESULT
-	#define ALLOUTPUTRESULT 0
-#endif
+// #ifndef ALLOUTPUTRESULT
+// 	#define ALLOUTPUTRESULT 0
+// #endif
 
-#ifndef SHIFT
-	#define SHIFT 50
-#endif
+// #ifndef SHIFT
+// 	#define SHIFT 50
+// #endif
 
-#ifndef HASH_SZ
-	#define HASH_SZ 1000003 //size of hash table;
-#endif
+// #ifndef HASH_SZ
+// 	#define HASH_SZ 1000003 //size of hash table;
+// #endif
 
-#ifndef K_INPUT
-	#define K_INPUT 150 // edit distance threshold
-#endif
+// #ifndef K_INPUT
+// 	#define K_INPUT 150 // edit distance threshold
+// #endif
 
-#define NUM_REP static_cast<size_t>((K_INPUT+SHIFT-1)/SHIFT)// (round up) number of substrings
+//#define NUM_REP static_cast<size_t>((K_INPUT+SHIFT-1)/SHIFT)// (round up) number of substrings
 
 #define NUMREPCHARS(len_output) (len_output * NUM_REP)
 #define NUMSTRCHARS(len_output) (NUMREPCHARS(len_output) * NUM_STR)

@@ -1,4 +1,5 @@
 #include "embedjoin.hpp"
+
 namespace logging = boost::log;
 namespace keywords = boost::log::keywords;
 using namespace std;
