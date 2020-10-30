@@ -12,7 +12,7 @@ build: $(SRC)/main.o $(BUILD)/embedjoin_dpcpp.o $(BUILD)/verification.o $(BUILD)
 
 
 $(BUILD)/%.o: $(SRC)/%.cpp
-    	$(CXX) $(CXXFLAGS)  $< -c -o $@
+	$(CXX) $(CXXFLAGS)  $< -c -o $@
 
 
 # Gen Dataset
