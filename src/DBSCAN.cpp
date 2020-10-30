@@ -16,9 +16,9 @@ void get_consensus(vector<string> &input_dataset, vector<int> &label, int max_st
 
 	int string_idx=0;
 	for(auto&c:label){
-		if(c!=NOISE){
+		//if(c!=NOISE){
 			clusters[c].emplace_back(string_idx);
-		}
+		//}
 		string_idx++;
 	}
 	std::cout<<clusters.size()<<std::endl;
@@ -232,6 +232,10 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 		total_output_dataset.insert(total_output_dataset.end(), make_move_iterator(output_dataset.begin()), make_move_iterator(output_dataset.end()));
 		
 		timer.end_time(cluster::total);
+	}
+	ofstream out_file("consensus_results_chunk_"+to_string(chunk_num));
+	for(auto&s:output_dataset){
+		out_file<<s<<std::endl;
 	}
 }
 
