@@ -6,6 +6,7 @@ int main(int argc, char **argv) {
   bool help{};
   po::options_description description("onejoin [options]");
   description.add_options()("help,h", po::bool_switch(&help), "Display help")(
+      "alg,a", po::value<int>(), "Algorithm to use: 1-join [default], 2-cluster")(
       "read,r", po::value<string>(), "File containing input strings")(
       "device,d", po::value<int>(), "Device: 0-CPU; 1-GPU; 2-both devices")(
       "samplingrange,s", po::value<uint32_t>(), "Max char to embed")(
@@ -65,27 +66,25 @@ int main(int argc, char **argv) {
     num_thread=vm["num_thread_ed_dist"].as<int>();
   }
 
+  int alg=alg::join;
+  if( vm.count("alg") && ( vm["alg"].as<int>()==alg::join || vm["alg"].as<int>()==alg::cluster ) ){
+    alg=vm["alg"].as<int>();
+  }
+
   init_logging(debug);
 
   vector<string> input_data;
   read_dataset(input_data, filename);
+
   OutputValues output_val;
 
   onejoin(input_data, batch_size, device, samplingrange, countfilter, timer,
           output_val, num_thread);
 
-  string report_name = getReportFileName(device, batch_size);
+  //oneCluster(input_data, batch_size, device, samplingrange, countfilter, timer, 10, "GEN320");
 
-  {
-    ofstream out_file;
-    out_file.open("report-" + dataset_name + report_name + ".csv",
-                  ios::out | ios::trunc);
+  save_report( device, batch_size, dataset_name, output_val, timer );
 
-    if (out_file.is_open()) {
-      timer.print_report(output_val.dev, output_val.num_candidates,
-                         output_val.num_outputs, out_file);
-    }
-  }
 
   return 0;
 }

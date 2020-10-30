@@ -74,22 +74,7 @@ void setuplsh(vector<vector<int>> &hash_lsh, std::vector<int> &a,
   timer.end_time(init::rev_lsh);
 }
 
-void read_dataset(vector<string> &input_data, string filename) {
 
-  BOOST_LOG_TRIVIAL(info) << "Reading dataset..." << std::endl;
-  ifstream data(filename);
-  if (!data.is_open()) {
-    BOOST_LOG_TRIVIAL(error) << "Error opening input file" << std::endl;
-    exit(-1);
-  }
-
-  string cell;
-  int number_string = 0;
-  while (getline(data, cell)) {
-    number_string++;
-    input_data.push_back(cell);
-  }
-}
 
 void initialize_input_data(vector<string> &input_data,
                            vector<size_t> &len_oristrings,

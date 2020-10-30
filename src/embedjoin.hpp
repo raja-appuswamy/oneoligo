@@ -50,6 +50,7 @@ using idpair=std::tuple<int, int>;
 constexpr size_t max_buffer_size=0xFFFFFFFF;
 
 enum {cpu=0,gpu,both};
+namespace alg { enum {join=1,cluster}; };
 
 struct candidate_t {
 	uint32_t idx_str1;
@@ -153,8 +154,10 @@ int edit_distance(const char *x, const int x_len, const  char *y, const int y_le
 void read_dataset(vector<string> &input_data, string filename);
 void print_configuration(int batch_size,int n_batches, size_t len_output, size_t num_input_strings, int countfilter, int samplingrange);
 std::string getReportFileName(int device, size_t batch_size);
+void save_report(int device, size_t batch_size, string dataset_name, OutputValues &output_val, Time &timer);
+
+
 vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &timer, OutputValues &output_val, int num_thr_val=0, string dataset_name="");
-
-
+void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &timer, int nPts, string dataset_name);
 
 #endif
