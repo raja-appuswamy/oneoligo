@@ -11,7 +11,7 @@ uint32_t countfilter = 1;   // Number of required matches (>T) for a pair of
 size_t test_batches = 2;
 int num_thr = 0;
 
-Time timer;
+Time timer(false);
 
 void setuplsh(vector<vector<int>> &hash_lsh, std::vector<int> &a,
               std::vector<int> &lshnumber, vector<tuple<int, int>> &rev_hash) {
@@ -1038,20 +1038,19 @@ void parallel_embedding_wrapper(std::vector<queue> &queues,
 void print_output(vector<string> &input_data, vector<idpair> &output_pairs,
                   string out_filename) {
 
-  std::cout << "Start saving results" << std::endl;
-  ofstream out_file;
-  out_file.open(out_filename, ios::out | ios::trunc);
-
-  if (!out_file.is_open()) {
-    std::cerr << "Not possible to open file" << std::endl;
-    exit(-1);
-  }
-
   tbb::parallel_sort(output_pairs.begin(), output_pairs.end());
   output_pairs.erase(unique(output_pairs.begin(), output_pairs.end()),
                      output_pairs.end());
 
   if (ALLOUTPUTRESULT) {
+    std::cout << "Start saving results" << std::endl;
+    ofstream out_file;
+    out_file.open(out_filename, ios::out | ios::trunc);
+
+    if (!out_file.is_open()) {
+      std::cerr << "Not possible to open file" << std::endl;
+      exit(-1);
+    }
     for (int i = 0; i < output_pairs.size(); i++) {
       out_file << get<0>(output_pairs[i]) << " " << get<1>(output_pairs[i])
                << std::endl;
@@ -1132,7 +1131,8 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
                        int device, uint32_t new_samplingrange,
                        uint32_t new_countfilter, Time &t,
                        OutputValues &output_vals, int num_thr_val, string dataset_name) {
-
+  
+  timer=t;
   timer.start_time(total_alg::total);
   samplingrange = new_samplingrange;
   num_thr=num_thr_val;

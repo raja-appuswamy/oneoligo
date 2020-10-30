@@ -120,7 +120,11 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 	bool end=false;
 
 	while(!end){
+		
+		timer.start_time(cluster::total);
 
+		timer.start_time(cluster::init);
+		
 		vector<idpair> similarity_results;
 		unordered_map<int,vector<int>> indexes;
 		vector<string> output_dataset;
@@ -152,11 +156,13 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 			break;
 		}
 
-		ofstream file_input("input_chunk"+to_string(chunk_num));
+		// ofstream file_input("input_chunk"+to_string(chunk_num));
 
-		for(auto&s:input_chunk){
-			file_input<<s<<std::endl;
-		}
+		// for(auto&s:input_chunk){
+		// 	file_input<<s<<std::endl;
+		// }
+
+		timer.end_time(cluster::init);
 
 		cout<<"Computing join."<<std::endl;
 		
@@ -167,7 +173,8 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 		cout<<"\tSize of results: "<<similarity_results.size()<<std::endl;
 
 		cout<<"Creating indexes."<<std::endl;
-		auto start=std::chrono::system_clock::now();
+
+		timer.start_time(cluster::create_indexes);
 
 		size_t prev_size=similarity_results.size();
 
@@ -183,6 +190,7 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 		tbb::parallel_sort(similarity_results.begin(), similarity_results.end(), [](idpair &e1, idpair &e2){
 			return get<0>(e1)<get<0>(e2);
 		});
+
 		auto end_2=std::chrono::system_clock::now();
 		cout<<"Time sorting 2: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end_2-start_2).count()/1000<<std::endl;
 
@@ -193,33 +201,37 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 		end_2=std::chrono::system_clock::now();
 		cout<<"Time creating indexes sub-step: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end_2-start_2).count()/1000<<std::endl;
 
-		auto end=std::chrono::system_clock::now();
-		cout<<"Time creating indexes: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<std::endl;
+		timer.end_time(cluster::create_indexes);
 
+	
 		cout<<"Run DBSCAN."<<std::endl;
-		start=std::chrono::system_clock::now();
+				
+				
+		timer.start_time(cluster::dbscan);
 
 		labels=DBSCAN(indexes,min_points,input_chunk.size());
 
-		end=std::chrono::system_clock::now();
-		cout<<"Time oneDBSCAN: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<std::endl;
+		timer.end_time(cluster::dbscan);
+		cout<<"Time oneDBSCAN: "<<(float)timer.get_step_time(cluster::dbscan)<<std::endl;
 
-		start=std::chrono::system_clock::now();
+		timer.start_time(cluster::consensus);
 
 		get_consensus(input_chunk, labels, len_input, output_dataset);
 
-		end=std::chrono::system_clock::now();
+		timer.end_time(cluster::consensus);
 
-		cout<<"Time consensus: "<<(float)std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()/1000<<std::endl;
+		cout<<"Time consensus: "<<(float)timer.get_step_time(cluster::consensus)<<std::endl;
 
-		ofstream out_file("consensus_results_chunk_"+to_string(chunk_num));
+		// ofstream out_file("consensus_results_chunk_"+to_string(chunk_num));
 		chunk_num++;
 
-		for(auto&s:output_dataset){
-			out_file<<s<<std::endl;
-		}
-		total_output_dataset.insert(total_output_dataset.end(), make_move_iterator(output_dataset.begin()), make_move_iterator(output_dataset.end()));
+		// for(auto&s:output_dataset){
+		// 	out_file<<s<<std::endl;
+		// }
 
+		total_output_dataset.insert(total_output_dataset.end(), make_move_iterator(output_dataset.begin()), make_move_iterator(output_dataset.end()));
+		
+		timer.end_time(cluster::total);
 	}
 }
 

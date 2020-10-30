@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
   po::store(parsed_result, vm);
   po::notify(vm);
 
-  Time timer;
+  Time timer(true);
   int device = 0;
   size_t batch_size = 0;
   string filename = "";
@@ -78,10 +78,10 @@ int main(int argc, char **argv) {
 
   OutputValues output_val;
 
-  onejoin(input_data, batch_size, device, samplingrange, countfilter, timer,
-          output_val, num_thread);
+  // onejoin(input_data, batch_size, device, samplingrange, countfilter, timer,
+  //         output_val, num_thread);
 
-  //oneCluster(input_data, batch_size, device, samplingrange, countfilter, timer, 10, "GEN320");
+  oneCluster(input_data, batch_size, device, samplingrange, countfilter, timer, 10, "GEN320");
 
   save_report( device, batch_size, dataset_name, output_val, timer );
 
