@@ -223,20 +223,22 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 		cout<<"Time consensus: "<<(float)timer.get_step_time(cluster::consensus)<<std::endl;
 
 		// ofstream out_file("consensus_results_chunk_"+to_string(chunk_num));
+		if(end){
+			ofstream out_file("consensus_results_chunk_"+to_string(chunk_num));
+			for(auto&s:output_dataset){
+				out_file<<s<<std::endl;
+			}
+		}
+
 		chunk_num++;
 
-		// for(auto&s:output_dataset){
-		// 	out_file<<s<<std::endl;
-		// }
+		
 
 		total_output_dataset.insert(total_output_dataset.end(), make_move_iterator(output_dataset.begin()), make_move_iterator(output_dataset.end()));
 		
 		timer.end_time(cluster::total);
 	}
-	ofstream out_file("consensus_results_chunk_"+to_string(chunk_num));
-	for(auto&s:output_dataset){
-		out_file<<s<<std::endl;
-	}
+	
 }
 
 #endif

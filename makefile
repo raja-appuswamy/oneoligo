@@ -20,7 +20,9 @@ $(BUILD)/constants.o: $(SRC)/constants.cpp
 $(BUILD)/%.o: $(SRC)/%.cpp
 	$(CXX) $(CXXFLAGS)  $< -c -o $@
 
-
+clean:
+	rm $(BUILD)/* 
+	
 # Gen Dataset
 
 run1:

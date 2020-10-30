@@ -1,7 +1,6 @@
 #ifndef CONSTANTS_HPP
 #define CONSTANTS_HPP
 
-
 #include <cstddef>
 #include <cstdint>
 
@@ -16,6 +15,5 @@ namespace constants {
     extern const size_t K_INPUT;
     extern const size_t NUM_REP;
 };
-
 
 #endif //CONSTANTS_HPP
