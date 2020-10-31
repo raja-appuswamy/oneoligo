@@ -78,13 +78,14 @@ int main(int argc, char **argv) {
 
   OutputValues output_val;
 
-  // onejoin(input_data, batch_size, device, samplingrange, countfilter, timer,
-  //         output_val, num_thread);
-
-  oneCluster(input_data, batch_size, device, samplingrange, countfilter, timer, 10, "GEN320");
-
+  if(alg==alg::join){
+    onejoin(input_data, batch_size, device, samplingrange, countfilter, timer,
+           output_val, num_thread);
+  }
+  else{
+   oneCluster(input_data, batch_size, device, samplingrange, countfilter, timer, 10, "GEN320");
+  }
+  
   save_report( device, batch_size, dataset_name, output_val, timer );
-
-
   return 0;
 }
