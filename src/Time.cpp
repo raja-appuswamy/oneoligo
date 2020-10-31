@@ -78,12 +78,6 @@ public:
     
 		out_file<<"MainStep,Step,SubStep,Time(sec),Device"<<std::endl;
 		
-		double t=get_time(timing[init::total]);
-		out_file<<"Initialization,\t,\t,"<<t << "," << std::endl;
-		
-		t=get_time(timing[init::init_data]);
-		out_file<<"\t,Init Dataset,\t,"<<t << ","<<std::endl;
-
     double t = mill_to_sec(history[init::total]);
     out_file << "Initialization,\t,\t," << t << ","<< std::endl;
 

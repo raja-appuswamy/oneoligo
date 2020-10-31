@@ -1418,7 +1418,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t batch_size, int device
 			dev=dev%queues.size();
 			auto begin_itr=oneapi::dpl::begin(tmp_buffers[i]);
 			auto end_itr=oneapi::dpl::end(tmp_buffers[i]);
-			auto new_end_itr=std::remove_if(make_device_policy(queues[dev]), begin_itr, end_itr,[](candidate_t e){return (e.len_diff>K_INPUT || (e.rep12_eq_bit & 0x1)!=0 || e.idx_str1==e.idx_str2);});
+			auto new_end_itr=std::remove_if(make_device_policy(queues[dev]), begin_itr, end_itr,[K_INPUT=K_INPUT](candidate_t e){return (e.len_diff>K_INPUT || (e.rep12_eq_bit & 0x1)!=0 || e.idx_str1==e.idx_str2);});
 			actual_size=std::distance(begin_itr, new_end_itr);
 			std::cout<<"Actual size: "<<actual_size<<std::endl;
 			sizes.emplace_back(actual_size);
