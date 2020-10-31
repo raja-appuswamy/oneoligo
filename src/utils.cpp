@@ -1,4 +1,5 @@
 #include "embedjoin.hpp"
+
 namespace logging = boost::log;
 namespace keywords = boost::log::keywords;
 using namespace std;
@@ -68,4 +69,36 @@ std::string getReportFileName(int device, size_t batch_size) {
   }
   report_name += std::to_string(batch_size);
   return report_name;
+};
+
+void read_dataset(vector<string> &input_data, string filename) {
+
+  BOOST_LOG_TRIVIAL(info) << "Reading dataset..." << std::endl;
+  ifstream data(filename);
+  if (!data.is_open()) {
+    BOOST_LOG_TRIVIAL(error) << "Error opening input file" << std::endl;
+    exit(-1);
+  }
+
+  string cell;
+  int number_string = 0;
+  while (getline(data, cell)) {
+    number_string++;
+    input_data.push_back(cell);
+  }
+};
+
+
+void save_report(int device, size_t batch_size, string dataset_name, OutputValues &output_val, Time &timer){
+  string report_name = getReportFileName(device, batch_size);
+  {
+    ofstream out_file;
+    out_file.open("report-" + dataset_name + report_name + ".csv",
+                  ios::out | ios::trunc);
+
+    if (out_file.is_open()) {
+      timer.print_report(output_val.dev, output_val.num_candidates,
+                         output_val.num_outputs, out_file);
+    }
+  }
 }

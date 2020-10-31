@@ -6,6 +6,7 @@ int main(int argc, char **argv) {
   bool help{};
   po::options_description description("onejoin [options]");
   description.add_options()("help,h", po::bool_switch(&help), "Display help")(
+      "alg,a", po::value<int>(), "Algorithm to use: 1-join [default], 2-cluster")(
       "read,r", po::value<string>(), "File containing input strings")(
       "device,d", po::value<int>(), "Device: 0-CPU; 1-GPU; 2-both devices")(
       "samplingrange,s", po::value<uint32_t>(), "Max char to embed")(
@@ -14,7 +15,8 @@ int main(int argc, char **argv) {
       "batch_size,b", po::value<size_t>(),
       "Size of input strings batches")("verbose,v", "[optional] Print debug information")(
       "dataset_name,n", po::value<string>(), "[optional] Name of dataset to use in the report name")(
-      "num_thread_ed_dist,t", po::value<int>(),"[optional] Number of thread to use for edit distance. Default 0 (hardware cuncurrency)"
+      "num_thread_ed_dist,t", po::value<int>(),"[optional] Number of thread to use for edit distance. Default 0 (hardware cuncurrency)")(
+      "min_pts,p", po::value<int>(), "[optional] Min number of neighbours a point has to have. Default 10"
       );
 
   po::command_line_parser parser{argc, argv};
@@ -24,7 +26,7 @@ int main(int argc, char **argv) {
   po::store(parsed_result, vm);
   po::notify(vm);
 
-  Time timer;
+  
   int device = 0;
   size_t batch_size = 0;
   string filename = "";
@@ -65,27 +67,33 @@ int main(int argc, char **argv) {
     num_thread=vm["num_thread_ed_dist"].as<int>();
   }
 
+  int alg=alg::join;
+  if( vm.count("alg") && ( vm["alg"].as<int>()==alg::join || vm["alg"].as<int>()==alg::cluster ) ){
+    alg=vm["alg"].as<int>();
+  }
+
+  int min_pts=10;
+  if( vm.count("min_pts") ){
+    min_pts=vm["min_pts"].as<int>();
+  }
+
   init_logging(debug);
 
   vector<string> input_data;
   read_dataset(input_data, filename);
+
   OutputValues output_val;
 
-  onejoin(input_data, batch_size, device, samplingrange, countfilter, timer,
-          output_val, num_thread);
+  Time timer((alg==alg::join?false:true));
 
-  string report_name = getReportFileName(device, batch_size);
-
-  {
-    ofstream out_file;
-    out_file.open("report-" + dataset_name + report_name + ".csv",
-                  ios::out | ios::trunc);
-
-    if (out_file.is_open()) {
-      timer.print_report(output_val.dev, output_val.num_candidates,
-                         output_val.num_outputs, out_file);
-    }
+  if(alg==alg::join){
+    onejoin(input_data, batch_size, device, samplingrange, countfilter, timer,
+           output_val, num_thread);
+  }
+  else{
+   oneCluster(input_data, batch_size, device, samplingrange, countfilter, timer, min_pts, "GEN320");
   }
 
+  save_report( device, batch_size, dataset_name, output_val, timer );
   return 0;
 }

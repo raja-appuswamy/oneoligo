@@ -1,14 +1,26 @@
 CXX=dpcpp
-PARAMS=-DNUM_STR=7 -DNUM_HASH=16 -DNUM_BITS=12 -DNUM_CHAR=4 -DK_INPUT=150 -DSHIFT=50
-CXXFLAGS= -O3 -std=c++17 -fsycl -fsycl-unnamed-lambda $(PARAMS) 
+PARAMS=-DDEF_NUM_STR=7 -DDEF_NUM_HASH=16 -DDEF_NUM_BITS=12 -DDEF_NUM_CHAR=4 -DDEF_K_INPUT=150 -DDEF_SHIFT=50
+CXXFLAGS= -O3 -std=c++17 -fsycl 
 LDFLAGS= -lsycl -ltbb -lpthread -lboost_program_options -lboost_thread -lboost_system -lboost_log -lboost_log_setup
 DPCPP_EXE_NAME=onejoin
+SRC=src
+BUILD=build
 
-build:
-	$(CXX) $(CXXFLAGS) src/main.cpp src/embedjoin_dpcpp.cpp src/verification.cpp src/Time.cpp src/utils.cpp $(LDFLAGS) -o $(DPCPP_EXE_NAME)
+build: $(BUILD)/main.o $(BUILD)/embedjoin_dpcpp.o $(BUILD)/verification.o $(BUILD)/Time.o $(BUILD)/utils.o $(BUILD)/DBSCAN.o $(BUILD)/constants.o
+	$(CXX) $(CXXFLAGS) $(BUILD)/main.o $(BUILD)/embedjoin_dpcpp.o $(BUILD)/verification.o $(BUILD)/Time.o $(BUILD)/utils.o $(BUILD)/DBSCAN.o $(BUILD)/constants.o $(LDFLAGS) -o $(DPCPP_EXE_NAME)
 
 
+update:
+	rm $(BUILD)/constants.o && make
 
+$(BUILD)/constants.o: $(SRC)/constants.cpp
+	$(CXX) $(CXXFLAGS) $(PARAMS) $< -c -o $@
+
+$(BUILD)/%.o: $(SRC)/%.cpp
+	$(CXX) $(CXXFLAGS)  $< -c -o $@
+
+clean:
+	rm $(BUILD)/* 
 
 # Gen Dataset
 

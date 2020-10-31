@@ -11,7 +11,7 @@ uint32_t countfilter = 1;   // Number of required matches (>T) for a pair of
 size_t test_batches = 2;
 int num_thr = 0;
 
-Time timer;
+Time timer(false);
 
 
 void setuplsh( vector<vector<int>> &hash_lsh, std::vector<int> &a, std::vector<int> &lshnumber, vector<tuple<int,int>> &rev_hash ){
@@ -72,22 +72,7 @@ void setuplsh( vector<vector<int>> &hash_lsh, std::vector<int> &a, std::vector<i
 	timer.end_time(init::rev_lsh);
 }
 
-void read_dataset(vector<string> &input_data, string filename) {
 
-  BOOST_LOG_TRIVIAL(info) << "Reading dataset..." << std::endl;
-  ifstream data(filename);
-  if (!data.is_open()) {
-    BOOST_LOG_TRIVIAL(error) << "Error opening input file" << std::endl;
-    exit(-1);
-  }
-
-  string cell;
-  int number_string = 0;
-  while (getline(data, cell)) {
-    number_string++;
-    input_data.push_back(cell);
-  }
-}
 
 void initialize_input_data(vector<string> &input_data,
                            vector<size_t> &len_oristrings,
@@ -313,7 +298,7 @@ void parallel_embedding(
 
     // Executing kernel
     cgh.parallel_for<class EmbedString>(
-        range<3>{batch_size, NUM_STR, NUM_REP}, [=](id<3> index) {
+        range<3>{batch_size, NUM_STR, NUM_REP}, [=, NUM_REP=NUM_REP, NUM_CHAR=NUM_CHAR, SHIFT=SHIFT, NUM_STR=NUM_STR](id<3> index) {
           int id = index[0];
           int l = index[1];
           int k = index[2];
@@ -384,7 +369,7 @@ void create_buckets(queue &device_queue, char **embdata,
 
       // Executing kernel
       cgh.parallel_for<class CreateBuckets>(
-          range<2>(glob_range), [=](item<2> index) {
+          range<2>(glob_range), [=, NUM_REP=NUM_REP, NUM_CHAR=NUM_CHAR, NUM_BITS=NUM_BITS, NUM_STR=NUM_STR, HASH_SZ=HASH_SZ](item<2> index) {
             int itq = index[0];
             int i = itq / (NUM_STR * NUM_REP) + acc_split_offset[0];
             int tq = itq % (NUM_STR * NUM_REP);
@@ -595,7 +580,7 @@ void generate_candidates(queue &device_queue,
         << "\t\t\tCandidate size: " << candidate_size << std::endl;
 
     cgh.parallel_for<class GenerateCandidates>(
-        range<1>(candidate_size), [=](item<1> index) {
+        range<1>(candidate_size), [=, NUM_REP=NUM_REP, NUM_CHAR=NUM_CHAR, NUM_BITS=NUM_BITS, NUM_STR=NUM_STR, HASH_SZ=HASH_SZ](item<1> index) {
           int ij = index[0];
           int index_output = ij;
 
@@ -1076,20 +1061,19 @@ void parallel_embedding_wrapper(std::vector<queue> &queues,
 void print_output(vector<string> &input_data, vector<idpair> &output_pairs,
                   string out_filename) {
 
-  std::cout << "Start saving results" << std::endl;
-  ofstream out_file;
-  out_file.open(out_filename, ios::out | ios::trunc);
-
-  if (!out_file.is_open()) {
-    std::cerr << "Not possible to open file" << std::endl;
-    exit(-1);
-  }
-
   tbb::parallel_sort(output_pairs.begin(), output_pairs.end());
   output_pairs.erase(unique(output_pairs.begin(), output_pairs.end()),
                      output_pairs.end());
 
   if (ALLOUTPUTRESULT) {
+    std::cout << "Start saving results" << std::endl;
+    ofstream out_file;
+    out_file.open(out_filename, ios::out | ios::trunc);
+
+    if (!out_file.is_open()) {
+      std::cerr << "Not possible to open file" << std::endl;
+      exit(-1);
+    }
     for (int i = 0; i < output_pairs.size(); i++) {
       out_file << get<0>(output_pairs[i]) << " " << get<1>(output_pairs[i])
                << std::endl;
