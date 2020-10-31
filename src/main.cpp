@@ -15,7 +15,7 @@ int main(int argc, char **argv) {
       "batch_size,b", po::value<size_t>(),
       "Size of input strings batches")("verbose,v", "[optional] Print debug information")(
       "dataset_name,n", po::value<string>(), "[optional] Name of dataset to use in the report name")(
-      "num_thread_ed_dist,t", po::value<int>(),"[optional] Number of thread to use for edit distance. Default 0 (hardware cuncurrency)"(
+      "num_thread_ed_dist,t", po::value<int>(),"[optional] Number of thread to use for edit distance. Default 0 (hardware cuncurrency)")(
       "min_pts,p", po::value<int>(), "[optional] Min number of neighbours a point has to have. Default 10"
       );
 
