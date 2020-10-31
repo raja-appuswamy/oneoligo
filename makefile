@@ -11,8 +11,7 @@ build: $(BUILD)/main.o $(BUILD)/embedjoin_dpcpp.o $(BUILD)/verification.o $(BUIL
 
 
 update:
-	rm $(BUILD)/constants.o
-	make
+	rm $(BUILD)/constants.o && make
 
 $(BUILD)/constants.o: $(SRC)/constants.cpp
 	$(CXX) $(CXXFLAGS) $(PARAMS) $< -c -o $@
