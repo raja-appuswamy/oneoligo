@@ -15,7 +15,8 @@ int main(int argc, char **argv) {
       "batch_size,b", po::value<size_t>(),
       "Size of input strings batches")("verbose,v", "[optional] Print debug information")(
       "dataset_name,n", po::value<string>(), "[optional] Name of dataset to use in the report name")(
-      "num_thread_ed_dist,t", po::value<int>(),"[optional] Number of thread to use for edit distance. Default 0 (hardware cuncurrency)"
+      "num_thread_ed_dist,t", po::value<int>(),"[optional] Number of thread to use for edit distance. Default 0 (hardware cuncurrency)"(
+      "min_pts,p", po::value<int>(), "[optional] Min number of neighbours a point has to have. Default 10"
       );
 
   po::command_line_parser parser{argc, argv};
@@ -71,6 +72,11 @@ int main(int argc, char **argv) {
     alg=vm["alg"].as<int>();
   }
 
+  int min_pts=10;
+  if( vm.count("min_pts") ){
+    min_pts=vm["min_pts"].as<int>();
+  }
+
   init_logging(debug);
 
   vector<string> input_data;
@@ -83,9 +89,9 @@ int main(int argc, char **argv) {
            output_val, num_thread);
   }
   else{
-   oneCluster(input_data, batch_size, device, samplingrange, countfilter, timer, 10, "GEN320");
+   oneCluster(input_data, batch_size, device, samplingrange, countfilter, timer, min_pts, "GEN320");
   }
-  
+
   save_report( device, batch_size, dataset_name, output_val, timer );
   return 0;
 }
