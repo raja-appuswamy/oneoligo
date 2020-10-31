@@ -112,7 +112,7 @@ vector<int> DBSCAN(unordered_map<int,vector<int>> &indexes, int nPts, size_t siz
 
 void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint32_t new_samplingrange, uint32_t new_countfilter, Time &timer, int nPts, string dataset_name){
 
-	size_t len_input=91;
+	size_t len_input=input_data[0].size();
 	int min_points=nPts;
 	vector<string> total_output_dataset;
 	int chunk_num=0;

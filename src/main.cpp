@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
   po::store(parsed_result, vm);
   po::notify(vm);
 
-  Time timer(true);
+  
   int device = 0;
   size_t batch_size = 0;
   string filename = "";
@@ -83,6 +83,8 @@ int main(int argc, char **argv) {
   read_dataset(input_data, filename);
 
   OutputValues output_val;
+
+  Time timer((alg==alg::join?false:true));
 
   if(alg==alg::join){
     onejoin(input_data, batch_size, device, samplingrange, countfilter, timer,
