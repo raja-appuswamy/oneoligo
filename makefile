@@ -1,22 +1,37 @@
-PARAMS= -DNUM_STR=7 -DNUM_HASH=16 -DNUM_BITS=12 -DNUM_CHAR=4 -DK_INPUT=150 -DNUM_REP=3
+PARAMS=-DDEF_NUM_STR=7 -DDEF_NUM_HASH=16 -DDEF_NUM_BITS=12 -DDEF_NUM_CHAR=4 -DDEF_K_INPUT=150 -DDEF_SHIFT=50
 
 DPCPP=dpcpp
-DPCPP_FLAGS= -O2 -std=c++17 -fsycl -fsycl-unnamed-lambda $(PARAMS) 
+DPCPP_FLAGS= -O3 -std=c++17 -fsycl -fsycl-unnamed-lambda $(PARAMS) 
 
 CLANG=clang++
-CLANG_FLAGS= -O2 -std=c++17 -fsycl-targets=nvptx64-nvidia-cuda-sycldevice -fsycl -fsycl-unnamed-lambda $(PARAMS) 
+CLANG_FLAGS= -O3 -std=c++17 -fsycl-targets=nvptx64-nvidia-cuda-sycldevice -fsycl -fsycl-unnamed-lambda $(PARAMS) 
 
-LDFLAGS= -lsycl -ltbb -lpthread -lboost_program_options
+LDFLAGS= -lsycl -ltbb -lpthread -lboost_program_options -lboost_thread -lboost_system -lboost_log -lboost_log_setup
 EXE_NAME=onejoin
 
+SRC=src
+BUILD=build
+
 build:
-	$(CLANG) $(CLANG_FLAGS) src/main.cpp src/embedjoin_dpcpp.cpp src/verification.cpp src/Time.cpp src/utils.cpp $(LDFLAGS) -o $(EXE_NAME)
-
-build-dpcpp:
-	$(DPCPP) $(DPCPP_FLAGS) src/main.cpp src/embedjoin_dpcpp.cpp src/verification.cpp src/Time.cpp src/utils.cpp $(LDFLAGS) -o $(EXE_NAME)
+	$(CLANG) $(CLANG_FLAGS) $(SRC)/main.cpp $(SRC)/embedjoin_dpcpp.cpp $(SRC)/verification.cpp $(SRC)/Time.cpp $(SRC)/utils.cpp $(SRC)/DBSCAN.cpp $(SRC)/constants.cpp $(LDFLAGS) -o $(EXE_NAME)
 
 
+	
+build-dpcpp: $(BUILD)/main.o $(BUILD)/embedjoin_dpcpp.o $(BUILD)/verification.o $(BUILD)/Time.o $(BUILD)/utils.o $(BUILD)/DBSCAN.o $(BUILD)/constants.o
+	$(CXX) $(CXXFLAGS) $(BUILD)/main.o $(BUILD)/embedjoin_dpcpp.o $(BUILD)/verification.o $(BUILD)/Time.o $(BUILD)/utils.o $(BUILD)/DBSCAN.o $(BUILD)/constants.o $(LDFLAGS) -o $(EXE_NAME)
 
+
+update:
+	rm $(BUILD)/constants.o && make
+
+$(BUILD)/constants.o: $(SRC)/constants.cpp
+	$(CXX) $(CXXFLAGS) $(PARAMS) $< -c -o $@
+
+$(BUILD)/%.o: $(SRC)/%.cpp
+	$(CXX) $(CXXFLAGS)  $< -c -o $@
+
+clean:
+	rm $(BUILD)/* 
 
 # Gen Dataset
 
