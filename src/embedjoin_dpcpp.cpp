@@ -655,7 +655,7 @@ void generate_candidates_wrapper(vector<queue> &queues,
     list<size_t> buckets_offset;
 
     vector<buffer<buckets_t>> buffers_buckets;
-    vector<buffer<candidate_t>> buffers_candidates;
+    //vector<buffer<candidate_t>> buffers_candidates;
     vector<buffer<size_t, 1>> buffers_len;
     vector<buffer<size_t, 1>> buffers_batch_size;
     vector<buffer<size_t, 1>> buffers_len_output;
@@ -715,8 +715,8 @@ void generate_candidates_wrapper(vector<queue> &queues,
 
         buffers_buckets.emplace_back(buffer<buckets_t>(buckets.data() + start_b,
                                                        range<1>{size_buckets}));
-        buffers_candidates.emplace_back(buffer<candidate_t>(
-            candidate.data() + offset_cand, range<1>{size_cand[dev][iter]}));
+        buffer<candidate_t> buffers_candidates(
+            candidate.data() + offset_cand, range<1>{size_cand[dev][iter]});
         buffers_len.emplace_back(buffer<size_t, 1>(
             len_oristrings.data(), range<1>{len_oristrings.size()}));
         buffers_batch_size.emplace_back(
@@ -728,7 +728,7 @@ void generate_candidates_wrapper(vector<queue> &queues,
 
         generate_candidates(queues[dev], buffers_len[n], buffer_embdata,
                             buffers_buckets[n], buffers_buckets_offset[n],
-                            buffers_batch_size[n], buffers_candidates[n],
+                            buffers_batch_size[n], buffers_candidates,
                             size_cand[dev][iter], buffers_len_output[n]);
 
         if (is_profiling) {
