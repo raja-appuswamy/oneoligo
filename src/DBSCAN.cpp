@@ -166,7 +166,7 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 		cout<<"Computing join."<<std::endl;
 		
 		OutputValues ov;
-		similarity_results=onejoin( input_chunk, batch_size, device, new_samplingrange, new_countfilter, timer, ov, 0, dataset_name);
+		similarity_results=onejoin( input_chunk, batch_size, device, new_samplingrange, new_countfilter, timer, ov, alg::cluster, 0, dataset_name);
 
 		cout<<"\tSize of db: "<<input_data.size()<<std::endl;
 		cout<<"\tSize of results: "<<similarity_results.size()<<std::endl;
