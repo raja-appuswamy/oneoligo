@@ -1080,7 +1080,7 @@ void print_output(vector<string> &input_data, vector<idpair> &output_pairs,
 }
 
 void verify_pairs(vector<string> &input_data, vector<size_t> &len_oristrings,
-                  vector<idpair> &verifycan, vector<idpair> &output_pairs) {
+                  vector<candidate_t> &verifycan, vector<idpair> &output_pairs) {
 
   uint32_t num_threads=std::thread::hardware_concurrency();
 
@@ -1110,8 +1110,10 @@ void verify_pairs(vector<string> &input_data, vector<size_t> &len_oristrings,
           int first_str;
           int second_str;
 
-          first_str = get<0>(verifycan[j]);
-          second_str = get<1>(verifycan[j]);
+          // first_str = get<0>(verifycan[j]);
+          // second_str = get<1>(verifycan[j]);
+          first_str = verifycan[j].idx_str1;
+          second_str = verifycan[j].idx_str2;
 
           string tmp_str1 = input_data[first_str];
           string tmp_str2 = input_data[second_str];
@@ -1149,7 +1151,7 @@ void verify_pairs(vector<string> &input_data, vector<size_t> &len_oristrings,
 vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
                        int device, uint32_t new_samplingrange,
                        uint32_t new_countfilter, Time &t,
-                       OutputValues &output_vals, int num_thr_val, string dataset_name) {
+                       OutputValues &output_vals, int alg, int num_thr_val, string dataset_name) {
   
   timer=t;
   timer.start_time(total_alg::total);
@@ -1441,39 +1443,102 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
    * **/
 
   timer.start_time(cand_proc::count_freq);
-  std::vector<int> freq_uv;
-  if (!candidates.empty()) {
-    freq_uv.push_back(0);
-    auto prev = candidates[0];
-    for (auto const &x : candidates) {
-      if (prev != x) {
-        freq_uv.push_back(0);
-        prev = x;
-      }
-      ++freq_uv.back();
+
+
+  // std::vector<int> freq_uv(candidates_size, 0);
+
+
+  size_t num_split=thread::hardware_concurrency();
+  vector<size_t> boundary(num_split,0);
+
+  int k=1;
+
+  for(int i=candidates.size()/num_split; i<candidates.size(); i+=candidates.size()/num_split){
+    auto first = candidates[i];
+    int j=i;
+    while(first==candidates[j]){
+      j++;
     }
+    boundary[k]=j;
+    k++;
   }
+ 
+  tbb::parallel_for( static_cast<size_t>(0), boundary.size(), [ &candidates, &boundary](size_t index){
+    
+    size_t start=boundary[index];
+    size_t end=0;
+    
+    if(index+1==boundary.size()){
+      end=candidates.size();
+    }
+    else{
+      end=boundary[index+1];
+    }
+
+    candidate_t prev = candidates[start];
+    size_t prev_idx=start;
+
+    size_t tmp_counter=0; 
+    
+    int j=start;
+    for(int i=start; i<end; i++){
+      
+      candidates[i].len_diff=0;
+
+      if (prev != candidates[i]) {
+        candidates[prev_idx].len_diff=tmp_counter;
+        tmp_counter=0;
+        prev_idx=i;
+        prev = candidates[i];
+      }
+      tmp_counter++;
+    }
+  });
+
+
+  // if (!candidates.empty()) {
+  //   freq_uv.push_back(0);
+  //   auto prev = candidates[0];
+  //   for (auto const &x : candidates) {
+  //     if (prev != x) {
+  //       freq_uv.push_back(0);
+  //       prev = x;
+  //     }
+  //     ++freq_uv.back();
+  //   }
+  // }
+
   timer.end_time(cand_proc::count_freq);
 
   timer.start_time(cand_proc::rem_dup);
-  candidates.erase(unique(candidates.begin(), candidates.end()),
+
+  candidates.erase(remove_if(std::execution::par_unseq, candidates.begin(), candidates.end(), [](candidate_t &c){
+    return c.len_diff<=countfilter;
+  }),
                    candidates.end());
+
+  candidates.erase(unique(std::execution::par_unseq, candidates.begin(), candidates.end(), [](candidate_t &c1, candidate_t &c2){
+    return (c1.idx_str1==c2.idx_str1 && c1.idx_str2==c2.idx_str2);
+  }),
+                    candidates.end());
+
   timer.end_time(cand_proc::rem_dup);
 
   timer.start_time(cand_proc::filter_low_freq);
-  for (int i = 0; i < candidates.size(); i++) {
-    if (freq_uv[i] > countfilter) {
-      verifycan.emplace_back(candidates[i].idx_str1, candidates[i].idx_str2);
-    }
-  }
+
+  // verifycan.resize(candidates.size());
+  // tbb::parallel_for( static_cast<size_t>(0), candidates.size(), [ &candidates, &verifycan ](size_t index){
+    // verifycan[index]=make_tuple(candidates[index].idx_str1,candidates[index].idx_str2);
+  // });
+
   timer.end_time(cand_proc::filter_low_freq);
 
   timer.start_time(cand_proc::sort_cand_to_verify);
-  tbb::parallel_sort(verifycan.begin(), verifycan.end());
+  // tbb::parallel_sort(verifycan.begin(), verifycan.end());
   timer.end_time(cand_proc::sort_cand_to_verify);
 
   timer.start_time(cand_proc::make_uniq);
-  verifycan.erase(unique(verifycan.begin(), verifycan.end()), verifycan.end());
+  // verifycan.erase(unique(std::execution::par, verifycan.begin(), verifycan.end()), verifycan.end());
   timer.end_time(cand_proc::make_uniq);
 
   timer.end_time(cand_proc::total);
@@ -1487,11 +1552,18 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
   size_t num_outputs;
   size_t num_candidates;
 
+  if(alg==alg::join){
   // Compute edit distance for each pair
-  verify_pairs(input_data, len_oristrings, verifycan, output_pairs);
+    verify_pairs(input_data, len_oristrings, candidates, output_pairs);
+  }else{
+    output_pairs.resize(candidates.size());
+    tbb::parallel_for( static_cast<size_t>(0), candidates.size(), [ &candidates, &output_pairs ](size_t index){
+      output_pairs[index]=make_tuple(candidates[index].idx_str1,candidates[index].idx_str2);
+    });
+  }
 
   num_outputs = output_pairs.size();
-  num_candidates = verifycan.size();
+  num_candidates = candidates.size();
 
   BOOST_LOG_TRIVIAL(info) << "\tNum output: " << num_outputs;
 

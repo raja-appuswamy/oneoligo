@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
 
   if(alg==alg::join){
     onejoin(input_data, batch_size, device, samplingrange, countfilter, timer,
-           output_val, num_thread);
+           output_val, alg::join, num_thread);
   }
   else{
    oneCluster(input_data, batch_size, device, samplingrange, countfilter, timer, min_pts, "GEN320");
