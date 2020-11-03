@@ -165,7 +165,7 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 		timer.start_time(cluster::onejoin);
 		OutputValues ov;
 		similarity_results=onejoin( input_chunk, batch_size, device, new_samplingrange, new_countfilter, timer, ov, alg::cluster, 0, dataset_name);
-		timer.start_time(cluster::onejoin);
+		timer.end_time(cluster::onejoin);
 		
 		BOOST_LOG_TRIVIAL(debug)<<"\tSize of db: "<<input_data.size();
 		BOOST_LOG_TRIVIAL(debug)<<"\tSize of results: "<<similarity_results.size();
