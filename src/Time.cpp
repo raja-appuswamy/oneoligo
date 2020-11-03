@@ -96,7 +96,7 @@ public:
     out_file << "MainStep,Step,SubStep,Time(sec),Device" << std::endl;
 
     double t=0.0;
-    
+
     if(this->is_cluster){
       t = mill_to_sec(history[cluster::total]);
       out_file << "Total Cluster time,\t,\t," << t << ","<< std::endl;
@@ -217,7 +217,7 @@ public:
     out_file << "Edit Distance,\t,\t," << t << ","<< std::endl;
 
     t = mill_to_sec(history[total_alg::total]);
-    out_file << "Total Join time,\t,\t," << t << ","<< std::endl;
+    out_file << "Total OneJoin time,\t,\t," << t << ","<< std::endl;
 
     out_file << "Number candidates,\t" << num_candidates << ",\t,\t,"<< std::endl;
     out_file << "Number output,\t" << num_outputs << ",\t,\t,"<< std::endl;
