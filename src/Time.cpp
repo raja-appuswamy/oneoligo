@@ -113,7 +113,7 @@ public:
       t = mill_to_sec(history[cluster::sort]);
       out_file << "\t,\t,Sorting," << t << ","<< std::endl;
 
-      t = mill_to_sec(history[cluster::onejoin]);
+      t = mill_to_sec(history[cluster::dbscan]);
       out_file << "\t,DBSCAN,\t," << t << ","<< std::endl;
 
       t = mill_to_sec(history[cluster::consensus]);
