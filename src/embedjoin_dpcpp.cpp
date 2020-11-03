@@ -1423,31 +1423,132 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
    * **/
 
   timer.start_time(cand_proc::count_freq);
-  std::vector<int> freq_uv;
-  if (!candidates.empty()) {
-    freq_uv.push_back(0);
-    auto prev = candidates[0];
-    for (auto const &x : candidates) {
-      if (prev != x) {
-        freq_uv.push_back(0);
-        prev = x;
-      }
-      ++freq_uv.back();
+
+  size_t candidates_size=candidates.size();
+
+  std::vector<int> freq_uv(candidates_size, 0);
+
+
+  size_t num_split=12;
+  vector<size_t> boundary(num_split,0);
+
+  int k=1;
+
+  for(int i=candidates.size()/num_split; i<candidates.size(); i+=candidates.size()/num_split){
+    auto first = candidates[i];
+    int j=i;
+    while(first==candidates[j]){
+      j++;
     }
+    boundary[k]=j;
+    k++;
   }
+ 
+  tbb::parallel_for( static_cast<size_t>(0), boundary.size(), [&candidates_size, &freq_uv, &candidates, &boundary](size_t index){
+    
+    size_t start=boundary[index];
+    size_t end=0;
+    
+    if(index+1==boundary.size()){
+      end=candidates_size;
+    }
+    else{
+      end=boundary[index+1];
+    }
+
+    auto prev = candidates[start];
+    int j=start;
+    for(int i=start; i<end; i++){
+      if (prev != candidates[i]) {
+        // freq_uv.push_back(0);
+        j++;
+        prev = candidates[i];
+      }
+      ++freq_uv[j];
+    }
+  });
+
+
+  // if (!candidates.empty()) {
+  //   freq_uv.push_back(0);
+  //   auto prev = candidates[0];
+  //   for (auto const &x : candidates) {
+  //     if (prev != x) {
+  //       freq_uv.push_back(0);
+  //       prev = x;
+  //     }
+  //     ++freq_uv.back();
+  //   }
+  // }
+
   timer.end_time(cand_proc::count_freq);
 
   timer.start_time(cand_proc::rem_dup);
-  candidates.erase(unique(candidates.begin(), candidates.end()),
+  candidates.erase(unique(std::execution::par, candidates.begin(), candidates.end()),
                    candidates.end());
+
+  freq_uv.erase(remove_if(std::execution::par, freq_uv.begin(), freq_uv.end(), [](int freq){
+    return freq==0;
+  }),
+                   freq_uv.end());
   timer.end_time(cand_proc::rem_dup);
 
   timer.start_time(cand_proc::filter_low_freq);
-  for (int i = 0; i < candidates.size(); i++) {
-    if (freq_uv[i] > countfilter) {
-      verifycan.emplace_back(candidates[i].idx_str1, candidates[i].idx_str2);
+
+  vector<vector<idpair>> tmp_verifycan(num_split,vector<idpair>{});
+
+
+  k=1;
+
+  for(int i=candidates.size()/num_split; i<candidates.size(); i+=candidates.size()/num_split){
+    auto first = candidates[i];
+    int j=i;
+    while(first==candidates[j]){
+      j++;
     }
+    boundary[k]=j;
+    k++;
   }
+ 
+  tbb::parallel_for( static_cast<size_t>(0), boundary.size(), [ &freq_uv, &candidates, &boundary, &tmp_verifycan ](size_t index){
+    
+    size_t start=boundary[index];
+    size_t end=0;
+    
+    if(index+1==boundary.size()){
+      end=candidates.size();
+    }
+    else{
+      end=boundary[index+1];
+    }
+
+    for(int i=start; i<end; i++){
+      if(freq_uv[i]>countfilter){
+        tmp_verifycan[index].emplace_back(candidates[i].idx_str1,candidates[i].idx_str2);
+      }
+    }
+  });
+
+  for(auto&v:tmp_verifycan){
+    verifycan.insert(verifycan.end(),make_move_iterator(v.begin()),make_move_iterator(v.end()));
+    v.clear();
+  }
+
+
+  // tbb::parallel_for(static_cast<size_t>(0),candidates.size(),[&tmp_freq](size_t index){
+    
+  //   if (freq_uv[index] > countfilter) {
+  //     verifycan.candidates[i].idx_str1, candidates[i].idx_str2);
+  //   }
+  // });
+
+  // for (int i = 0; i < candidates.size(); i++) {
+  //   if (freq_uv[i] > countfilter) {
+  //     verifycan.emplace_back(candidates[i].idx_str1, candidates[i].idx_str2);
+  //   }
+  // }
+
+
   timer.end_time(cand_proc::filter_low_freq);
 
   timer.start_time(cand_proc::sort_cand_to_verify);
@@ -1455,7 +1556,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
   timer.end_time(cand_proc::sort_cand_to_verify);
 
   timer.start_time(cand_proc::make_uniq);
-  verifycan.erase(unique(verifycan.begin(), verifycan.end()), verifycan.end());
+  verifycan.erase(unique(std::execution::par, verifycan.begin(), verifycan.end()), verifycan.end());
   timer.end_time(cand_proc::make_uniq);
 
   timer.end_time(cand_proc::total);
