@@ -195,7 +195,7 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 		timer.end_time(cluster::create_indexes);
 
 	
-		cout<<"Start DBSCAN algorithm"<<std::endl;
+		BOOST_LOG_TRIVIAL(info)<<"Start DBSCAN algorithm"<<std::endl;
 				
 				
 		timer.start_time(cluster::dbscan);
