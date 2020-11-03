@@ -95,6 +95,8 @@ public:
 
     out_file << "MainStep,Step,SubStep,Time(sec),Device" << std::endl;
 
+    double t=0.0;
+    
     if(this->is_cluster){
       t = mill_to_sec(history[cluster::total]);
       out_file << "Total Cluster time,\t,\t," << t << ","<< std::endl;
@@ -118,7 +120,7 @@ public:
       out_file << "\t,Consensus,\t," << t << ","<< std::endl <<std::endl;
     }
 
-    double t = mill_to_sec(history[init::total]);
+    t = mill_to_sec(history[init::total]);
     out_file << "Initialization,\t,\t," << t << ","<< std::endl;
 
     t = mill_to_sec(history[init::init_data]);
