@@ -56,6 +56,7 @@ namespace cluster {
 enum {
   total = total_alg::end + 1,
   init,
+  onejoin,
   create_indexes,
   sort,
   dbscan,
@@ -94,7 +95,32 @@ public:
 
     out_file << "MainStep,Step,SubStep,Time(sec),Device" << std::endl;
 
-    double t = mill_to_sec(history[init::total]);
+    double t=0.0;
+
+    if(this->is_cluster){
+      t = mill_to_sec(history[cluster::total]);
+      out_file << "Total Cluster time,\t,\t," << t << ","<< std::endl;
+
+      t = mill_to_sec(history[cluster::init]);
+      out_file << "\t,Initialization,\t," << t << ","<< std::endl;
+
+      t = mill_to_sec(history[cluster::onejoin]);
+      out_file << "\t,OneJoin*,\t," << t << ","<< std::endl;
+
+      t = mill_to_sec(history[cluster::create_indexes]);
+      out_file << "\t,Create indexes,\t," << t << ","<< std::endl;
+
+      t = mill_to_sec(history[cluster::sort]);
+      out_file << "\t,\t,Sorting," << t << ","<< std::endl;
+
+      t = mill_to_sec(history[cluster::dbscan]);
+      out_file << "\t,DBSCAN,\t," << t << ","<< std::endl;
+
+      t = mill_to_sec(history[cluster::consensus]);
+      out_file << "\t,Consensus,\t," << t << ","<< std::endl <<std::endl;
+    }
+
+    t = mill_to_sec(history[init::total]);
     out_file << "Initialization,\t,\t," << t << ","<< std::endl;
 
     t = mill_to_sec(history[init::init_data]);
@@ -191,21 +217,7 @@ public:
     out_file << "Edit Distance,\t,\t," << t << ","<< std::endl;
 
     t = mill_to_sec(history[total_alg::total]);
-    out_file << "Total Alg time,\t,\t," << t << ","<< std::endl;
-
-    if(this->is_cluster){
-      t = mill_to_sec(history[cluster::total]);
-      out_file << "Total Cluster time,\t,\t," << t << ","<< std::endl;
-
-      t = mill_to_sec(history[cluster::create_indexes]);
-      out_file << "\t,Create indexes,\t," << t << ","<< std::endl;
-
-      t = mill_to_sec(history[cluster::sort]);
-      out_file << "\t,Sorting,\t," << t << ","<< std::endl;
-
-      t = mill_to_sec(history[cluster::consensus]);
-      out_file << "\t,Consensus,\t," << t << ","<< std::endl;
-    }
+    out_file << "Total OneJoin time,\t,\t," << t << ","<< std::endl;
 
     out_file << "Number candidates,\t" << num_candidates << ",\t,\t,"<< std::endl;
     out_file << "Number output,\t" << num_outputs << ",\t,\t,"<< std::endl;

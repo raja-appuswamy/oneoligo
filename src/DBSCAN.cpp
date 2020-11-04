@@ -162,9 +162,11 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 
 		BOOST_LOG_TRIVIAL(info) <<"Computing OneJoin..."<<std::endl;
 		
+		timer.start_time(cluster::onejoin);
 		OutputValues ov;
 		similarity_results=onejoin( input_chunk, batch_size, device, new_samplingrange, new_countfilter, timer, ov, alg::cluster, 0, dataset_name);
-
+		timer.end_time(cluster::onejoin);
+		
 		BOOST_LOG_TRIVIAL(debug)<<"\tSize of db: "<<input_data.size();
 		BOOST_LOG_TRIVIAL(debug)<<"\tSize of results: "<<similarity_results.size();
 
@@ -183,12 +185,14 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 
 		int max_index_str=input_chunk.size();
 		
-		
+		timer.start_time(cluster::sort);
+
 		tbb::parallel_sort(similarity_results.begin(), similarity_results.end(), [](idpair &e1, idpair &e2){
 			return get<0>(e1)<get<0>(e2);
 		});
 
-		
+		timer.end_time(cluster::sort);
+
 		get_indexes(similarity_results,indexes,max_index_str);
 
 		
