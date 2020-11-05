@@ -19,17 +19,17 @@ build:
 
 	
 build-dpcpp: $(BUILD)/main.o $(BUILD)/embedjoin_dpcpp.o $(BUILD)/verification.o $(BUILD)/Time.o $(BUILD)/utils.o $(BUILD)/DBSCAN.o $(BUILD)/constants.o
-	$(CXX) $(DPCPP_FLAGS) $(BUILD)/main.o $(BUILD)/embedjoin_dpcpp.o $(BUILD)/verification.o $(BUILD)/Time.o $(BUILD)/utils.o $(BUILD)/DBSCAN.o $(BUILD)/constants.o $(LDFLAGS) -o $(EXE_NAME)
+	$(DPCPP) $(DPCPP_FLAGS) $(BUILD)/main.o $(BUILD)/embedjoin_dpcpp.o $(BUILD)/verification.o $(BUILD)/Time.o $(BUILD)/utils.o $(BUILD)/DBSCAN.o $(BUILD)/constants.o $(LDFLAGS) -o $(EXE_NAME)
 
 
 update:
 	rm $(BUILD)/constants.o && make build-dpcpp
 
 $(BUILD)/constants.o: $(SRC)/constants.cpp
-	$(CXX) $(DPCPP_FLAGS) $(PARAMS) $< -c -o $@
+	$(DPCPP) $(DPCPP_FLAGS) $(PARAMS) $< -c -o $@
 
 $(BUILD)/%.o: $(SRC)/%.cpp
-	$(CXX) $(DPCPP_FLAGS)  $< -c -o $@
+	$(DPCPP) $(DPCPP_FLAGS)  $< -c -o $@
 
 clean:
 	rm $(BUILD)/* 
