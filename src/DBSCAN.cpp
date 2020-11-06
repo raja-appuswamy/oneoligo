@@ -212,8 +212,8 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 
 		timer.start_time(cluster::consensus);
 
-		vector<size_t> points_per_clusters;
-		get_consensus(input_chunk, labels, len_input, output_dataset, points_per_clusters);
+		vector<size_t> points_per_cluster;
+		get_consensus(input_chunk, labels, len_input, output_dataset, points_per_cluster);
 
 		timer.end_time(cluster::consensus);
 
