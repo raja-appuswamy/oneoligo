@@ -225,7 +225,7 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 			ofstream out_file("consensus_results_chunk_"+to_string(chunk_num));
 			int i=0;
 			for(auto&s:output_dataset){
-				out_file<<s<<points_per_cluster[i]<<std::endl;
+				out_file<<s<<" "<<points_per_cluster[i]<<std::endl;
 				i++;
 			}
 		}
