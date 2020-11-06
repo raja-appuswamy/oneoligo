@@ -9,7 +9,7 @@ using namespace std;
 constexpr int UNDEFINED=-2;
 constexpr int NOISE=-1;
 
-void get_consensus(vector<string> &input_dataset, vector<int> &label, int max_string_len, vector<string> &output_dataset){
+void get_consensus(vector<string> &input_dataset, vector<int> &label, int max_string_len, vector<string> &output_dataset, vector<size_t> &points_per_cluster){
 
 	map<int,vector<int>> clusters;
 
@@ -50,6 +50,7 @@ void get_consensus(vector<string> &input_dataset, vector<int> &label, int max_st
 			counter['N']=0;
 		}
 		output_dataset.emplace_back(true_string);
+		points_per_cluster.emplace_back(c.second.size());
 	}
 }
 
@@ -211,7 +212,8 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 
 		timer.start_time(cluster::consensus);
 
-		get_consensus(input_chunk, labels, len_input, output_dataset);
+		vector<size_t> points_per_clusters;
+		get_consensus(input_chunk, labels, len_input, output_dataset, points_per_clusters);
 
 		timer.end_time(cluster::consensus);
 
@@ -221,8 +223,10 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 		if(end){
 			BOOST_LOG_TRIVIAL(debug)<<"Saving final chunk results...";
 			ofstream out_file("consensus_results_chunk_"+to_string(chunk_num));
+			int i=0;
 			for(auto&s:output_dataset){
-				out_file<<s<<std::endl;
+				out_file<<s<<points_per_cluster[i]<<std::endl;
+				i++;
 			}
 		}
 
