@@ -220,7 +220,7 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 		BOOST_LOG_TRIVIAL(debug)<<"Time consensus: "<<(float)timer.get_step_time(cluster::consensus);
 
 		// ofstream out_file("consensus_results_chunk_"+to_string(chunk_num));
-		if(end){
+		if(end || input_data.size()==0){
 			BOOST_LOG_TRIVIAL(debug)<<"Saving final chunk results...";
 			ofstream out_file("consensus_results_chunk_"+to_string(chunk_num));
 			int i=0;
