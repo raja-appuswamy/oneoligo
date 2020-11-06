@@ -32,8 +32,8 @@ void get_consensus(vector<string> &input_dataset, vector<int> &label, int max_st
 	for(auto&c:clusters){
 		string true_string="";
 		if(c.first==NOISE){
-			for(auto &s:c.second){
-				output_dataset.emplace_back(s);
+			for(auto string_idx:c.second){
+				output_dataset.emplace_back(input_dataset[string_idx]);
 				points_per_cluster.emplace_back(1);
 			}
 		}else{
