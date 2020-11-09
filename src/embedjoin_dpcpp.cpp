@@ -1475,6 +1475,8 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
       }
       tmp_counter++;
     }
+    candidates[prev_idx].len_diff=tmp_counter;
+
   });
 
 
