@@ -154,7 +154,7 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
             input_data.erase(input_data.begin(), input_data.end());
             end=true;
         }
-        else if(num_chunk==num_iterations){
+        else if(chunk_num==num_iterations){
             input_chunk.insert(input_chunk.end(), total_output_dataset.begin(), total_output_dataset.end());
             end=true;
         }
@@ -236,7 +236,7 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 		}else{
 			total_output_dataset.insert(total_output_dataset.end(), make_move_iterator(output_dataset.begin()), make_move_iterator(output_dataset.end()));		
 		}
-		
+
 		chunk_num++;
 
 		timer.end_time(cluster::total);
