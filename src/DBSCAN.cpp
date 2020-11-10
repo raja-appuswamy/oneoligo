@@ -15,9 +15,8 @@ void get_consensus(vector<string> &input_dataset, vector<int> &label, int max_st
 
 	int string_idx=0;
 	for(auto&c:label){
-		//if(c!=NOISE){
-			clusters[c].emplace_back(string_idx);
-		//}
+		clusters[c].emplace_back(string_idx);
+
 		string_idx++;
 	}
 	std::cout<<clusters.size()<<std::endl;
@@ -31,12 +30,13 @@ void get_consensus(vector<string> &input_dataset, vector<int> &label, int max_st
 
 	for(auto&c:clusters){
 		string true_string="";
-		if(c.first==NOISE){
-			for(auto string_idx:c.second){
-				output_dataset.emplace_back(input_dataset[string_idx]);
-				points_per_cluster.emplace_back(1);
-			}
-		}else{
+		// if(c.first==NOISE){
+		// 	for(auto string_idx:c.second){
+		// 		output_dataset.emplace_back(input_dataset[string_idx]);
+		// 		points_per_cluster.emplace_back(1);
+		// 	}
+		// }else{
+		if(c.first!=NOISE){
 			for(int digit=0; digit<max_string_len; digit++){
 				for(auto &string_idx:c.second){
 					char ch=input_dataset[string_idx][digit];
