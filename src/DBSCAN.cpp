@@ -159,8 +159,8 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
             end=true;
         }
         else{
-            input_chunk.insert(input_chunk.end(), input_data.begin(), input_data.begin() + size);
-            input_data.erase(input_data.begin(), input_data.begin() + size);
+            input_chunk.insert(input_chunk.end(), input_data.begin(), input_data.begin() + range);
+            input_data.erase(input_data.begin(), input_data.begin() + range);
         }
 
 		
