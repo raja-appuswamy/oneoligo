@@ -142,7 +142,7 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 		vector<int> labels;
 
 
-		random_shuffle(input_data.begin(),input_data.end());
+		//random_shuffle(input_data.begin(),input_data.end());
 
 		size_t range=std::min(clustering_chunk_size,input_data.size());
 
