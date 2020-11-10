@@ -127,7 +127,9 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 	size_t len_input=input_data[0].size();
 	int min_points=nPts;
 	vector<string> total_output_dataset;
-	int chunk_num=0;
+
+	size_t num_iterations=ceil(static_cast<float>(input_data.size())/static_cast<float>(clustering_chunk_size));
+	size_t chunk_num=0;
 	bool end=false;
 
 	while(!end){
@@ -141,32 +143,27 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 		vector<string> output_dataset;
 		vector<int> labels;
 
-
-		//random_shuffle(input_data.begin(),input_data.end());
-
 		size_t range=std::min(clustering_chunk_size,input_data.size());
 
 		std::cout<<range<<std::endl;
 
 		vector<string> input_chunk;
 
-		if(input_data.size()==0 && total_output_dataset.size()>0){
-			//Begins the last iteration
-			end=true;
-			if(chunk_num>1){
-				input_chunk=move(total_output_dataset);
-			}
-		}
-		else{
-			input_chunk.insert(input_chunk.end(), make_move_iterator(input_data.begin()),make_move_iterator(input_data.begin()+range));
-			input_data.erase(input_data.begin(),input_data.begin()+range);
-			BOOST_LOG_TRIVIAL(debug) <<"Input chunk size: "<<input_chunk.size()<<std::endl;
-		}
+		if(num_iterations==1 ) {
+            input_chunk.insert(input_chunk.end(), input_data.begin(), input_data.end());
+            input_data.erase(input_data.begin(), input_data.end());
+            end=true;
+        }
+        else if(num_chunk==num_iterations){
+            input_chunk.insert(input_chunk.end(), total_output_dataset.begin(), total_output_dataset.end());
+            end=true;
+        }
+        else{
+            input_chunk.insert(input_chunk.end(), input_data.begin(), input_data.begin() + size);
+            input_data.erase(input_data.begin(), input_data.begin() + size);
+        }
 
-		if(input_chunk.size()==0){
-			break;
-		}
-
+		
 		timer.end_time(cluster::init);
 
 		BOOST_LOG_TRIVIAL(info) <<"Computing OneJoin..."<<std::endl;
@@ -228,7 +225,7 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 		BOOST_LOG_TRIVIAL(debug)<<"Time consensus: "<<(float)timer.get_step_time(cluster::consensus);
 
 		// ofstream out_file("consensus_results_chunk_"+to_string(chunk_num));
-		if(end || input_data.size()==0){
+		if(end){
 			BOOST_LOG_TRIVIAL(debug)<<"Saving final chunk results...";
 			ofstream out_file("consensus_results_chunk_"+to_string(chunk_num));
 			int i=0;
@@ -236,14 +233,17 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 				out_file<<s<<" "<<points_per_cluster[i]<<std::endl;
 				i++;
 			}
+		}else{
+			total_output_dataset.insert(total_output_dataset.end(), make_move_iterator(output_dataset.begin()), make_move_iterator(output_dataset.end()));		
 		}
-
+		
 		chunk_num++;
 
-		total_output_dataset.insert(total_output_dataset.end(), make_move_iterator(output_dataset.begin()), make_move_iterator(output_dataset.end()));
-		
 		timer.end_time(cluster::total);
 	}
+
+
+
 	
 }
 
