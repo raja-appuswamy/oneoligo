@@ -9,16 +9,17 @@ using namespace std;
 constexpr int UNDEFINED=-2;
 constexpr int NOISE=-1;
 
-void get_consensus(vector<string> &input_dataset, vector<int> &label, int max_string_len, vector<string> &output_dataset){
+void get_consensus(vector<string> &input_dataset, vector<int> &label, int max_string_len, vector<string> &output_dataset, vector<size_t> &points_per_cluster){
 
 	map<int,vector<int>> clusters;
 
 	int string_idx=0;
 	for(auto&c:label){
-		//if(c!=NOISE){
+		if(c!=NOISE){
 			clusters[c].emplace_back(string_idx);
-		//}
+		}
 		string_idx++;
+		
 	}
 	std::cout<<clusters.size()<<std::endl;
 
@@ -31,25 +32,41 @@ void get_consensus(vector<string> &input_dataset, vector<int> &label, int max_st
 
 	for(auto&c:clusters){
 		string true_string="";
-		for(int digit=0; digit<max_string_len; digit++){
-			for(auto &string_idx:c.second){
-				char ch=input_dataset[string_idx][digit];
-				counter[ch]++;
+		// if(c.first==NOISE){
+		// 	for(auto string_idx:c.second){
+		// 		output_dataset.emplace_back(input_dataset[string_idx]);
+		// 		points_per_cluster.emplace_back(1);
+		// 	}
+		// }else{
+		// if(c.first!=NOISE){
+			// if(c.second.size()>14000){
+			// 	for(auto &s:c.second){
+			// 		output_dataset.emplace_back(input_dataset[s]);
+			// 		points_per_cluster.emplace_back(1);
+			// 	}
+			// }
+			for(int digit=0; digit<max_string_len; digit++){
+				for(auto &string_idx:c.second){
+					char ch=input_dataset[string_idx][digit];
+					counter[ch]++;
+				}
+				auto max_ch=max_element(counter.begin(), counter.end());
+				char true_ch=std::distance(counter.begin(), max_ch);
+				if(true_ch!='A' && true_ch!='C' && true_ch!='G' && true_ch!='T' &&  true_ch!='N'){
+					BOOST_LOG_TRIVIAL(error)<<"Error character"<<std::endl;
+					exit(-1);
+				}
+				true_string+=true_ch;
+				counter['A']=0;
+				counter['C']=0;
+				counter['T']=0;
+				counter['G']=0;
+				counter['N']=0;
 			}
-			auto max_ch=max_element(counter.begin(), counter.end());
-			char true_ch=std::distance(counter.begin(), max_ch);
-			if(true_ch!='A' && true_ch!='C' && true_ch!='G' && true_ch!='T' &&  true_ch!='N'){
-				BOOST_LOG_TRIVIAL(error)<<"Error character"<<std::endl;
-				exit(-1);
-			}
-			true_string+=true_ch;
-			counter['A']=0;
-			counter['C']=0;
-			counter['T']=0;
-			counter['G']=0;
-			counter['N']=0;
-		}
-		output_dataset.emplace_back(true_string);
+			output_dataset.emplace_back(true_string);
+			points_per_cluster.emplace_back(c.second.size());
+		// }
+		
 	}
 }
 
@@ -118,7 +135,9 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 	size_t len_input=input_data[0].size();
 	int min_points=nPts;
 	vector<string> total_output_dataset;
-	int chunk_num=0;
+
+	size_t num_iterations=ceil(static_cast<float>(input_data.size())/static_cast<float>(clustering_chunk_size));
+	size_t chunk_num=0;
 	bool end=false;
 
 	while(!end){
@@ -132,32 +151,27 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 		vector<string> output_dataset;
 		vector<int> labels;
 
-
-		random_shuffle(input_data.begin(),input_data.end());
-
 		size_t range=std::min(clustering_chunk_size,input_data.size());
 
 		std::cout<<range<<std::endl;
 
 		vector<string> input_chunk;
 
-		if(input_data.size()==0 && total_output_dataset.size()>0){
-			//Begins the last iteration
-			end=true;
-			if(chunk_num>1){
-				input_chunk=move(total_output_dataset);
-			}
-		}
-		else{
-			input_chunk.insert(input_chunk.end(), make_move_iterator(input_data.begin()),make_move_iterator(input_data.begin()+range));
-			input_data.erase(input_data.begin(),input_data.begin()+range);
-			BOOST_LOG_TRIVIAL(debug) <<"Input chunk size: "<<input_chunk.size()<<std::endl;
-		}
+		if(num_iterations==1 ) {
+            input_chunk.insert(input_chunk.end(), input_data.begin(), input_data.end());
+            input_data.erase(input_data.begin(), input_data.end());
+            end=true;
+        }
+        else if(chunk_num==num_iterations){
+            input_chunk.insert(input_chunk.end(), total_output_dataset.begin(), total_output_dataset.end());
+            end=true;
+        }
+        else{
+            input_chunk.insert(input_chunk.end(), input_data.begin(), input_data.begin() + range);
+            input_data.erase(input_data.begin(), input_data.begin() + range);
+        }
 
-		if(input_chunk.size()==0){
-			break;
-		}
-
+		
 		timer.end_time(cluster::init);
 
 		BOOST_LOG_TRIVIAL(info) <<"Computing OneJoin..."<<std::endl;
@@ -194,7 +208,13 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 		timer.end_time(cluster::sort);
 
 		get_indexes(similarity_results,indexes,max_index_str);
-
+		// {
+		// 	ofstream out("points.per.reads");
+		// 	for(int i=0; i<max_index_str; i++){
+				
+		// 		out<<input_chunk[i]<<" "<<indexes[i].size()<<std::endl;
+		// 	}
+		// }
 		
 		timer.end_time(cluster::create_indexes);
 
@@ -211,7 +231,8 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 
 		timer.start_time(cluster::consensus);
 
-		get_consensus(input_chunk, labels, len_input, output_dataset);
+		vector<size_t> points_per_cluster;
+		get_consensus(input_chunk, labels, len_input, output_dataset, points_per_cluster);
 
 		timer.end_time(cluster::consensus);
 
@@ -221,17 +242,22 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 		if(end){
 			BOOST_LOG_TRIVIAL(debug)<<"Saving final chunk results...";
 			ofstream out_file("consensus_results_chunk_"+to_string(chunk_num));
+			int i=0;
 			for(auto&s:output_dataset){
-				out_file<<s<<std::endl;
+				out_file<<s<<" "<<points_per_cluster[i]<<std::endl;
+				i++;
 			}
+		}else{
+			total_output_dataset.insert(total_output_dataset.end(), make_move_iterator(output_dataset.begin()), make_move_iterator(output_dataset.end()));		
 		}
 
 		chunk_num++;
 
-		total_output_dataset.insert(total_output_dataset.end(), make_move_iterator(output_dataset.begin()), make_move_iterator(output_dataset.end()));
-		
 		timer.end_time(cluster::total);
 	}
+
+
+
 	
 }
 

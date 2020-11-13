@@ -1493,6 +1493,8 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
       }
       tmp_counter++;
     }
+    candidates[prev_idx].len_diff=tmp_counter;
+
   });
 
 
@@ -1552,15 +1554,15 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
   size_t num_outputs;
   size_t num_candidates;
 
-  if(alg==alg::join){
+  //if(alg==alg::join){
   // Compute edit distance for each pair
     verify_pairs(input_data, len_oristrings, candidates, output_pairs);
-  }else{
-    output_pairs.resize(candidates.size());
-    tbb::parallel_for( static_cast<size_t>(0), candidates.size(), [ &candidates, &output_pairs ](size_t index){
-      output_pairs[index]=make_tuple(candidates[index].idx_str1,candidates[index].idx_str2);
-    });
-  }
+  // }else{
+  //   output_pairs.resize(candidates.size());
+  //   tbb::parallel_for( static_cast<size_t>(0), candidates.size(), [ &candidates, &output_pairs ](size_t index){
+  //     output_pairs[index]=make_tuple(candidates[index].idx_str1,candidates[index].idx_str2);
+  //   });
+  // }
 
   num_outputs = output_pairs.size();
   num_candidates = candidates.size();
