@@ -352,7 +352,6 @@ void create_buckets(queue &device_queue, char **embdata,
   BOOST_LOG_TRIVIAL(debug) << "\t\tSplit size: " << split_size;
 
   range<2> glob_range(split_size * NUM_STR * NUM_REP, NUM_HASH);
-  range<3> local_range(250, 1, 1);
 
   BOOST_LOG_TRIVIAL(debug) << "\t\tGlobal range: "
                            << "(" << glob_range[0] << ", " << glob_range[1]
