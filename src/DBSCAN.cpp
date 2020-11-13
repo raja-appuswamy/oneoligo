@@ -15,9 +15,11 @@ void get_consensus(vector<string> &input_dataset, vector<int> &label, int max_st
 
 	int string_idx=0;
 	for(auto&c:label){
-		clusters[c].emplace_back(string_idx);
-
+		if(c!=NOISE){
+			clusters[c].emplace_back(string_idx);
+		}
 		string_idx++;
+		
 	}
 	std::cout<<clusters.size()<<std::endl;
 
@@ -36,7 +38,13 @@ void get_consensus(vector<string> &input_dataset, vector<int> &label, int max_st
 		// 		points_per_cluster.emplace_back(1);
 		// 	}
 		// }else{
-		if(c.first!=NOISE){
+		// if(c.first!=NOISE){
+			// if(c.second.size()>14000){
+			// 	for(auto &s:c.second){
+			// 		output_dataset.emplace_back(input_dataset[s]);
+			// 		points_per_cluster.emplace_back(1);
+			// 	}
+			// }
 			for(int digit=0; digit<max_string_len; digit++){
 				for(auto &string_idx:c.second){
 					char ch=input_dataset[string_idx][digit];
@@ -57,7 +65,7 @@ void get_consensus(vector<string> &input_dataset, vector<int> &label, int max_st
 			}
 			output_dataset.emplace_back(true_string);
 			points_per_cluster.emplace_back(c.second.size());
-		}
+		// }
 		
 	}
 }
@@ -200,7 +208,13 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 		timer.end_time(cluster::sort);
 
 		get_indexes(similarity_results,indexes,max_index_str);
-
+		// {
+		// 	ofstream out("points.per.reads");
+		// 	for(int i=0; i<max_index_str; i++){
+				
+		// 		out<<input_chunk[i]<<" "<<indexes[i].size()<<std::endl;
+		// 	}
+		// }
 		
 		timer.end_time(cluster::create_indexes);
 
