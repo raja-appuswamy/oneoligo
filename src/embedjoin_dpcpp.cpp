@@ -599,9 +599,10 @@ void generate_candidates(queue &device_queue,
            * q12 is made (b7)( b6, b5, b4 )( b3, b2, b1)(b0)
            * 			(unused) (q1) (q2) (compare result)
            */
-          uint16_t q12 = (uint16_t)q1;
+          
+          uint16_t q12 = (uint16_t) q1;
           q12 = q12 << 7;
-          q12 = q12 + q2;
+          q12 = q12 + (uint16_t) q2;
           q12 = q12 << 1;
           q12 = q12 + (sum > 0 ? 1 : 0);
 
@@ -800,6 +801,7 @@ void initialize_candidate_pairs(vector<queue> &queues,
       buckets_delimiter.emplace_back(make_tuple(i + 1, 0));
     }
   }
+  get<1>(buckets_delimiter[j])++;
   timer.end_time(cand_init::comp_buck_delim);
 
   timer.start_time(cand_init::filter_buck_delim);
