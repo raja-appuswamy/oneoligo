@@ -1,4 +1,4 @@
-#include "embedjoin.hpp"
+#include "onejoin.hpp"
 
 using namespace cl::sycl;
 using namespace oneapi::dpl::execution;

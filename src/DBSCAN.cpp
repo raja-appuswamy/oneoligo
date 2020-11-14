@@ -1,7 +1,7 @@
 #ifndef DBSCAN_H
 #define DBSCAN_H
 
-#include "embedjoin.hpp"
+#include "onejoin.hpp"
 #include <unordered_map>
 
 using namespace std;
