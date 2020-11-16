@@ -1,4 +1,4 @@
-#include "embedjoin.hpp"
+#include "onejoin.hpp"
 
 using namespace cl::sycl;
 using namespace oneapi::dpl::execution;
@@ -352,7 +352,6 @@ void create_buckets(queue &device_queue, buffer<char, 1> &buffer_embdata,
   BOOST_LOG_TRIVIAL(debug) << "\t\tSplit size: " << split_size;
 
   range<2> glob_range(split_size * NUM_STR * NUM_REP, NUM_HASH);
-  range<3> local_range(250, 1, 1);
 
   BOOST_LOG_TRIVIAL(debug) << "\t\tGlobal range: "
                            << "(" << glob_range[0] << ", " << glob_range[1]
@@ -603,9 +602,10 @@ void generate_candidates(queue &device_queue,
            * q12 is made (b7)( b6, b5, b4 )( b3, b2, b1)(b0)
            * 			(unused) (q1) (q2) (compare result)
            */
-          uint16_t q12 = (uint16_t)q1;
+          
+          uint16_t q12 = (uint16_t) q1;
           q12 = q12 << 7;
-          q12 = q12 + q2;
+          q12 = q12 + (uint16_t) q2;
           q12 = q12 << 1;
           q12 = q12 + (sum > 0 ? 1 : 0);
 
@@ -820,6 +820,7 @@ void initialize_candidate_pairs(vector<queue> &queues,
       buckets_delimiter.emplace_back(make_tuple(i + 1, 0));
     }
   }
+  get<1>(buckets_delimiter[j])++;
   timer.end_time(cand_init::comp_buck_delim);
 
   timer.start_time(cand_init::filter_buck_delim);
