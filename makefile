@@ -14,7 +14,7 @@ SRC=src
 BUILD=build
 
 build:
-	$(CLANG) $(CLANG_FLAGS) $(SRC)/main.cpp $(SRC)/embedjoin_dpcpp.cpp $(SRC)/verification.cpp $(SRC)/Time.cpp $(SRC)/utils.cpp $(SRC)/DBSCAN.cpp $(SRC)/constants.cpp $(LDFLAGS) -o $(EXE_NAME)
+	$(CLANG) $(CLANG_FLAGS) $(SRC)/main.cpp $(SRC)/onejoin_dpcpp.cpp $(SRC)/verification.cpp $(SRC)/Time.cpp $(SRC)/utils.cpp $(SRC)/DBSCAN.cpp $(SRC)/constants.cpp $(LDFLAGS) -o $(EXE_NAME)
 
 
 	
