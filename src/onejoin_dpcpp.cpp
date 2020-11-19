@@ -229,7 +229,7 @@ void allocate_work(vector<long> times, int num_dev, size_t units_to_allocate,
 }
 
 void split_buffers(vector<vector<size_t>> &size_per_dev, size_t size_element,
-                   size_t limit = 0xFFFFFFFF) {
+                   size_t limit = max_buffer_size) {
 
   int num_dev = size_per_dev.size();
   size_t tmp_size = 0;
@@ -238,7 +238,7 @@ void split_buffers(vector<vector<size_t>> &size_per_dev, size_t size_element,
     for (int d = 0; d < num_dev; d++) {
       if (size_per_dev[d].size() != 1) {
         BOOST_LOG_TRIVIAL(error)
-            << "ERROR: only one element should be in the vector at this point"
+            << "Only one element should be in the vector at this point"
             << std::endl;
         exit(-1);
       }
@@ -247,7 +247,7 @@ void split_buffers(vector<vector<size_t>> &size_per_dev, size_t size_element,
       while (size * size_element / num_part > limit) {
         num_part++;
       }
-      num_part++;
+      // num_part++;
       BOOST_LOG_TRIVIAL(debug) << "\tSplit buffer in " << num_part
                                << " parts of " << size / num_part << " as dim.";
       size_per_dev[d].clear();
@@ -636,7 +636,7 @@ void generate_candidates_wrapper(vector<queue> &queues,
 
   size_t offset = 0;
   for (int k = 0; k < batch_hdrs.size(); k++) {
-    strncpy(tmp_embed.data() + offset, embdata[k],
+    memcpy(tmp_embed.data() + offset, embdata[k],
             batch_hdrs[k].size * NUM_REP * NUM_STR * len_output);
     offset += batch_hdrs[k].size * NUM_REP * NUM_STR * len_output;
   }
@@ -655,16 +655,22 @@ void generate_candidates_wrapper(vector<queue> &queues,
     list<size_t> buckets_offset;
 
     vector<buffer<buckets_t>> buffers_buckets;
-    //vector<buffer<candidate_t>> buffers_candidates;
     vector<buffer<size_t, 1>> buffers_len;
     vector<buffer<size_t, 1>> buffers_batch_size;
     vector<buffer<size_t, 1>> buffers_len_output;
     vector<buffer<size_t, 1>> buffers_buckets_offset;
+    vector<buffer<candidate_t,1>> buffers_candidates;
 
-    buffer<char, 2> buffer_embdata(
+    vector<buffer<char, 2>> buffers_embdata;
+    buffers_embdata.emplace_back(
         tmp_embed.data(),
         range<2>{batch_hdrs.size(),
                  max_batch_size * NUM_REP * NUM_STR * len_output});
+
+    buffers_embdata.emplace_back(
+        tmp_embed.data(),
+        range<2>{batch_hdrs.size(),
+                 max_batch_size * NUM_REP * NUM_STR * len_output});             
 
     vector<long> times;
     BOOST_LOG_TRIVIAL(debug)
@@ -715,7 +721,7 @@ void generate_candidates_wrapper(vector<queue> &queues,
 
         buffers_buckets.emplace_back(buffer<buckets_t>(buckets.data() + start_b,
                                                        range<1>{size_buckets}));
-        buffer<candidate_t> buffers_candidates(
+        buffers_candidates.emplace_back(
             candidate.data() + offset_cand, range<1>{size_cand[dev][iter]});
         buffers_len.emplace_back(buffer<size_t, 1>(
             len_oristrings.data(), range<1>{len_oristrings.size()}));
@@ -726,9 +732,9 @@ void generate_candidates_wrapper(vector<queue> &queues,
         buffers_buckets_offset.emplace_back(
             buffer<size_t, 1>(&buckets_offset.back(), range<1>{1}));
 
-        generate_candidates(queues[dev], buffers_len[n], buffer_embdata,
+        generate_candidates(queues[dev], buffers_len[n], buffers_embdata[dev],
                             buffers_buckets[n], buffers_buckets_offset[n],
-                            buffers_batch_size[n], buffers_candidates,
+                            buffers_batch_size[n], buffers_candidates[n],
                             size_cand[dev][iter], buffers_len_output[n]);
 
         if (is_profiling) {
@@ -1182,6 +1188,8 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
       }
     }
   };
+
+  
 
   // VARIABLES:
   /* HASH

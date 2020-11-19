@@ -47,8 +47,6 @@ namespace constants{
     const size_t SHIFT=DEF_SHIFT;
     const size_t HASH_SZ=DEF_HASH_SZ;
     const size_t K_INPUT=DEF_K_INPUT;
-
     const size_t NUM_REP = static_cast<size_t>((K_INPUT+SHIFT-1)/SHIFT);
-
     const size_t clustering_chunk_size=DEF_CLU_CHUNK_SIZE;
 }
