@@ -662,16 +662,7 @@ void generate_candidates_wrapper(vector<queue> &queues,
     vector<buffer<candidate_t,1>> buffers_candidates;
 
     vector<buffer<char, 2>> buffers_embdata;
-    buffers_embdata.emplace_back(
-        tmp_embed.data(),
-        range<2>{batch_hdrs.size(),
-                 max_batch_size * NUM_REP * NUM_STR * len_output});
-
-    buffers_embdata.emplace_back(
-        tmp_embed.data(),
-        range<2>{batch_hdrs.size(),
-                 max_batch_size * NUM_REP * NUM_STR * len_output});             
-
+  
     vector<long> times;
     BOOST_LOG_TRIVIAL(debug)
         << "Size (num candidates) for profiling: " << size_for_test
@@ -693,6 +684,11 @@ void generate_candidates_wrapper(vector<queue> &queues,
     bool is_profiling = true;
     while (dev < queues.size()) {
       int iter = 0;
+      buffers_embdata.emplace_back(
+        tmp_embed.data(),
+        range<2>{batch_hdrs.size(),
+                 max_batch_size * NUM_REP * NUM_STR * len_output});  
+                 
       while (iter < size_cand[dev].size() && size_cand[dev][iter] > 0) {
         auto start = std::chrono::system_clock::now();
 
@@ -1563,15 +1559,9 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
   size_t num_outputs;
   size_t num_candidates;
 
-  //if(alg==alg::join){
-  // Compute edit distance for each pair
-    verify_pairs(input_data, len_oristrings, candidates, output_pairs);
-  // }else{
-  //   output_pairs.resize(candidates.size());
-  //   tbb::parallel_for( static_cast<size_t>(0), candidates.size(), [ &candidates, &output_pairs ](size_t index){
-  //     output_pairs[index]=make_tuple(candidates[index].idx_str1,candidates[index].idx_str2);
-  //   });
-  // }
+
+  verify_pairs(input_data, len_oristrings, candidates, output_pairs);
+
 
   num_outputs = output_pairs.size();
   num_candidates = candidates.size();
