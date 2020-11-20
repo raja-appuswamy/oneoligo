@@ -631,6 +631,10 @@ void generate_candidates_wrapper(vector<queue> &queues,
 
   size_t max_batch_size = batch_hdrs[0].size;
 
+  // Concat all embedded batches in one flattened array, in order to 
+  // access it as 2-dim buffer.
+
+
   vector<char> tmp_embed(
       batch_hdrs.size() * max_batch_size * NUM_REP * NUM_STR * len_output, 0);
 
@@ -684,11 +688,14 @@ void generate_candidates_wrapper(vector<queue> &queues,
     bool is_profiling = true;
     while (dev < queues.size()) {
       int iter = 0;
-      buffers_embdata.emplace_back(
-        tmp_embed.data(),
-        range<2>{batch_hdrs.size(),
-                 max_batch_size * NUM_REP * NUM_STR * len_output});  
-                 
+      
+      if(dev==buffers_embdata.size()){
+        buffers_embdata.emplace_back(
+          tmp_embed.data(),
+          range<2>{batch_hdrs.size(),
+                  max_batch_size * NUM_REP * NUM_STR * len_output});  
+      }
+
       while (iter < size_cand[dev].size() && size_cand[dev][iter] > 0) {
         auto start = std::chrono::system_clock::now();
 
