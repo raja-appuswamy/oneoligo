@@ -688,7 +688,7 @@ void generate_candidates_wrapper(vector<queue> &queues,
     bool is_profiling = true;
     while (dev < queues.size()) {
       int iter = 0;
-      
+
       if(dev==buffers_embdata.size()){
         buffers_embdata.emplace_back(
           tmp_embed.data(),
@@ -1266,6 +1266,12 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
     exit(-1);
   }
 
+  if(NUM_REP>127){
+    BOOST_LOG_TRIVIAL(error)
+        << "Are not supported more than 127 sub-strings (ED_DIST/SHIFT) per input string.";
+    exit(-1);
+  }
+
   if (device == cpu || device == both) { // Selected CPU or both
     queues.push_back(
         queue(cpu_selector{}, asyncHandler, property::queue::in_order()));
@@ -1286,8 +1292,18 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
       device = 0;
     }
   }
+
+  if(n_batches<=queues.size()*test_batches){
+    BOOST_LOG_TRIVIAL(error)
+        << "You need at least 3 batches for one device only or 5 batches for two devices.";
+    BOOST_LOG_TRIVIAL(error)<<"Try to decrease the batch size.";
+    exit(-1);
+  }
+
   BOOST_LOG_TRIVIAL(debug) << "Number of devices: " << queues.size()
                            << std::endl;
+
+
 
   /**
    * INITIALIZATION
