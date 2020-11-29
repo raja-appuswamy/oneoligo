@@ -74,8 +74,6 @@ void setuplsh(vector<vector<int>> &hash_lsh, std::vector<int> &a,
   timer.end_time(init::rev_lsh);
 }
 
-
-
 void initialize_input_data(vector<string> &input_data,
                            vector<size_t> &len_oristrings,
                            vector<size_t> &idx_oristrings,
@@ -300,7 +298,9 @@ void parallel_embedding(
 
     // Executing kernel
     cgh.parallel_for<class EmbedString>(
-        range<3>{batch_size, NUM_STR, NUM_REP}, [=, NUM_REP=NUM_REP, NUM_CHAR=NUM_CHAR, SHIFT=SHIFT, NUM_STR=NUM_STR](id<3> index) {
+        range<3>{batch_size, NUM_STR, NUM_REP},
+        [=, NUM_REP = NUM_REP, NUM_CHAR = NUM_CHAR, SHIFT = SHIFT,
+         NUM_STR = NUM_STR](id<3> index) {
           int id = index[0];
           int l = index[1];
           int k = index[2];
@@ -372,7 +372,9 @@ void create_buckets(queue &device_queue, buffer<char, 1> &buffer_embdata,
 
       // Executing kernel
       cgh.parallel_for<class CreateBuckets>(
-          range<2>(glob_range), [=, NUM_REP=NUM_REP, NUM_CHAR=NUM_CHAR, NUM_BITS=NUM_BITS, NUM_STR=NUM_STR, HASH_SZ=HASH_SZ](item<2> index) {
+          range<2>(glob_range),
+          [=, NUM_REP = NUM_REP, NUM_CHAR = NUM_CHAR, NUM_BITS = NUM_BITS,
+           NUM_STR = NUM_STR, HASH_SZ = HASH_SZ](item<2> index) {
             int itq = index[0];
             int i = itq / (NUM_STR * NUM_REP) + acc_split_offset[0];
             int tq = itq % (NUM_STR * NUM_REP);
@@ -559,7 +561,9 @@ void generate_candidates(queue &device_queue,
         << "\t\t\tCandidate size: " << candidate_size << std::endl;
 
     cgh.parallel_for<class GenerateCandidates>(
-        range<1>(candidate_size), [=, NUM_REP=NUM_REP, NUM_CHAR=NUM_CHAR, NUM_BITS=NUM_BITS, NUM_STR=NUM_STR, HASH_SZ=HASH_SZ](item<1> index) {
+        range<1>(candidate_size),
+        [=, NUM_REP = NUM_REP, NUM_CHAR = NUM_CHAR, NUM_BITS = NUM_BITS,
+         NUM_STR = NUM_STR, HASH_SZ = HASH_SZ](item<1> index) {
           int ij = index[0];
           int index_output = ij;
 
@@ -602,10 +606,10 @@ void generate_candidates(queue &device_queue,
            * q12 is made (b7)( b6, b5, b4 )( b3, b2, b1)(b0)
            * 			(unused) (q1) (q2) (compare result)
            */
-          
-          uint16_t q12 = (uint16_t) q1;
+
+          uint16_t q12 = (uint16_t)q1;
           q12 = q12 << 7;
-          q12 = q12 + (uint16_t) q2;
+          q12 = q12 + (uint16_t)q2;
           q12 = q12 << 1;
           q12 = q12 + (sum > 0 ? 1 : 0);
 
@@ -655,7 +659,7 @@ void generate_candidates_wrapper(vector<queue> &queues,
     list<size_t> buckets_offset;
 
     vector<buffer<buckets_t>> buffers_buckets;
-    //vector<buffer<candidate_t>> buffers_candidates;
+    // vector<buffer<candidate_t>> buffers_candidates;
     vector<buffer<size_t, 1>> buffers_len;
     vector<buffer<size_t, 1>> buffers_batch_size;
     vector<buffer<size_t, 1>> buffers_len_output;
@@ -715,8 +719,8 @@ void generate_candidates_wrapper(vector<queue> &queues,
 
         buffers_buckets.emplace_back(buffer<buckets_t>(buckets.data() + start_b,
                                                        range<1>{size_buckets}));
-        buffer<candidate_t> buffers_candidates(
-            candidate.data() + offset_cand, range<1>{size_cand[dev][iter]});
+        buffer<candidate_t> buffers_candidates(candidate.data() + offset_cand,
+                                               range<1>{size_cand[dev][iter]});
         buffers_len.emplace_back(buffer<size_t, 1>(
             len_oristrings.data(), range<1>{len_oristrings.size()}));
         buffers_batch_size.emplace_back(
@@ -1081,12 +1085,13 @@ void print_output(vector<string> &input_data, vector<idpair> &output_pairs,
 }
 
 void verify_pairs(vector<string> &input_data, vector<size_t> &len_oristrings,
-                  vector<candidate_t> &verifycan, vector<idpair> &output_pairs) {
+                  vector<candidate_t> &verifycan,
+                  vector<idpair> &output_pairs) {
 
-  uint32_t num_threads=std::thread::hardware_concurrency();
+  uint32_t num_threads = std::thread::hardware_concurrency();
 
-  if(num_thr!=0){
-     num_threads = static_cast<uint32_t>(num_thr);
+  if (num_thr != 0) {
+    num_threads = static_cast<uint32_t>(num_thr);
   }
 
   BOOST_LOG_TRIVIAL(info) << "Verification" << std::endl;
@@ -1152,12 +1157,13 @@ void verify_pairs(vector<string> &input_data, vector<size_t> &len_oristrings,
 vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
                        int device, uint32_t new_samplingrange,
                        uint32_t new_countfilter, Time &t,
-                       OutputValues &output_vals, int alg, int num_thr_val, string dataset_name) {
-  
-  timer=t;
+                       OutputValues &output_vals, int alg, int num_thr_val,
+                       string dataset_name) {
+
+  timer = t;
   timer.start_time(total_alg::total);
   samplingrange = new_samplingrange;
-  num_thr=num_thr_val;
+  num_thr = num_thr_val;
   countfilter = new_countfilter;
   size_t len_output = NUM_HASH * NUM_BITS;
 
@@ -1224,11 +1230,11 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
    * 				that will be processed and verified by means of
    * 				edit distance computaton;
    * 				the 1st and 3rd element contain the id of input
-   *				strings of a candidate pair; the 2nd element contains the
-   *difference of lenghts of 2 strings the 4th element in an uint32_t  type and
-   *contains use 3 bits to contain the replication id of first string, 3 bit for
-   *the replication id of second string, and 1 bits that say if the 2 strings
-   *have all lsh bits equal.
+   *				strings of a candidate pair; the 2nd element contains
+   *the difference of lenghts of 2 strings the 4th element in an uint32_t  type
+   *and contains use 3 bits to contain the replication id of first string, 3 bit
+   *for the replication id of second string, and 1 bits that say if the 2
+   *strings have all lsh bits equal.
    *
    * queues: vector containing the sycl device queues.
    **/
@@ -1445,68 +1451,70 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
 
   timer.start_time(cand_proc::count_freq);
 
-  size_t num_split=thread::hardware_concurrency();
-  vector<size_t> boundary(num_split,0);
+  size_t num_split = thread::hardware_concurrency();
+  vector<size_t> boundary(num_split, 0);
 
-  int k=1;
+  int k = 1;
 
-  for(int i=candidates.size()/num_split; i<candidates.size(); i+=candidates.size()/num_split){
+  for (int i = candidates.size() / num_split; i < candidates.size();
+       i += candidates.size() / num_split) {
     auto first = candidates[i];
-    int j=i;
-    while(first==candidates[j]){
+    int j = i;
+    while (first == candidates[j]) {
       j++;
     }
-    boundary[k]=j;
+    boundary[k] = j;
     k++;
   }
- 
-  tbb::parallel_for( static_cast<size_t>(0), boundary.size(), [ &candidates, &boundary](size_t index){
-    
-    size_t start=boundary[index];
-    size_t end=0;
-    
-    if(index+1==boundary.size()){
-      end=candidates.size();
-    }
-    else{
-      end=boundary[index+1];
-    }
 
-    candidate_t prev = candidates[start];
-    size_t prev_idx=start;
+  tbb::parallel_for(static_cast<size_t>(0), boundary.size(),
+                    [&candidates, &boundary](size_t index) {
+                      size_t start = boundary[index];
+                      size_t end = 0;
 
-    size_t tmp_counter=0; 
-    
-    int j=start;
-    for(int i=start; i<end; i++){
-      
-      candidates[i].len_diff=0;
+                      if (index + 1 == boundary.size()) {
+                        end = candidates.size();
+                      } else {
+                        end = boundary[index + 1];
+                      }
 
-      if (prev != candidates[i]) {
-        candidates[prev_idx].len_diff=tmp_counter;
-        tmp_counter=0;
-        prev_idx=i;
-        prev = candidates[i];
-      }
-      tmp_counter++;
-    }
-    candidates[prev_idx].len_diff=tmp_counter;
+                      candidate_t prev = candidates[start];
+                      size_t prev_idx = start;
 
-  });
+                      size_t tmp_counter = 0;
+
+                      int j = start;
+                      for (int i = start; i < end; i++) {
+
+                        candidates[i].len_diff = 0;
+
+                        if (prev != candidates[i]) {
+                          candidates[prev_idx].len_diff = tmp_counter;
+                          tmp_counter = 0;
+                          prev_idx = i;
+                          prev = candidates[i];
+                        }
+                        tmp_counter++;
+                      }
+                      candidates[prev_idx].len_diff = tmp_counter;
+                    });
 
   timer.end_time(cand_proc::count_freq);
 
   timer.start_time(cand_proc::rem_dup);
 
-  candidates.erase(remove_if(std::execution::par_unseq, candidates.begin(), candidates.end(), [](candidate_t &c){
-    return c.len_diff<=countfilter;
-  }),
-                   candidates.end());
+  candidates.erase(
+      remove_if(std::execution::par_unseq, candidates.begin(), candidates.end(),
+                [](candidate_t &c) { return c.len_diff <= countfilter; }),
+      candidates.end());
 
-  candidates.erase(unique(std::execution::par_unseq, candidates.begin(), candidates.end(), [](candidate_t &c1, candidate_t &c2){
-    return (c1.idx_str1==c2.idx_str1 && c1.idx_str2==c2.idx_str2);
-  }),
-                    candidates.end());
+  candidates.erase(unique(std::execution::par_unseq, candidates.begin(),
+                          candidates.end(),
+                          [](candidate_t &c1, candidate_t &c2) {
+                            return (c1.idx_str1 == c2.idx_str1 &&
+                                    c1.idx_str2 == c2.idx_str2);
+                          }),
+                   candidates.end());
 
   timer.end_time(cand_proc::rem_dup);
 
@@ -1522,7 +1530,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
   size_t num_candidates;
 
   verify_pairs(input_data, len_oristrings, candidates, output_pairs);
- 
+
   num_outputs = output_pairs.size();
   num_candidates = candidates.size();
 
