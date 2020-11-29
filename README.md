@@ -1,23 +1,27 @@
-# oneoligo
+# Oneoligo
 
 ### Usage:
-Compile with 
+
+#### Cuda-Backend: 
 
 ```
-make build PARAMS="-DNUM_STRING=450000 -DNUM_STR=7 -DNUM_HASH=16 -DNUM_BITS=12 -DNUM_CHAR=4 -DK_INPUT=150 -DLEN_INPUT=5110 -DNUM_REP=3"
+mkdir build
+make build PARAMS="-DDEF_NUM_STR=7 -DDEF_NUM_HASH=16 -DDEF_NUM_BITS=12 -DDEF_NUM_CHAR=4 -DDEF_K_INPUT=150 -DDEF_SHIFT=50"
 ```
 
-Run on:
+Update parameters:
 
-* cpu only:
- ```
- make run1
- ```
-* gpu only:
- ```
- make run2
- ```
- 
-* both:
+
+
+#### DPCPP:
+
 ```
- make run3
+mkdir build
+make build-dpcpp PARAMS="-DDEF_NUM_STR=7 -DDEF_NUM_HASH=16 -DDEF_NUM_BITS=12 -DDEF_NUM_CHAR=4 -DDEF_K_INPUT=150 -DDEF_SHIFT=50"
+
+```
+Update parameters:
+
+```
+make update PARAMS="-DDEF_NUM_STR=7 -DDEF_NUM_HASH=16 -DDEF_NUM_BITS=12 -DDEF_NUM_CHAR=4 -DDEF_K_INPUT=150 -DDEF_SHIFT=50"
+```

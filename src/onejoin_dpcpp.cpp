@@ -1445,10 +1445,6 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
 
   timer.start_time(cand_proc::count_freq);
 
-
-  // std::vector<int> freq_uv(candidates_size, 0);
-
-
   size_t num_split=thread::hardware_concurrency();
   vector<size_t> boundary(num_split,0);
 
@@ -1498,19 +1494,6 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
 
   });
 
-
-  // if (!candidates.empty()) {
-  //   freq_uv.push_back(0);
-  //   auto prev = candidates[0];
-  //   for (auto const &x : candidates) {
-  //     if (prev != x) {
-  //       freq_uv.push_back(0);
-  //       prev = x;
-  //     }
-  //     ++freq_uv.back();
-  //   }
-  // }
-
   timer.end_time(cand_proc::count_freq);
 
   timer.start_time(cand_proc::rem_dup);
@@ -1527,23 +1510,6 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
 
   timer.end_time(cand_proc::rem_dup);
 
-  timer.start_time(cand_proc::filter_low_freq);
-
-  // verifycan.resize(candidates.size());
-  // tbb::parallel_for( static_cast<size_t>(0), candidates.size(), [ &candidates, &verifycan ](size_t index){
-    // verifycan[index]=make_tuple(candidates[index].idx_str1,candidates[index].idx_str2);
-  // });
-
-  timer.end_time(cand_proc::filter_low_freq);
-
-  timer.start_time(cand_proc::sort_cand_to_verify);
-  // tbb::parallel_sort(verifycan.begin(), verifycan.end());
-  timer.end_time(cand_proc::sort_cand_to_verify);
-
-  timer.start_time(cand_proc::make_uniq);
-  // verifycan.erase(unique(std::execution::par, verifycan.begin(), verifycan.end()), verifycan.end());
-  timer.end_time(cand_proc::make_uniq);
-
   timer.end_time(cand_proc::total);
   timer.end_time(lsh::total);
 
@@ -1555,16 +1521,8 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
   size_t num_outputs;
   size_t num_candidates;
 
-  //if(alg==alg::join){
-  // Compute edit distance for each pair
-    verify_pairs(input_data, len_oristrings, candidates, output_pairs);
-  // }else{
-  //   output_pairs.resize(candidates.size());
-  //   tbb::parallel_for( static_cast<size_t>(0), candidates.size(), [ &candidates, &output_pairs ](size_t index){
-  //     output_pairs[index]=make_tuple(candidates[index].idx_str1,candidates[index].idx_str2);
-  //   });
-  // }
-
+  verify_pairs(input_data, len_oristrings, candidates, output_pairs);
+ 
   num_outputs = output_pairs.size();
   num_candidates = candidates.size();
 

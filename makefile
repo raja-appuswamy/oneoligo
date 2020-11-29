@@ -17,7 +17,6 @@ build:
 	$(CLANG) $(CLANG_FLAGS) $(SRC)/main.cpp $(SRC)/onejoin_dpcpp.cpp $(SRC)/verification.cpp $(SRC)/Time.cpp $(SRC)/utils.cpp $(SRC)/DBSCAN.cpp $(SRC)/constants.cpp $(LDFLAGS) -o $(EXE_NAME)
 
 
-	
 build-dpcpp: $(BUILD)/main.o $(BUILD)/onejoin_dpcpp.o $(BUILD)/verification.o $(BUILD)/Time.o $(BUILD)/utils.o $(BUILD)/DBSCAN.o $(BUILD)/constants.o
 	$(DPCPP) $(DPCPP_FLAGS) $(BUILD)/main.o $(BUILD)/onejoin_dpcpp.o $(BUILD)/verification.o $(BUILD)/Time.o $(BUILD)/utils.o $(BUILD)/DBSCAN.o $(BUILD)/constants.o $(LDFLAGS) -o $(EXE_NAME)
 

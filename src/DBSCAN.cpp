@@ -32,19 +32,7 @@ void get_consensus(vector<string> &input_dataset, vector<int> &label, int max_st
 
 	for(auto&c:clusters){
 		string true_string="";
-		// if(c.first==NOISE){
-		// 	for(auto string_idx:c.second){
-		// 		output_dataset.emplace_back(input_dataset[string_idx]);
-		// 		points_per_cluster.emplace_back(1);
-		// 	}
-		// }else{
-		// if(c.first!=NOISE){
-			// if(c.second.size()>14000){
-			// 	for(auto &s:c.second){
-			// 		output_dataset.emplace_back(input_dataset[s]);
-			// 		points_per_cluster.emplace_back(1);
-			// 	}
-			// }
+
 			for(int digit=0; digit<max_string_len; digit++){
 				for(auto &string_idx:c.second){
 					char ch=input_dataset[string_idx][digit];
@@ -65,14 +53,11 @@ void get_consensus(vector<string> &input_dataset, vector<int> &label, int max_st
 			}
 			output_dataset.emplace_back(true_string);
 			points_per_cluster.emplace_back(c.second.size());
-		// }
-		
 	}
 }
 
 
 void get_indexes(vector<tuple<int,int>> &similarity_results, unordered_map<int,vector<int>> &indexes, int max_index_str){
-
 
 	for(int i=0; i<max_index_str; i++){
 			indexes[i].emplace_back(i);
@@ -143,7 +128,6 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 	while(!end){
 		
 		timer.start_time(cluster::total);
-
 		timer.start_time(cluster::init);
 		
 		vector<idpair> similarity_results;
@@ -171,7 +155,6 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
             input_data.erase(input_data.begin(), input_data.begin() + range);
         }
 
-		
 		timer.end_time(cluster::init);
 
 		BOOST_LOG_TRIVIAL(info) <<"Computing OneJoin..."<<std::endl;
@@ -198,7 +181,7 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 		}
 
 		int max_index_str=input_chunk.size();
-		
+
 		timer.start_time(cluster::sort);
 
 		tbb::parallel_sort(similarity_results.begin(), similarity_results.end(), [](idpair &e1, idpair &e2){
@@ -208,20 +191,11 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 		timer.end_time(cluster::sort);
 
 		get_indexes(similarity_results,indexes,max_index_str);
-		// {
-		// 	ofstream out("points.per.reads");
-		// 	for(int i=0; i<max_index_str; i++){
-				
-		// 		out<<input_chunk[i]<<" "<<indexes[i].size()<<std::endl;
-		// 	}
-		// }
 		
 		timer.end_time(cluster::create_indexes);
 
-	
 		BOOST_LOG_TRIVIAL(info)<<"Start DBSCAN algorithm"<<std::endl;
-				
-				
+					
 		timer.start_time(cluster::dbscan);
 
 		labels=DBSCAN(indexes,min_points,input_chunk.size());
@@ -238,7 +212,6 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 
 		BOOST_LOG_TRIVIAL(debug)<<"Time consensus: "<<(float)timer.get_step_time(cluster::consensus);
 
-		// ofstream out_file("consensus_results_chunk_"+to_string(chunk_num));
 		if(end){
 			BOOST_LOG_TRIVIAL(debug)<<"Saving final chunk results...";
 			ofstream out_file("consensus_results_chunk_"+to_string(chunk_num));
@@ -252,13 +225,8 @@ void oneCluster(vector<string> &input_data, size_t batch_size, int device, uint3
 		}
 
 		chunk_num++;
-
 		timer.end_time(cluster::total);
 	}
-
-
-
-	
 }
 
 #endif
