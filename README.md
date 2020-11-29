@@ -54,7 +54,7 @@ Join:
 
 #### Program Parameters:
 --read: dataset-path <br>
---alg: 1.Join [Default] 2.Cluster <br>
+--alg: 1.Join [Default] 2.Clustering <br>
 --device: 0.CPU 1.GPU <br>
 --samplingrange: max digit to embed <br>
 --countfilter: threshold used for filtering candidates <br>
