@@ -4,9 +4,6 @@ PARAMS=-DDEF_NUM_STR=7 -DDEF_NUM_HASH=16 -DDEF_NUM_BITS=12 -DDEF_NUM_CHAR=4 -DDE
 DPCPP=dpcpp
 DPCPP_FLAGS= -O3 -std=c++17 -fsycl -fsycl-unnamed-lambda $(PARAMS) 
 
-CLANG=clang++
-CLANG_FLAGS= -O3 -std=c++17 -fsycl-targets=nvptx64-nvidia-cuda-sycldevice -fsycl -fsycl-unnamed-lambda $(PARAMS) 
-
 LDFLAGS= -lsycl -ltbb -lpthread -lboost_program_options -lboost_thread -lboost_system -lboost_log -lboost_log_setup
 EXE_NAME=onejoin
 
