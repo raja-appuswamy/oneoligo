@@ -15,25 +15,43 @@ namespace embed {
 enum { total = init::end + 1, alloc, rand_str, measure, compute, end };
 }
 namespace buckets {
-    enum { total=embed::end+1, allocation, measure, compute, sort, merge, end };
+enum { total = embed::end + 1, allocation, measure, compute, sort, merge, end };
 }
 namespace cand_init {
-    enum { total=buckets::end+1, comp_buck_delim, filter_buck_delim, resize, scan_cand, end };
+enum {
+  total = buckets::end + 1,
+  comp_buck_delim,
+  filter_buck_delim,
+  resize,
+  scan_cand,
+  end
+};
 }
 namespace cand {
 enum { total = cand_init::end + 1, measure, compute, end };
 }
 namespace cand_proc {
-    enum { total=cand::end+1, rem_cand, sort_cand, merge_cand, count_freq, rem_dup, sort_cand_to_verify, filter_low_freq, make_uniq, end };
+enum {
+  total = cand::end + 1,
+  rem_cand,
+  sort_cand,
+  merge_cand,
+  count_freq,
+  rem_dup,
+  sort_cand_to_verify,
+  filter_low_freq,
+  make_uniq,
+  end
+};
 }
 namespace edit_dist {
 enum { total = cand_proc::end + 1, end };
 }
-namespace lsh{
-    enum{ total=edit_dist::end+1, end };
+namespace lsh {
+enum { total = edit_dist::end + 1, end };
 }
-namespace total_alg{
-    enum { total=lsh::end+1, end };
+namespace total_alg {
+enum { total = lsh::end + 1, end };
 }
 namespace cluster {
 enum {
@@ -49,20 +67,16 @@ enum {
 
 class Time {
 public:
-
-  Time(bool is_clust){
-    is_cluster=is_clust;
-  }
+  Time(bool is_clust) { is_cluster = is_clust; }
 
   void start_time(int phase_id) { record_time(0, phase_id); }
 
-  void end_time(int phase_id) { 
-    record_time(1, phase_id); 
-    if(this->history.count(phase_id)==0){
-      this->history[phase_id]=get_time_diff(phase_id);
-    }
-    else{
-      this->history[phase_id]+=get_time_diff(phase_id);
+  void end_time(int phase_id) {
+    record_time(1, phase_id);
+    if (this->history.count(phase_id) == 0) {
+      this->history[phase_id] = get_time_diff(phase_id);
+    } else {
+      this->history[phase_id] += get_time_diff(phase_id);
     }
   }
 
@@ -71,42 +85,40 @@ public:
     return t;
   }
 
-
   void print_report(std::string dev, uint32_t num_candidates,
                     uint32_t num_outputs, std::ostream &out_file = std::cout) {
 
-    
-		out_file<<"MainStep,Step,SubStep,Time(sec),Device"<<std::endl;
-		
+    out_file << "MainStep,Step,SubStep,Time(sec),Device" << std::endl;
+
     double t = mill_to_sec(history[init::total]);
-    out_file << "Initialization,\t,\t," << t << ","<< std::endl;
+    out_file << "Initialization,\t,\t," << t << "," << std::endl;
 
     t = mill_to_sec(history[init::init_data]);
     out_file << "\t,Init Dataset,\t," << t << "," << std::endl;
 
     t = mill_to_sec(history[init::init_lsh]);
-    out_file << "\t,Init LSH bits,\t," << t << ","<< std::endl;
+    out_file << "\t,Init LSH bits,\t," << t << "," << std::endl;
 
     t = mill_to_sec(history[init::rev_lsh]);
-    out_file << "\t,Init Rev LSH array,\t," << t << ","<< std::endl;
+    out_file << "\t,Init Rev LSH array,\t," << t << "," << std::endl;
 
     t = mill_to_sec(history[embed::total]);
     out_file << "Embedding,\t,\t," << t << "," << dev << std::endl;
 
     t = mill_to_sec(history[embed::alloc]);
-    out_file << "\t,USM allocation,\t," << t << ","<< std::endl;
+    out_file << "\t,USM allocation,\t," << t << "," << std::endl;
 
     t = mill_to_sec(history[embed::rand_str]);
-    out_file << "\t,Random string generation,\t," << t << ","<< std::endl;
+    out_file << "\t,Random string generation,\t," << t << "," << std::endl;
 
     t = mill_to_sec(history[embed::measure]);
-    out_file << "\t,Measurement,\t," << t << ","<< std::endl;
+    out_file << "\t,Measurement,\t," << t << "," << std::endl;
 
     t = mill_to_sec(history[embed::compute]);
-    out_file << "\t,Computing,\t," << t << ","<< std::endl;
+    out_file << "\t,Computing,\t," << t << "," << std::endl;
 
     t = mill_to_sec(history[lsh::total]);
-    out_file << "LSH time,\t,\t," << t << ","<< std::endl;
+    out_file << "LSH time,\t,\t," << t << "," << std::endl;
 
     t = mill_to_sec(history[buckets::total]);
     out_file << "\t,Create Buckets,\t," << t << "," << dev << std::endl;
@@ -115,90 +127,93 @@ public:
     out_file << "\t,\t,Buckets Allocation," << t << "," << dev << std::endl;
 
     t = mill_to_sec(history[buckets::measure]);
-    out_file << "\t,\t,Measurement," << t << ","<< std::endl;
+    out_file << "\t,\t,Measurement," << t << "," << std::endl;
 
     t = mill_to_sec(history[buckets::compute]);
-    out_file << "\t,\t,Computing," << t << ","<< std::endl;
+    out_file << "\t,\t,Computing," << t << "," << std::endl;
 
     t = mill_to_sec(history[buckets::sort]);
-    out_file << "\t,\t,Sort Buckets," << t << ","<< std::endl;
+    out_file << "\t,\t,Sort Buckets," << t << "," << std::endl;
 
     t = mill_to_sec(history[buckets::merge]);
-    out_file << "\t,\t,Merge Buckets," << t << ","<< std::endl;
+    out_file << "\t,\t,Merge Buckets," << t << "," << std::endl;
 
     t = mill_to_sec(history[cand_init::total]);
-    out_file << "\t,Candidate Initialization,\t," << t << ","<< std::endl;
+    out_file << "\t,Candidate Initialization,\t," << t << "," << std::endl;
 
     t = mill_to_sec(history[cand_init::comp_buck_delim]);
-    out_file << "\t,\t,Compute buckets delimiter," << t << ","<< std::endl;
+    out_file << "\t,\t,Compute buckets delimiter," << t << "," << std::endl;
 
     t = mill_to_sec(history[cand_init::filter_buck_delim]);
-    out_file << "\t,\t,Filter one element buckets," << t << ","<< std::endl;
+    out_file << "\t,\t,Filter one element buckets," << t << "," << std::endl;
 
     t = mill_to_sec(history[cand_init::resize]);
-    out_file << "\t,\t,Allocate candidate vector," << t << ","<< std::endl;
+    out_file << "\t,\t,Allocate candidate vector," << t << "," << std::endl;
 
     t = mill_to_sec(history[cand_init::scan_cand]);
-    out_file << "\t,\t,Scan cand vector (write i and j)," << t << ","<< std::endl;
+    out_file << "\t,\t,Scan cand vector (write i and j)," << t << ","
+             << std::endl;
 
     t = mill_to_sec(history[cand::total]);
     out_file << "\t,Generate Candidate,\t," << t << "," << dev << std::endl;
 
     t = mill_to_sec(history[cand::measure]);
-    out_file << "\t,\t,Measurement," << t << ","<< std::endl;
+    out_file << "\t,\t,Measurement," << t << "," << std::endl;
 
     t = mill_to_sec(history[cand::compute]);
-    out_file << "\t,\t,Computing," << t << ","<< std::endl;
+    out_file << "\t,\t,Computing," << t << "," << std::endl;
 
     t = mill_to_sec(history[cand_proc::total]);
-    out_file << "\t,Candidates processing,\t," << t << ","<< std::endl;
+    out_file << "\t,Candidates processing,\t," << t << "," << std::endl;
 
     t = mill_to_sec(history[cand_proc::rem_cand]);
-    out_file << "\t,\t,Remove candidates," << t << ","<< std::endl;
+    out_file << "\t,\t,Remove candidates," << t << "," << std::endl;
 
     t = mill_to_sec(history[cand_proc::sort_cand]);
-    out_file << "\t,\t,Sort candidates," << t << ","<< std::endl;
+    out_file << "\t,\t,Sort candidates," << t << "," << std::endl;
 
     t = mill_to_sec(history[cand_proc::merge_cand]);
-    out_file << "\t,\t,Merge candidates," << t << ","<< std::endl;
+    out_file << "\t,\t,Merge candidates," << t << "," << std::endl;
 
     t = mill_to_sec(history[cand_proc::count_freq]);
-    out_file << "\t,\t,Counting frequencies," << t << ","<< std::endl;
+    out_file << "\t,\t,Counting frequencies," << t << "," << std::endl;
 
     t = mill_to_sec(history[cand_proc::rem_dup]);
-    out_file << "\t,\t,Remove duplicates," << t << ","<< std::endl;
+    out_file << "\t,\t,Remove duplicates," << t << "," << std::endl;
 
     t = mill_to_sec(history[cand_proc::sort_cand_to_verify]);
-    out_file << "\t,\t,Sorting candidates to verify," << t << ","<< std::endl;
+    out_file << "\t,\t,Sorting candidates to verify," << t << "," << std::endl;
 
     t = mill_to_sec(history[cand_proc::filter_low_freq]);
-    out_file << "\t,\t,Remove low frequencies candidates," << t << ","<< std::endl;
+    out_file << "\t,\t,Remove low frequencies candidates," << t << ","
+             << std::endl;
 
     t = mill_to_sec(history[cand_proc::make_uniq]);
-    out_file << "\t,\t,Removing duplicates," << t << ","<< std::endl;
+    out_file << "\t,\t,Removing duplicates," << t << "," << std::endl;
 
     t = mill_to_sec(history[edit_dist::total]);
-    out_file << "Edit Distance,\t,\t," << t << ","<< std::endl;
+    out_file << "Edit Distance,\t,\t," << t << "," << std::endl;
 
     t = mill_to_sec(history[total_alg::total]);
-    out_file << "Total Alg time,\t,\t," << t << ","<< std::endl;
+    out_file << "Total Alg time,\t,\t," << t << "," << std::endl;
 
-    if(this->is_cluster){
+    if (this->is_cluster) {
       t = mill_to_sec(history[cluster::total]);
-      out_file << "Total Cluster time,\t,\t," << t << ","<< std::endl;
+      out_file << "Total Cluster time,\t,\t," << t << "," << std::endl;
 
       t = mill_to_sec(history[cluster::create_indexes]);
-      out_file << "\t,Create indexes,\t," << t << ","<< std::endl;
+      out_file << "\t,Create indexes,\t," << t << "," << std::endl;
 
       t = mill_to_sec(history[cluster::sort]);
-      out_file << "\t,Sorting,\t," << t << ","<< std::endl;
+      out_file << "\t,Sorting,\t," << t << "," << std::endl;
 
       t = mill_to_sec(history[cluster::consensus]);
-      out_file << "\t,Consensus,\t," << t << ","<< std::endl;
+      out_file << "\t,Consensus,\t," << t << "," << std::endl;
     }
 
-    out_file << "Number candidates,\t" << num_candidates << ",\t,\t,"<< std::endl;
-    out_file << "Number output,\t" << num_outputs << ",\t,\t,"<< std::endl;
+    out_file << "Number candidates,\t" << num_candidates << ",\t,\t,"
+             << std::endl;
+    out_file << "Number output,\t" << num_outputs << ",\t,\t," << std::endl;
   }
 
   void print_summary(uint32_t num_candidates, uint32_t num_outputs) {
@@ -244,7 +259,7 @@ public:
 
 private:
   map<int, timeinterval_t> timing;
-  map<int,long> history;
+  map<int, long> history;
 
   timepoint_t t = std::chrono::system_clock::now();
   bool is_cluster;
@@ -257,14 +272,12 @@ private:
     return t;
   }
 
-  double mill_to_sec(long val){
-    return (double) val/1000.0;
-  }
+  double mill_to_sec(long val) { return (double)val / 1000.0; }
 
   long get_time_diff(int phase_id) {
-    long diff = std::chrono::duration_cast<std::chrono::milliseconds>(timing[phase_id].second -
-                                                                   timing[phase_id].first)
-                 .count();
+    long diff = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    timing[phase_id].second - timing[phase_id].first)
+                    .count();
     return diff;
   }
 

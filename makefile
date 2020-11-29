@@ -21,15 +21,3 @@ $(BUILD)/%.o: $(SRC)/%.cpp
 
 clean:
 	rm $(BUILD)/* 
-
-# Gen Dataset
-
-run1:
-	./$(DPCPP_EXE_NAME)  --read gen320ks.txt --device 0 --samplingrange 5000 --countfilter 1 --batch_size 10000 
-    
-run2:
-	./$(DPCPP_EXE_NAME)  --read gen320ks.txt --device 1 --samplingrange 5000 --countfilter 1 --batch_size 10000
-
-run3:
-	./$(DPCPP_EXE_NAME)  --read gen320ks.txt --device 2 --samplingrange 5000 --countfilter 1 --batch_size 10000
-
