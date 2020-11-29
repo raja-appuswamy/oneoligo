@@ -38,5 +38,5 @@ Clustering:
 
 Join:
 ```
-./onejoin --alg 2 --read dataset_name --device 1 --samplingrange 5000 --countfilter 1 --batch_size 10000 --min_pts 2
+./onejoin --read dataset_name --device 1 --samplingrange 5000 --countfilter 1 --batch_size 10000
 ```
