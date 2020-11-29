@@ -17,11 +17,6 @@ build: $(BUILD)/main.o $(BUILD)/onejoin_dpcpp.o $(BUILD)/verification.o $(BUILD)
 	$(DPCPP) $(DPCPP_FLAGS) $(BUILD)/main.o $(BUILD)/onejoin_dpcpp.o $(BUILD)/verification.o $(BUILD)/Time.o $(BUILD)/utils.o $(BUILD)/DBSCAN.o $(BUILD)/constants.o $(LDFLAGS) -o $(EXE_NAME)
 
 
-	
-build-nvidia:
-	$(CLANG) $(CLANG_FLAGS) $(SRC)/main.cpp $(SRC)/onejoin_dpcpp.cpp $(SRC)/verification.cpp $(SRC)/Time.cpp $(SRC)/utils.cpp $(SRC)/DBSCAN.cpp $(SRC)/constants.cpp $(LDFLAGS) -o $(EXE_NAME)
-
-
 update:
 	rm $(BUILD)/constants.o && make build
 
@@ -33,15 +28,3 @@ $(BUILD)/%.o: $(SRC)/%.cpp
 
 clean:
 	rm $(BUILD)/* 
-
-# Gen Dataset
-
-run1:
-	./$(EXE_NAME)  --read gen320ks.txt --device 0 --samplingrange 5000 --countfilter 1 --batch_size 10000 
-    
-run2:
-	./$(EXE_NAME)  --read gen320ks.txt --device 1 --samplingrange 5000 --countfilter 1 --batch_size 3000
-
-run3:
-	./$(EXE_NAME)  --read gen320ks.txt --device 2 --samplingrange 5000 --countfilter 1 --batch_size 10000
-
