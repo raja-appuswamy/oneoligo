@@ -88,8 +88,8 @@ void read_dataset(vector<string> &input_data, string filename) {
   }
 };
 
-
-void save_report(int device, size_t batch_size, string dataset_name, OutputValues &output_val, Time &timer){
+void save_report(int device, size_t batch_size, string dataset_name,
+                 OutputValues &output_val, Time &timer) {
   string report_name = getReportFileName(device, batch_size);
   {
     ofstream out_file;
