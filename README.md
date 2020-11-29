@@ -33,10 +33,10 @@ make update PARAMS="-DDEF_NUM_STR=7 -DDEF_NUM_HASH=16 -DDEF_NUM_BITS=12 -DDEF_NU
 
 Clustering: 
 ```
-./onejoin --alg 2 --read dataset_name --device 0 --samplingrange 5000 --countfilter 1 --batch_size 10000 --min_pts 2
+./onejoin --alg 2 --read dataset_name --device 1 --samplingrange 5000 --countfilter 1 --batch_size 10000 --min_pts 2
 ```
 
 Join:
 ```
-./onejoin --alg 2 --read dataset_name --device 0 --samplingrange 5000 --countfilter 1 --batch_size 10000 --min_pts 2
+./onejoin --alg 2 --read dataset_name --device 1 --samplingrange 5000 --countfilter 1 --batch_size 10000 --min_pts 2
 ```
