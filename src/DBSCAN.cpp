@@ -21,7 +21,6 @@ void get_consensus(vector<string> &input_dataset, vector<int> &label, int max_st
 		string_idx++;
 		
 	}
-	std::cout<<clusters.size()<<std::endl;
 
 	vector<uint32_t> counter(256,0);
 	counter['A']=0;
