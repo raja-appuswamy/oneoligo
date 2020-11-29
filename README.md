@@ -55,7 +55,7 @@ Join:
 #### Program Parameters:
 --read: dataset-path <br>
 --alg: 1.Join [Default] 2.Cluster <br>
---device: 0.CPU 1.GPU 2.CPU & GPU <br>
+--device: 0.CPU 1.GPU <br>
 --samplingrange: max digit to embed <br>
 --countfilter: threshold used for filtering candidates <br>
 --batch_size: Number of input strigns to embed at time <br><br>
