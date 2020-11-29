@@ -1472,9 +1472,7 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
 
   timer.start_time(cand_proc::count_freq);
 
-
   // std::vector<int> freq_uv(candidates_size, 0);
-
 
   size_t num_split=thread::hardware_concurrency();
   vector<size_t> boundary(num_split,0);
@@ -1524,7 +1522,6 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
     candidates[prev_idx].len_diff=tmp_counter;
 
   });
-
 
   // if (!candidates.empty()) {
   //   freq_uv.push_back(0);
