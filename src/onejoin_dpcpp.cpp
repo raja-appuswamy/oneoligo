@@ -227,7 +227,7 @@ void allocate_work(vector<long> times, int num_dev, size_t units_to_allocate,
 }
 
 void split_buffers(vector<vector<size_t>> &size_per_dev, size_t size_element,
-                   size_t limit = 0xFFFFFFFF) {
+                   size_t limit = max_buffer_size) {
 
   int num_dev = size_per_dev.size();
   size_t tmp_size = 0;
@@ -236,7 +236,7 @@ void split_buffers(vector<vector<size_t>> &size_per_dev, size_t size_element,
     for (int d = 0; d < num_dev; d++) {
       if (size_per_dev[d].size() != 1) {
         BOOST_LOG_TRIVIAL(error)
-            << "ERROR: only one element should be in the vector at this point"
+            << "Only one element should be in the vector at this point"
             << std::endl;
         exit(-1);
       }
@@ -245,7 +245,7 @@ void split_buffers(vector<vector<size_t>> &size_per_dev, size_t size_element,
       while (size * size_element / num_part > limit) {
         num_part++;
       }
-      num_part++;
+      // num_part++;
       BOOST_LOG_TRIVIAL(debug) << "\tSplit buffer in " << num_part
                                << " parts of " << size / num_part << " as dim.";
       size_per_dev[d].clear();
@@ -635,13 +635,16 @@ void generate_candidates_wrapper(vector<queue> &queues,
 
   size_t max_batch_size = batch_hdrs[0].size;
 
+  // Concat all embedded batches in one flattened array, in order to
+  // access it as 2-dim buffer.
+
   vector<char> tmp_embed(
       batch_hdrs.size() * max_batch_size * NUM_REP * NUM_STR * len_output, 0);
 
   size_t offset = 0;
   for (int k = 0; k < batch_hdrs.size(); k++) {
-    strncpy(tmp_embed.data() + offset, embdata[k],
-            batch_hdrs[k].size * NUM_REP * NUM_STR * len_output);
+    memcpy(tmp_embed.data() + offset, embdata[k],
+           batch_hdrs[k].size * NUM_REP * NUM_STR * len_output);
     offset += batch_hdrs[k].size * NUM_REP * NUM_STR * len_output;
   }
 
@@ -659,16 +662,13 @@ void generate_candidates_wrapper(vector<queue> &queues,
     list<size_t> buckets_offset;
 
     vector<buffer<buckets_t>> buffers_buckets;
-    // vector<buffer<candidate_t>> buffers_candidates;
     vector<buffer<size_t, 1>> buffers_len;
     vector<buffer<size_t, 1>> buffers_batch_size;
     vector<buffer<size_t, 1>> buffers_len_output;
     vector<buffer<size_t, 1>> buffers_buckets_offset;
+    vector<buffer<candidate_t, 1>> buffers_candidates;
 
-    buffer<char, 2> buffer_embdata(
-        tmp_embed.data(),
-        range<2>{batch_hdrs.size(),
-                 max_batch_size * NUM_REP * NUM_STR * len_output});
+    vector<buffer<char, 2>> buffers_embdata;
 
     vector<long> times;
     BOOST_LOG_TRIVIAL(debug)
@@ -691,6 +691,14 @@ void generate_candidates_wrapper(vector<queue> &queues,
     bool is_profiling = true;
     while (dev < queues.size()) {
       int iter = 0;
+
+      if (dev == buffers_embdata.size()) {
+        buffers_embdata.emplace_back(
+            tmp_embed.data(),
+            range<2>{batch_hdrs.size(),
+                     max_batch_size * NUM_REP * NUM_STR * len_output});
+      }
+
       while (iter < size_cand[dev].size() && size_cand[dev][iter] > 0) {
         auto start = std::chrono::system_clock::now();
 
@@ -730,9 +738,9 @@ void generate_candidates_wrapper(vector<queue> &queues,
         buffers_buckets_offset.emplace_back(
             buffer<size_t, 1>(&buckets_offset.back(), range<1>{1}));
 
-        generate_candidates(queues[dev], buffers_len[n], buffer_embdata,
+        generate_candidates(queues[dev], buffers_len[n], buffers_embdata[dev],
                             buffers_buckets[n], buffers_buckets_offset[n],
-                            buffers_batch_size[n], buffers_candidates,
+                            buffers_batch_size[n], buffers_candidates[n],
                             size_cand[dev][iter], buffers_len_output[n]);
 
         if (is_profiling) {
@@ -1261,6 +1269,12 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
     exit(-1);
   }
 
+  if (NUM_REP > 127) {
+    BOOST_LOG_TRIVIAL(error) << "Are not supported more than 127 sub-strings "
+                                "(ED_DIST/SHIFT) per input string.";
+    exit(-1);
+  }
+
   if (device == cpu || device == both) { // Selected CPU or both
     queues.push_back(
         queue(cpu_selector{}, asyncHandler, property::queue::in_order()));
@@ -1281,6 +1295,14 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
       device = 0;
     }
   }
+
+  if (n_batches <= queues.size() * test_batches) {
+    BOOST_LOG_TRIVIAL(error) << "You need at least 3 batches for one device "
+                                "only or 5 batches for two devices.";
+    BOOST_LOG_TRIVIAL(error) << "Try to decrease the batch size.";
+    exit(-1);
+  }
+
   BOOST_LOG_TRIVIAL(debug) << "Number of devices: " << queues.size()
                            << std::endl;
 
@@ -1517,6 +1539,25 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
                    candidates.end());
 
   timer.end_time(cand_proc::rem_dup);
+
+  timer.start_time(cand_proc::filter_low_freq);
+
+  // verifycan.resize(candidates.size());
+  // tbb::parallel_for( static_cast<size_t>(0), candidates.size(), [
+  // &candidates, &verifycan ](size_t index){
+  // verifycan[index]=make_tuple(candidates[index].idx_str1,candidates[index].idx_str2);
+  // });
+
+  timer.end_time(cand_proc::filter_low_freq);
+
+  timer.start_time(cand_proc::sort_cand_to_verify);
+  // tbb::parallel_sort(verifycan.begin(), verifycan.end());
+  timer.end_time(cand_proc::sort_cand_to_verify);
+
+  timer.start_time(cand_proc::make_uniq);
+  // verifycan.erase(unique(std::execution::par, verifycan.begin(),
+  // verifycan.end()), verifycan.end());
+  timer.end_time(cand_proc::make_uniq);
 
   timer.end_time(cand_proc::total);
   timer.end_time(lsh::total);
