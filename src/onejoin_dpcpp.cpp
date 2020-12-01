@@ -740,7 +740,7 @@ void generate_candidates_wrapper(vector<queue> &queues,
 
         generate_candidates(queues[dev], buffers_len[n], buffers_embdata[dev],
                             buffers_buckets[n], buffers_buckets_offset[n],
-                            buffers_batch_size[n], buffers_candidates[n],
+                            buffers_batch_size[n], buffers_candidates,
                             size_cand[dev][iter], buffers_len_output[n]);
 
         if (is_profiling) {
