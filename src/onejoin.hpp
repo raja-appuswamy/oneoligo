@@ -1,6 +1,9 @@
 #ifndef ONEJOIN_H
 #define ONEJOIN_H
 #include <CL/sycl.hpp>
+#include <oneapi/dpl/execution>
+#include <oneapi/dpl/algorithm>
+#include <oneapi/dpl/iterator>
 #include <ctime>
 #include <unistd.h>
 #include <vector>
@@ -25,9 +28,6 @@
 #include <atomic>
 #include <memory>
 //#include <ittnotify.h>
-#include <oneapi/dpl/execution>
-#include <oneapi/dpl/algorithm>
-#include <oneapi/dpl/iterator>
 #include "tbb/parallel_sort.h"
 #include <tbb/concurrent_vector.h>
 #include <exception>
