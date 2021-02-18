@@ -1540,11 +1540,11 @@ vector<idpair> onejoin(vector<string> &input_data, size_t max_batch_size,
   timer.start_time(cand_proc::rem_dup);
 
   candidates.erase(
-      remove_if(std::execution::par_unseq, candidates.begin(), candidates.end(),
+      remove_if(oneapi::dpl::execution::par_unseq, candidates.begin(), candidates.end(),
                 [](candidate_t &c) { return c.len_diff <= countfilter; }),
       candidates.end());
 
-  candidates.erase(unique(std::execution::par_unseq, candidates.begin(),
+  candidates.erase(unique(oneapi::dpl::execution::par_unseq, candidates.begin(),
                           candidates.end(),
                           [](candidate_t &c1, candidate_t &c2) {
                             return (c1.idx_str1 == c2.idx_str1 &&
