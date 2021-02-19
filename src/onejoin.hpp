@@ -1,9 +1,9 @@
 #ifndef ONEJOIN_H
 #define ONEJOIN_H
-#include <CL/sycl.hpp>
 #include <oneapi/dpl/execution>
 #include <oneapi/dpl/algorithm>
 #include <oneapi/dpl/iterator>
+#include <CL/sycl.hpp>
 #include <ctime>
 #include <unistd.h>
 #include <vector>
