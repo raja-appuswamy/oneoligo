@@ -1,6 +1,8 @@
 # Oneoligo Project
 
-### Usage:
+### Usage: 
+
+These parameters are just an example. In general, they depend on the dataset used.
 
 ```
 mkdir build
