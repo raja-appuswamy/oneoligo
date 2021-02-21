@@ -23,5 +23,14 @@ $(BUILD)/constants.o: $(SRC)/constants.cpp
 $(BUILD)/%.o: $(SRC)/%.cpp
 	$(DPCPP) $(DPCPP_FLAGS)  $< -c -o $@
 
+
+test-join:
+	./onejoin -a 1 -r test/dummy_dataset.txt -d 2 -s 91 -c 0 --batch_size 500
+
+test-cluster:
+	./onejoin -a 2 -r test/dummy_dataset.txt -d 2 -s 91 -c 0 --batch_size 500 --min_pts 3
+
+
+
 clean:
 	rm $(BUILD)/* 
