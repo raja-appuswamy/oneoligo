@@ -97,9 +97,9 @@ void read_dataset(vector<string> &input_data, string filename) {
     }
 
     if(is_fastq){
-      getline(data, cell)
-      getline(data, skip)
-      getline(data, skip)
+      getline(data, cell);
+      getline(data, skip);
+      getline(data, skip);
     }
     number_string++;
     input_data.push_back(cell);
