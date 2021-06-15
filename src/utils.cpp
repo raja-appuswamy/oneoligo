@@ -81,8 +81,13 @@ void read_dataset(vector<string> &input_data, string filename) {
   }
 
   string cell;
+  string skip;
+  
   int number_string = 0;
   while (getline(data, cell)) {
+    getline(data, skip)
+    getline(data, skip)
+    getline(data, skip)
     number_string++;
     input_data.push_back(cell);
   }
