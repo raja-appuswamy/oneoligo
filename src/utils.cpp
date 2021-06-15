@@ -92,7 +92,7 @@ void read_dataset(vector<string> &input_data, string filename) {
     if(cell[0]=='@' && number_string==0){
       is_fastq=true;
       BOOST_LOG_TRIVIAL(info) << "FASTQ format detected" << std::endl;
-    }else{
+    }else if(number_string==0){
       BOOST_LOG_TRIVIAL(info) << "Simple string format detected" << std::endl;
     }
 
